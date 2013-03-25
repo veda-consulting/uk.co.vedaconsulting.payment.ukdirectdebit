@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+
+<menu>
+  <item>
+     <path>civicrm/directdebit/process</path>
+     <title>Direct Debit</title>
+     <path_arguments></path_arguments>
+     <page_callback>CRM_DirectDebit_Form_DirectDebit</page_callback>
+     <access_arguments>access CiviCRM</access_arguments>
+     <page_type>0</page_type>
+     <component>Contact</component>
+  </item>
+  <item>
+     <path>civicrm/directdebit/display</path>
+     <title>Direct Debit</title>
+     <path_arguments></path_arguments>
+     <page_callback>CRM_DirectDebit_Form_DirectDebitList</page_callback>
+     <access_arguments>access CiviCRM</access_arguments>
+     <page_type>0</page_type>
+     <component>Contact</component>
+  </item>
+</menu>
+

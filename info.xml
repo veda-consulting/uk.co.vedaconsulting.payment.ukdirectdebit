@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+ <extension key="uk.co.vedaconsulting.payment.ukdirectdebit" type="module">
+  <downloadUrl>http://www.vedaconsulting.co.uk</downloadUrl>
+  <file>uk_direct_debit</file>
+  <name>UK Direct Debit</name>
+  <description>Direct Debit by Veda Consulting</description>
+  <urls>
+    <url desc="Main Extension Page"></url>
+    <url desc="Documentation"></url>
+    <url desc="Support"></url>
+    <url desc="Licensing"></url>
+  </urls>
+  <license>AGPL</license>
+  <maintainer>
+    <author>Veda Consulting</author>
+    <email>parvez@vedaconsulting.co.uk</email>
+  </maintainer>
+  <releaseDate>2012-09-01</releaseDate>
+  <version>0.1</version>
+  <develStage>alpha</develStage>
+  <compatibility><ver>4.1</ver></compatibility>
+  <comments></comments>
+</extension>
