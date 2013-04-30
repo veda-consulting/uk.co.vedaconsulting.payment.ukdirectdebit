@@ -32,6 +32,8 @@
  * $Id$
  *
  */
+require_once 'UK_Direct_Debit/Form/Main.php';
+
 class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
 
   static $_paymentProcessor = NULL;
@@ -68,7 +70,6 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.getValue name=
 
   static
   function retrieve($name, $type, $location = 'POST', $abort = TRUE) {
-CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.retrieve');
     static $store = NULL;
     $value = CRM_Utils_Request::retrieve($name, $type, $store,
       FALSE, NULL, $location
@@ -82,15 +83,15 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.retrieve');
   }
 
   function recur(&$input, &$ids, &$objects, $first) {
-CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.recur');
+    CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.recur');
     if (!isset($input['txnType'])) {
       CRM_Core_Error::debug_log_message("Could not find txn_type in input request");
       echo "Failure: Invalid parameters<p>";
       return FALSE;
     }
 
-    if ($input['txnType'] == 'recurring_payment' &&
-      $input['paymentStatus'] != 'Completed'
+    if ( $input['txnType']       == 'recurring_payment' &&
+         $input['paymentStatus'] != 'Completed'
     ) {
       CRM_Core_Error::debug_log_message("Ignore all IPN payments that are not completed");
       echo "Failure: Invalid parameters<p>";
@@ -102,74 +103,67 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.recur');
     // make sure the invoice ids match
     // make sure the invoice is valid and matches what we have in
     // the contribution record
-    if ($recur->invoice_id != $input['invoice']) {
+    if ( $recur->invoice_id != $input['invoice'] ) {
       CRM_Core_Error::debug_log_message("Invoice values dont match between database and IPN request recur is " . $recur->invoice_id . " input is " . $input['invoice']);
       echo "Failure: Invoice values dont match between database and IPN request recur is " . $recur->invoice_id . " input is " . $input['invoice'];
       return FALSE;
     }
 
-    $now = date('YmdHis');
+    $now = date( 'YmdHis' );
 
     // fix dates that already exist
-    $dates = array('create', 'start', 'end', 'cancel', 'modified');
-    foreach ($dates as $date) {
+    $dates = array( 'create', 'start', 'end', 'cancel', 'modified' );
+    foreach ( $dates as $date ) {
       $name = "{$date}_date";
-      if ($recur->$name) {
-        $recur->$name = CRM_Utils_Date::isoToMysql($recur->$name);
+      if ( $recur->$name ) {
+        $recur->$name = CRM_Utils_Date::isoToMysql( $recur->$name );
       }
     }
 
-    $sendNotification = FALSE;
+    $sendNotification          = FALSE;
     $subscriptionPaymentStatus = NULL;
-    //List of Transaction Type
-    /*
-         recurring_payment_profile_created          RP Profile Created
-         recurring_payment          RP Sucessful Payment
-         recurring_payment_failed                               RP Failed Payment
-         recurring_payment_profile_cancel           RP Profile Cancelled
-         recurring_payment_expired        RP Profile Expired
-         recurring_payment_skipped        RP Profile Skipped
-         recurring_payment_outstanding_payment      RP Sucessful Outstanding Payment
-         recurring_payment_outstanding_payment_failed         RP Failed Outstanding Payment
-         recurring_payment_suspended        RP Profile Suspended
-         recurring_payment_suspended_due_to_max_failed_payment  RP Profile Suspended due to Max Failed Payment
-        */
-
 
     //set transaction type
     $txnType = $input['txnType'];
     //Changes for paypal pro recurring payment
 
-    switch ($txnType) {
+    switch ( strtolower( $txnType ) ) {
       case 'recurring_payment_profile_created':
-        $recur->create_date = $now;
+        CRM_Core_Error::debug_log_message("recurring_payment_profile_created");
+        $recur->create_date            = $now;
         $recur->contribution_status_id = 2;
-        $recur->processor_id = $_POST['recurring_payment_id'];
-        $recur->trxn_id = $recur->processor_id;
-        $subscriptionPaymentStatus = CRM_Core_Payment::RECURRING_PAYMENT_START;
-        $sendNotification = TRUE;
+        $recur->processor_id           = $_POST['recurring_payment_id'];
+        $recur->trxn_id                = $recur->processor_id;
+        $subscriptionPaymentStatus     = CRM_Core_Payment::RECURRING_PAYMENT_START;
         break;
-
       case 'recurring_payment':
-        if ($first) {
-          $recur->start_date = $now;
+        CRM_Core_Error::debug_log_message("recurring_payment");
+        if ( $first ) {
+          /* TODO
+           * This should not be now, it should be the dd first collection date
+           * The Cycle date should also be the day the user has chosen and not 1 all the time
+           */
+          //$recur->start_date = $now;
+          $recur->payment_instrument_id = UK_Direct_Debit_Form_Main::getDDPaymentInstrumentID();
+          $recur->trxn_id = $input['trxn_id'];
+          $recur->cycle_day = $input['collection_day'];
+          $recur->start_date = $input['start_date'];
         }
         else {
           $recur->modified_date = $now;
         }
-
-        $profile_status = (isset($_POST['profile_status']) ? $_POST['profile_status'] : 'xx');
+        
+        $profile_status = ( isset( $_POST['profile_status'] ) ? $_POST['profile_status'] : 'xx' );
         //contribution installment is completed
-        if ($profile_status == 'Expired') {
+        if ( $profile_status == 'Expired' ) {
           $recur->contribution_status_id = 1;
-          $recur->end_date = $now;
-          $sendNotification = TRUE;
-          $subscriptionPaymentStatus = CRM_Core_Payment::RECURRING_PAYMENT_END;
+          $recur->end_date               = $now;
+          $subscriptionPaymentStatus     = CRM_Core_Payment::RECURRING_PAYMENT_END;
         }
 
         // make sure the contribution status is not done
         // since order of ipn's is unknown
-        if ($recur->contribution_status_id != 1) {
+        if ( $recur->contribution_status_id != 1 ) {
           $recur->contribution_status_id = 5;
         }
         break;
@@ -177,31 +171,29 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.recur');
 
     $recur->save();
 
-    if ($sendNotification) {
+    if ( $sendNotification ) {
       $autoRenewMembership = FALSE;
-      if ($recur->id &&
-        isset($ids['membership']) && $ids['membership']
-      ) {
+      if ( $recur->id && isset( $ids['membership'] ) && $ids['membership'] ) {
         $autoRenewMembership = TRUE;
       }
       //send recurring Notification email for user
-      CRM_Contribute_BAO_ContributionPage::recurringNotify($subscriptionPaymentStatus,
-        $ids['contact'],
-        $ids['contributionPage'],
-        $recur,
-        $autoRenewMembership
-      );
+      CRM_Contribute_BAO_ContributionPage::recurringNotify( $subscriptionPaymentStatus,
+                                                            $ids['contact'],
+                                                            $ids['contributionPage'],
+                                                            $recur,
+                                                            $autoRenewMembership
+                                                           );
     }
-    
+
     CRM_Core_Error::debug_log_message("Check Recurring : $txnType");
 
-    if ($txnType != 'recurring_payment') {
+    if ( $txnType != 'recurring_payment' ) {
       return;
     }
 
     CRM_Core_Error::debug_log_message("Yep, Recurring");
-    
-    if (!$first) {
+
+    if ( !$first ) {
       CRM_Core_Error::debug_log_message("Recurring but not First Payment");
 
       // create a contribution and then get it processed
@@ -210,37 +202,41 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.recur');
       $contribution->contribution_type_id = $objects['contributionType']->id;
       $contribution->contribution_page_id = $ids['contributionPage'];
       $contribution->contribution_recur_id = $ids['contributionRecur'];
+      
+      /* TODO
+       * This should probably be the date received, which is probably not now an a date passed in
+       */
       $contribution->receive_date = $now;
+      
       $contribution->currency = $objects['contribution']->currency;
-      $contribution->payment_instrument_id = $objects['contribution']->payment_instrument_id;
-      $contribution->amount_level = $objects['contribution']->amount_level;
+      $contribution->payment_instrument_id = UK_Direct_Debit_Form_Main::getDDPaymentInstrumentID(); // $objects['contribution']->payment_instrument_id;
+      $contribution->amount_level          = $objects['contribution']->amount_level;
 
-      $objects['contribution'] = &$contribution;
+      $objects['contribution']             = &$contribution;
     }
 
-    $this->single($input, $ids, $objects,
-      TRUE, $first
-    );
+    $this->single( $input, $ids, $objects, TRUE, $first );
+    
   }
 
-  function single(&$input, &$ids, &$objects, $recur = FALSE, $first = FALSE) {
-CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.single');
+  function single( &$input, &$ids, &$objects, $recur = FALSE, $first = FALSE ) {
+    CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.single');
     $contribution = &$objects['contribution'];
 
     // make sure the invoice is valid and matches what we have in the contribution record
-    if ((!$recur) || ($recur && $first)) {
-      if ($contribution->invoice_id != $input['invoice']) {
+    if ( ( !$recur ) || ( $recur && $first ) ) {
+      if ( $contribution->invoice_id != $input['invoice'] ) {
         CRM_Core_Error::debug_log_message("Invoice values dont match between database and IPN request");
         echo "Failure: Invoice values dont match between database and IPN request<p>contribution is" . $contribution->invoice_id . " and input is " . $input['invoice'];
         return FALSE;
       }
     }
     else {
-      $contribution->invoice_id = md5(uniqid(rand(), TRUE));
+      $contribution->invoice_id = md5( uniqid( rand(), TRUE ) );
     }
 
-    if (!$recur) {
-      if ($contribution->total_amount != $input['amount']) {
+    if ( !$recur ) {
+      if ( $contribution->total_amount != $input['amount'] ) {
         CRM_Core_Error::debug_log_message("Amount values dont match between database and IPN request");
         echo "Failure: Amount values dont match between database and IPN request<p>";
         return FALSE;
@@ -250,6 +246,13 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.single');
       $contribution->total_amount = $input['amount'];
     }
 
+    $contribution->payment_instrument_id = UK_Direct_Debit_Form_Main::getDDPaymentInstrumentID();
+    
+    if ($first) {
+        // Set the received date to the date expected for DD payments
+        $contribution->receive_date = $input['start_date'];
+    }
+    
     $transaction = new CRM_Core_Transaction();
 
     // fix for CRM-2842
@@ -258,140 +261,184 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.single');
     //  }
 
     $participant = &$objects['participant'];
-    $membership = &$objects['membership'];
+    $membership  = &$objects['membership'];
+    $first_membership_object = &$membership[key($membership)];
+    
+    // PS Set the recurring against the membership in case its not set already
+    // Not sure why its not getting set - seems like a bug in core somewhere thats probably something to do with the payment instrument being credit card or something 
+    CRM_Core_Error::debug_log_message("About to check if recurring (".$first_membership_object->contribution_recur_id.")");
+    if ($recur && $first && empty($first_membership_object->contribution_recur_id)) {
+        CRM_Core_Error::debug_log_message("Its Recurring and membership isn't set so set it to ".$ids['contributionRecur']);
+        $first_membership_object->contribution_recur_id = $ids['contributionRecur'];
+    }
+    
+    CRM_Core_Error::debug_log_message( 'membership:' . print_r( $membership, true ) );
 
     $status = $input['paymentStatus'];
-    if ($status == 'Denied' || $status == 'Failed' || $status == 'Voided') {
-      return $this->failed($objects, $transaction);
+    if ( $status == 'Denied' || $status == 'Failed' || $status == 'Voided' ) {
+      return $this->failed( $objects, $transaction );
     }
-    elseif ($status == 'Pending') {
-      return $this->pending($objects, $transaction);
+    elseif ( $status == 'Pending' ) {
+      return $this->pending( $objects, $transaction );
     }
-    elseif ($status == 'Refunded' || $status == 'Reversed') {
-      return $this->cancelled($objects, $transaction);
+    elseif ( $status == 'Refunded' || $status == 'Reversed' ) {
+      return $this->cancelled( $objects, $transaction );
     }
-    elseif ($status != 'Completed') {
-      return $this->unhandled($objects, $transaction);
+    elseif ( $status != 'Completed' ) {
+      return $this->unhandled( $objects, $transaction );
     }
 
     // check if contribution is already completed, if so we ignore this ipn
-    if ($contribution->contribution_status_id == 1) {
+    if ( $contribution->contribution_status_id == 1 ) {
       $transaction->commit();
       CRM_Core_Error::debug_log_message("returning since contribution has already been handled");
       echo "Success: Contribution has already been handled<p>";
       return TRUE;
     }
 
-    $this->completeTransaction($input, $ids, $objects, $transaction, $recur);
+    $this->completeTransaction( $input, $ids, $objects, $transaction, $recur );
+    
+    CRM_Core_Error::debug_log_message("Finished IPN Complete Transaction");
+    CRM_Core_Error::debug_log_message("Check First");
+    // PS Added
+    // If its the first payment being recorded then we need to call the complete DD setup routine
+    // All of the data required will now be in place
+    if ($first) {
+       CRM_Core_Error::debug_log_message("Is First, now IPN Call Complete DD Setup");
+       CRM_Core_Error::debug_log_message("Contribution Object = ".print_r($contribution, TRUE));
+       CRM_Core_Error::debug_log_message("Membership Object = ".print_r($membership, TRUE));
+       CRM_Core_Error::debug_log_message("input Object = ".print_r($input, TRUE));
+       CRM_Core_Error::debug_log_message("objects Object = ".print_r($objects, TRUE));
+       require_once 'UK_Direct_Debit/Form/Main.php';
+       UK_Direct_Debit_Form_Main::completeDirectDebitSetup( $objects );
+    }
   }
 
   function main($component = 'contribute') {
-CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.main');
+    CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.main');
     CRM_Core_Error::debug_var('GET', $_GET, TRUE, TRUE);
     CRM_Core_Error::debug_var('POST', $_POST, TRUE, TRUE);
 
 
-    $objects = $ids = $input = array();
+    $objects            = $ids = $input = array();
     $input['component'] = $component;
 
     // get the contribution and contact ids from the GET params
-    $ids['contact'] = self::retrieve('contactID', 'Integer', 'GET', TRUE);
-    $ids['contribution'] = self::retrieve('contributionID', 'Integer', 'GET', TRUE);
+    $ids['contact']      = self::retrieve( 'contactID'     , 'Integer', 'GET', TRUE );
+    $ids['contribution'] = self::retrieve( 'contributionID', 'Integer', 'GET', TRUE );
 
-    $this->getInput($input, $ids);
+    $this->getInput( $input, $ids );
 
-    if ($component == 'event') {
-      $ids['event'] = self::getValue('e', TRUE);
-      $ids['participant'] = self::getValue('p', TRUE);
-      $ids['contributionRecur'] = self::getValue('r', FALSE);
+    if ( $component == 'event' ) {
+      $ids['event']             = self::getValue( 'e', TRUE  );
+      $ids['participant']       = self::getValue( 'p', TRUE  );
+      $ids['contributionRecur'] = self::getValue( 'r', FALSE );
     }
     else {
       // get the optional ids
-      $ids['membership'] = self::retrieve('membershipID', 'Integer', 'GET', FALSE);
-      $ids['contributionRecur'] = self::retrieve('contributionRecurID', 'Integer', 'GET', FALSE);
-      $ids['contributionPage'] = self::retrieve('contributionPageID', 'Integer', 'GET', FALSE);
-      $ids['related_contact'] = self::retrieve('relatedContactID', 'Integer', 'GET', FALSE);
-      $ids['onbehalf_dupe_alert'] = self::retrieve('onBehalfDupeAlert', 'Integer', 'GET', FALSE);
+      $ids['membership']          = self::retrieve( 'membershipID'       , 'Integer', 'GET', FALSE );
+      $ids['contributionRecur']   = self::retrieve( 'contributionRecurID', 'Integer', 'GET', FALSE );
+      $ids['contributionPage']    = self::retrieve( 'contributionPageID' , 'Integer', 'GET', FALSE );
+      $ids['related_contact']     = self::retrieve( 'relatedContactID'   , 'Integer', 'GET', FALSE );
+      $ids['onbehalf_dupe_alert'] = self::retrieve( 'onBehalfDupeAlert'  , 'Integer', 'GET', FALSE );
     }
+    
 
-    if ($ids['membership'] && !$ids['contributionRecur']) {
-      $sql = "
-    SELECT m.contribution_recur_id
-      FROM civicrm_membership m
-INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contribution_id = %1
-     WHERE m.id = %2
-     LIMIT 1";
-      $sqlParams = array(1 => array($ids['contribution'], 'Integer'),
-        2 => array($ids['membership'], 'Integer'),
-      );
-      if ($contributionRecurId = CRM_Core_DAO::singleValueQuery($sql, $sqlParams)) {
+	CRM_Core_Error::debug_log_message('$ids:' . print_r( $ids, true ) );
+
+	if ( $ids['membership'] && !$ids['contributionRecur'] ) {
+		$sql = <<<EOF
+                SELECT m.contribution_recur_id
+                FROM   civicrm_membership m
+                INNER  JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contribution_id = %1
+                WHERE  m.id = %2
+                LIMIT 1
+EOF;
+
+      $sqlParams = array( 1 => array( $ids['contribution'], 'Integer' )
+                        , 2 => array( $ids['membership']  , 'Integer' )
+                        );
+
+      $contributionRecurId = CRM_Core_DAO::singleValueQuery( $sql, $sqlParams );
+      if ( !empty( $contributionRecurId ) ) {
         $ids['contributionRecur'] = $contributionRecurId;
       }
     }
+/*
+    CRM_Core_Error::debug_log_message( '$sql:'                 . print_r( $sql                , true ) );
+    CRM_Core_Error::debug_log_message( '$sqlParams:'           . print_r( $sqlParams          , true ) );
+    CRM_Core_Error::debug_log_message( '$contributionRecurId:' . print_r( $contributionRecurId, true ) );
+*/
+    $paymentProcessorID = CRM_Core_DAO::getFieldValue(  'CRM_Core_DAO_PaymentProcessorType'
+                                                      , 'Smart Debit'
+                                                      , 'id'
+                                                      , 'name'
+                                                      );
 
-    $paymentProcessorID = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_PaymentProcessorType',
-      'Smart Debit', 'id', 'name'
-    );
-
-    if (!$this->validateData($input, $ids, $objects, TRUE, $paymentProcessorID)) {
+    if ( !$this->validateData( $input, $ids, $objects, TRUE, $paymentProcessorID ) ) {
       return FALSE;
     }
 
     self::$_paymentProcessor = &$objects['paymentProcessor'];
-    if ($component == 'contribute' || $component == 'event') {
-      if ($ids['contributionRecur']) {
+    if ( $component == 'contribute' || $component == 'event' ) {
+      if ( $ids['contributionRecur'] ) {
         // check if first contribution is completed, else complete first contribution
         $first = TRUE;
-        if ($objects['contribution']->contribution_status_id == 1) {
+        if ( $objects['contribution']->contribution_status_id == 1 ) {
           $first = FALSE;
         }
-        return $this->recur($input, $ids, $objects, $first);
+        CRM_Core_Error::debug_log_message( 'Calling $this->recur()' );
+        return $this->recur( $input, $ids, $objects, $first );
       }
       else {
-        return $this->single($input, $ids, $objects, FALSE, FALSE);
+        CRM_Core_Error::debug_log_message( 'Calling $this->single()' );
+        return $this->single( $input, $ids, $objects, FALSE, FALSE );
       }
     }
     else {
-      return $this->single($input, $ids, $objects, FALSE, FALSE);
+      return $this->single( $input, $ids, $objects, FALSE, FALSE );
     }
   }
 
   function getInput(&$input, &$ids) {
-CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.getInput');
+    CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.getInput');
 
-    if (!$this->getBillingID($ids)) {
+    if ( !$this->getBillingID( $ids ) ) {
       return FALSE;
     }
 
-    $input['txnType'] = self::retrieve('txn_type', 'String', 'GET', FALSE);
 //    $input['paymentStatus'] = self::retrieve('payment_status', 'String', 'POST', FALSE);
-    $input['paymentStatus'] = self::retrieve('payment_status', 'String', 'GET', FALSE);
 //    $input['invoice'] = self::getValue('i', TRUE);
-    $input['invoice'] = self::retrieve('invoice', 'String', 'GET', TRUE);
-
 //    $input['amount'] = self::retrieve('mc_gross', 'Money', 'POST', FALSE);
-    $input['amount'] = self::retrieve('mc_gross', 'Money', 'GET', FALSE);
-    $input['reasonCode'] = self::retrieve('ReasonCode', 'String', 'POST', FALSE);
+    $input['txnType']           = self::retrieve( 'txn_type'        , 'String', 'GET',  FALSE );
+    $input['paymentStatus']     = self::retrieve( 'payment_status'  , 'String', 'GET',  FALSE );
+    $input['invoice']           = self::retrieve( 'invoice'         , 'String', 'GET',  TRUE  );
+    $input['amount']            = self::retrieve( 'mc_gross'        , 'Money' , 'GET',  FALSE );
+    $input['reasonCode']        = self::retrieve( 'ReasonCode'      , 'String', 'POST', FALSE );
 
     $billingID = $ids['billing'];
-    $lookup = array(
-      "first_name" => 'first_name',
-      "last_name" => 'last_name',
-      "street_address-{$billingID}" => 'address_street',
-      "city-{$billingID}" => 'address_city',
-      "state-{$billingID}" => 'address_state',
-      "postal_code-{$billingID}" => 'address_zip',
-      "country-{$billingID}" => 'address_country_code',
-    );
-    foreach ($lookup as $name => $paypalName) {
-      $value = self::retrieve($paypalName, 'String', 'POST', FALSE);
+    $lookup    = array(
+                        "first_name"                  => 'first_name',
+                        "last_name"                   => 'last_name',
+                        "street_address-{$billingID}" => 'address_street',
+                        "city-{$billingID}"           => 'address_city',
+                        "state-{$billingID}"          => 'address_state',
+                        "postal_code-{$billingID}"    => 'address_zip',
+                        "country-{$billingID}"        => 'address_country_code'
+                      );
+    foreach ( $lookup as $name => $paypalName ) {
+      $value        = self::retrieve( $paypalName, 'String', 'POST', FALSE );
       $input[$name] = $value ? $value : NULL;
     }
-
-    $input['is_test']    = self::retrieve('test_ipn', 'Integer', 'POST', FALSE);
-    $input['fee_amount'] = self::retrieve('mc_fee', 'Money', 'POST', FALSE);
-    $input['net_amount'] = self::retrieve('settle_amount', 'Money', 'POST', FALSE);
-    $input['trxn_id']    = self::retrieve('txn_id', 'String', 'POST', FALSE);
+    $input['collection_day']   = self::retrieve( 'collection_day' , 'Integer', 'GET',  FALSE );
+    $input['start_date']   = self::retrieve( 'first_collection_date' , 'String', 'GET',  FALSE );
+    
+    $start_date = new DateTime($input['start_date']); // convert UNIX timestamp to PHP DateTime
+    $input['start_date'] = $start_date->format('YmdHis');
+    
+    $input['is_test']    = self::retrieve( 'test_ipn'     , 'Integer', 'POST', FALSE );
+    $input['fee_amount'] = self::retrieve( 'mc_fee'       , 'Money'  , 'POST', FALSE );
+    $input['net_amount'] = self::retrieve( 'settle_amount', 'Money'  , 'POST', FALSE );
+    $input['trxn_id']    = self::retrieve( 'txn_id'       , 'String' , 'GET', FALSE );
   }
 }
-

@@ -274,54 +274,56 @@ class CRM_Core_Payment_Form {
            THIS CODE WILL NO LONGER BE REQUIRED WHEN WE UPGRADE TO CIVICRM 4.3
          */
         require_once 'CRM/Core/BAO/PaymentProcessor.php';
-        $paymentProcessor = CRM_Core_BAO_PaymentProcessor::getPayment($form->_paymentProcessor['id'], $mode);
+        $mode             = null; // set to 'test' when in Testing environment.
+        $paymentProcessor = CRM_Core_BAO_PaymentProcessor::getPayment( $form->_paymentProcessor['id'], $mode );
 
         // Should never be empty - we already established this processor_id exists and is active.
-        if (empty($paymentProcessor)) {
-          continue;
+        if ( empty( $paymentProcessor ) ) {
+          return;
         }
-        $ext = new CRM_Core_Extensions();
-        if ($ext->isExtensionKey($form->_paymentProcessor['class_name'])) {
-            $extension_instance_found = TRUE;
-            $paymentClass = $ext->keyToClass($form->_paymentProcessor['class_name'], 'payment');
-            $paymentClassPath = $ext->keyToPath($form->_paymentProcessor['class_name'], 'payment');
+        
+        $ext              = new CRM_Core_Extensions();
+        $paymentClass     = null;
+        $paymentClassPath = null;
+        if ( $ext->isExtensionKey( $form->_paymentProcessor['class_name'] ) ) {
+            $paymentClass             = $ext->keyToClass( $form->_paymentProcessor['class_name'], 'payment' );
+            $paymentClassPath         = $ext->keyToPath(  $form->_paymentProcessor['class_name'], 'payment' );
             require_once $paymentClassPath;
         }
 
         // Instantiate PP
-   $eval_sring = '$processorInstance = ' . $paymentClass . '::singleton( $mode, $paymentProcessor );';
-        eval($eval_sring);
+        $eval_sring = '$processorInstance = ' . $paymentClass . '::singleton( $mode, $paymentProcessor );';
+        eval( $eval_sring );
 
         // Does PP implement this method, and can we call it?
         $method = 'buildForm';
-        if (!method_exists($processorInstance, $method) ||
-          !is_callable(array($processorInstance, $method))
+        if ( !method_exists( $processorInstance, $method ) ||
+           !is_callable( array( $processorInstance, $method ) )
         ) {
           // No? Do nothing
           // CRM_Core_Error::fatal("Payment processor does not implement a '$method' method");
           // 
         } else {
-
           CRM_Core_Payment_Form::_setPaymentFields( $form );
-          $processorInstance->$method($form);
+          $processorInstance->$method( $form );
         }
+
         /* PS 24/10/2012 END OF DD CODE
            THIS CODE WILL NO LONGER BE REQUIRED WHEN WE UPGRADE TO CIVICRM 4.3
-         */
-
-        if ( $form->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_FORM) {
+        */
+        if ( $form->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_FORM ) {
             foreach ( $form->_fields as $name => $field ) {
-                if ( isset( $field['cc_field'] ) &&
-                     $field['cc_field'] ) {
-                    $form->add( $field['htmlType'],
-                                $field['name'],
-                                $field['title'],
-                                $field['attributes'],
-                                $useRequired ? $field['is_required'] : false );
+                if ( isset( $field['cc_field'] ) && $field['cc_field'] ) {
+                    $form->add( $field['htmlType']
+                              , $field['name']
+                              , $field['title']
+                              , $field['attributes']
+                              , $useRequired ? $field['is_required'] : false 
+                              );
                 }
             }
-/* PS 01/11/2012 We dont do this anymore for DD's as the rules are set in the PP
- * 
+            /* PS 01/11/2012 We dont do this anymore for DD's as the rules are set in the PP
+             * 
             $form->addRule( 'bank_identification_number',
                             ts( 'Please enter a valid Bank Identification Number (value must not contain punctuation characters).' ),
                             'nopunctuation' );
@@ -329,16 +331,17 @@ class CRM_Core_Payment_Form {
             $form->addRule( 'bank_account_number',
                             ts('Please enter a valid Bank Account Number (value must not contain punctuation characters).'),
                             'nopunctuation' );
- * 
- */
+            * 
+            */
         }            
             
         if ( $form->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_BUTTON ) {
-            $form->_expressButtonName = $form->getButtonName( $form->buttonType( ), 'express' );
-            $form->add('image',
-                       $form->_expressButtonName,
-                       $form->_paymentProcessor['url_button'],
-                       array( 'class' => 'form-submit' ) );
+            $form->_expressButtonName = $form->getButtonName( $form->buttonType(), 'express' );
+            $form->add( 'image'
+                      , $form->_expressButtonName
+                      , $form->_paymentProcessor['url_button']
+                      , array( 'class' => 'form-submit' ) 
+                      );
         }
     }
 

@@ -139,7 +139,7 @@ If you do not wish to proceed any further please <a href="/">click here</a> to e
                 </fieldset>
 
                 <fieldset class="billing_name_address-group">
-                    <legend>{ts}Billing Name and Address Hello?{/ts}</legend>
+                    <legend>{ts}Billing Name and Address{/ts}</legend>
                     <div class="crm-section billing_name_address-section">
                         <div class="crm-section billingNameInfo-section">   
                             <div class="content description">

@@ -35,21 +35,23 @@
             {$thankyou_text}
         </div>
     {/if}
-    
+
     {* Show link to Tell a Friend (CRM-2153) *}
     {if $friendText}
         <div id="tell-a-friend" class="crm-section friend_link-section">
             <a href="{$friendURL}" title="{$friendText}" class="button"><span>&raquo; {$friendText}</span></a>
        </div>{if !$linkText}<br /><br />{/if}
-    {/if}  
+    {/if}
     {* Add button for donor to create their own Personal Campaign page *}
     {if $linkText}
     <div class="crm-section create_pcp_link-section">
         <a href="{$linkTextUrl}" title="{$linkText}" class="button"><span>&raquo; {$linkText}</span></a>
     </div><br /><br />
-    {/if}  
+    {/if}
 
-<div style="font-size:1.3em; text-align: center; margin: 0% 25% 20px 25%; border: 1px solid #000000; width: 50%; "><em><strong>Important : Confirmation of the set up of your Direct Debit Instruction including future payment schedule</strong></em></div>
+    {if $paymentProcessor.payment_type & 2}
+      <div style="font-size:1.3em; text-align: center; margin: 0% 25% 20px 25%; border: 1px solid #000000; width: 50%; "><em><strong>Important : Confirmation of the set up of your Direct Debit Instruction including future payment schedule</strong></em></div>
+    {/if}
 
     <div id="help">
         {* PayPal_Standard sets contribution_mode to 'notify'. We don't know if transaction is successful until we receive the IPN (payment notification) *}
@@ -57,7 +59,7 @@
         <div class="bold">{$pay_later_receipt}</div>
         {if $is_email_receipt}
                 <div>
-            {if $onBehalfEmail AND ($onBehalfEmail neq $email)}         
+            {if $onBehalfEmail AND ($onBehalfEmail neq $email)}
             {ts 1=$email 2=$onBehalfEmail}An email confirmation with these payment instructions has been sent to %1 and to %2.{/ts}
             {else}
             {ts 1=$email}An email confirmation with these payment instructions has been sent to %1.{/ts}
@@ -82,9 +84,9 @@
         {else}
             <div>{ts}Your transaction has been processed successfully. Please print this page for your records.{/ts}</div>
             {if $is_email_receipt}
-                <div>           
+                <div>
             {if $onBehalfEmail AND ($onBehalfEmail neq $email)}
-            {ts 1=$email 2=$onBehalfEmail}An email receipt has also been sent to %1 and to %2{/ts}          
+            {ts 1=$email 2=$onBehalfEmail}An email receipt has also been sent to %1 and to %2{/ts}
             {else}
             {ts 1=$email}An email receipt has also been sent to %1{/ts}
             {/if}
@@ -93,7 +95,7 @@
         {/if}
     </div>
     <div class="spacer"></div>
-    
+
     {include file="CRM/Contribute/Form/Contribution/MembershipBlock.tpl" context="thankContribution"}
 
     {if $amount GT 0 OR $minimum_fee GT 0 OR ( $priceSetID and $lineItem ) }
@@ -109,7 +111,7 @@
             {if !$amount}{assign var="amount" value=0}{/if}
             {assign var="totalAmount" value=$amount}
                 {include file="CRM/Price/Page/LineItem.tpl" context="Contribution"}
-            {elseif $membership_amount } 
+            {elseif $membership_amount }
                 {$membership_name} {ts}Membership{/ts}: <strong>{$membership_amount|crmMoney}</strong><br />
                 {if $amount}
                     {if ! $is_separate_payment }
@@ -117,7 +119,7 @@
                 {else}
                 {ts}Additional Contribution{/ts}: <strong>{$amount|crmMoney}</strong><br />
                 {/if}
-                {/if}       
+                {/if}
                 <strong> -------------------------------------------</strong><br />
                 {ts}Total{/ts}: <strong>{$amount+$membership_amount|crmMoney}</strong><br />
             {else}
@@ -137,7 +139,7 @@
             {if $membership_trx_id}
             {ts}Membership Transaction #{/ts}: {$membership_trx_id}
             {/if}
-        
+
             {* Recurring contribution / pledge information *}
             {if $is_recur}
                 {if $membershipBlock} {* Auto-renew membership confirmation *}
@@ -187,7 +189,7 @@
         </div>
     </div>
     {/if}
-    
+
     {include file="CRM/Contribute/Form/Contribution/Honor.tpl"}
 
     {if $customPre}
@@ -195,7 +197,7 @@
                 {include file="CRM/UF/Form/Block.tpl" fields=$customPre}
             </fieldset>
     {/if}
-    
+
     {if $pcpBlock}
     <div class="crm-group pcp_display-group">
         <div class="header-dark">
@@ -221,7 +223,7 @@
        </div>
     </div>
     {/if}
-    
+
     {if $onbehalfProfile}
       <div class="crm-group onBehalf_display-group">
          {include file="CRM/UF/Form/Block.tpl" fields=$onbehalfProfile}
@@ -232,8 +234,8 @@
          </div>
       </div>
     {/if}
-    
-    {if $contributeMode ne 'notify' and ! $is_pay_later and $is_monetary and ( $amount GT 0 OR $minimum_fee GT 0 )}    
+
+    {if $contributeMode ne 'notify' and ! $is_pay_later and $is_monetary and ( $amount GT 0 OR $minimum_fee GT 0 )}
     <div class="crm-group billing_name_address-group">
         <div class="header-dark">
             {ts}Billing Name and Address{/ts}
@@ -260,7 +262,7 @@
             {ts}Direct Debit Information{/ts}
             </div>
             <div>{ts}Thank you very much for your Direct Debit Instruction details. Below is the Direct Debit Guarantee for your information.{/ts}</div>
-            <div>Please <a href="javascript:window.print()" title="Print this page.">PRINT THIS PAGE</a> for you records</div>           
+            <div>Please <a href="javascript:window.print()" title="Print this page.">PRINT THIS PAGE</a> for you records</div>
          {else}
             <div class="header-dark">
             {ts}Credit Card Information{/ts}
@@ -269,7 +271,7 @@
         </div>
          {if $paymentProcessor.payment_type & 2}
                 <div class="display-block">
-                
+
 {* Start of DDI *}
 <div style="float: left;border: 1px solid #000000;background-color: #ffffff;width: 100%;">
 
@@ -280,7 +282,7 @@
     </div>
 
     <div style="float: left;margin-left: 5px;margin-right: 10px;width: 305px;">
-                                        
+
         <p>
           <div style="background-color: #ffffff;border: 1px solid #999999;padding: 0px 5px;">
             <b>{$company_address.company_name}</b><br>
@@ -329,7 +331,7 @@
           <div style="border-bottom: 1px solid #dddddd;margin-top: 15px;"><span style="font-weight: bold;">Branch</span><span style="margin-left: 3em;">{$direct_debit_details.branch}</span></div>
           <div style="border-bottom: 1px solid #dddddd;margin-top: 15px;"><span style="font-weight: bold;">Address</span></div>
 
-            {if ($direct_debit_details.address1 != '')} <div style="border-bottom: 1px solid #dddddd;margin-top: 15px;">{$direct_debit_details.address1}<br/></div> {/if}                   
+            {if ($direct_debit_details.address1 != '')} <div style="border-bottom: 1px solid #dddddd;margin-top: 15px;">{$direct_debit_details.address1}<br/></div> {/if}
             {if ($direct_debit_details.address2 != '')} <div style="border-bottom: 1px solid #dddddd;margin-top: 15px;">{$direct_debit_details.address2}<br/></div> {/if}
             {if ($direct_debit_details.address3 != '')} <div style="border-bottom: 1px solid #dddddd;margin-top: 15px;">{$direct_debit_details.address3}<br/></div> {/if}
             {if ($direct_debit_details.address4 != '')} <div style="border-bottom: 1px solid #dddddd;margin-top: 15px;">{$direct_debit_details.address4}<br/></div> {/if}
@@ -405,19 +407,19 @@
     <TR>
      <TD WIDTH="94%" VALIGN=TOP>
       <P ALIGN=LEFT>
-       <FONT FACE="Arial,Helvetica,Monaco"><FONT SIZE="3">&#149;</FONT><FONT SIZE="1"> 
+       <FONT FACE="Arial,Helvetica,Monaco"><FONT SIZE="3">&#149;</FONT><FONT SIZE="1">
        {ts}This Guarantee is offered by all banks and building societies that accept instructions to pay Direct Debits.{/ts}
        </FONT></FONT><BR>
-       <FONT FACE="Arial,Helvetica,Monaco"><FONT SIZE="3">&#149;</FONT><FONT SIZE="1"> 
+       <FONT FACE="Arial,Helvetica,Monaco"><FONT SIZE="3">&#149;</FONT><FONT SIZE="1">
        {ts}If there are any changes to the amount, date or frequency of your Direct Debit {$company_address.company_name} will notify you 10 working days in advance of your account being debited or as otherwise agreed. If you request {$company_address.company_name} to collect a payment, confirmation of the amount and date will be given to you at the time of the request.{/ts}
        </FONT></FONT><BR>
-       <FONT FACE="Arial,Helvetica,Monaco"><FONT SIZE="3">&#149;</FONT><FONT SIZE="1"> 
+       <FONT FACE="Arial,Helvetica,Monaco"><FONT SIZE="3">&#149;</FONT><FONT SIZE="1">
        {ts}If an error is made in the payment of your Direct Debit, by {$company_address.company_name} or your bank or building society, you are entitled to a full and immediate refund of the amount paid from your bank or building society.{/ts}
        </FONT></FONT><BR>
-       <FONT FACE="Arial,Helvetica,Monaco"><FONT SIZE="3">&#149;</FONT><FONT SIZE="1"> 
+       <FONT FACE="Arial,Helvetica,Monaco"><FONT SIZE="3">&#149;</FONT><FONT SIZE="1">
        {ts}If you receive a refund you are not entitled to, you must pay it back when {$company_address.company_name} asks you to.{/ts}
        </FONT></FONT><BR>
-       <FONT FACE="Arial,Helvetica,Monaco"><FONT SIZE="3">&#149;</FONT><FONT SIZE="1"> 
+       <FONT FACE="Arial,Helvetica,Monaco"><FONT SIZE="3">&#149;</FONT><FONT SIZE="1">
        {ts}You can cancel a Direct Debit at any time by simply contacting your bank or building society. Written confirmation may be required. Please also notify us.{/ts}
        </FONT></FONT><BR>
      <TD WIDTH="20" VALIGN=TOP></TD>
