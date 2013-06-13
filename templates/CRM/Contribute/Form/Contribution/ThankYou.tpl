@@ -296,7 +296,7 @@
           </div>
         </p>
 
-        <h2 style="font-size: 1em;margin-bottom: -10px;text-align: left;font-weight: bold;">Name(s) of Account Holder(s)</h2>
+        <h2 style="font-size: 1em;margin-bottom: -5px; margin-top: 15px;text-align: left;font-weight: bold;">Name(s) of Account Holder(s)</h2>
 
         <p>
           <div style="background-color: #ffffff;border: 1px solid #999999;padding: 0px 5px;">
@@ -304,7 +304,7 @@
           </div>
         </p>
 
-        <h2 style="font-size: 1em;margin-bottom: -10px;text-align: left;font-weight: bold;">Bank/Building Society Account Number</h2>
+        <h2 style="font-size: 1em;margin-bottom: -5px; margin-top: 15px;text-align: left;font-weight: bold;">Bank/Building Society Account Number</h2>
 
         <p>
           <table style="background-color: #ffffff;border: 1px solid #000000;border-collapse: collapse;" summary="Branch Sort Code">
@@ -314,7 +314,7 @@
           </table>
         </p>
 
-        <h2 style="font-size: 1em;margin-bottom: -10px;text-align: left;font-weight: bold;">Branch Sort Code</h2>
+        <h2 style="font-size: 1em;margin-bottom: -5px; margin-top: 15px;text-align: left;font-weight: bold;">Branch Sort Code</h2>
 
         <p>
           <table style="background-color: #ffffff;border: 1px solid #000000;border-collapse: collapse;" summary="Branch Sort Code">
@@ -349,7 +349,7 @@
 
         <h1 style="font-size: 1.3em;margin-top: 0;text-align: left;margin: 0% 0%;">Instruction to your Bank or Building Society to pay by Direct Debit</h1>
 
-        <h2 style="font-size: 1em;margin-bottom: -10px;text-align: left;font-weight: bold;">Service User Number</h2>
+        <h2 style="font-size: 1em;margin-bottom: -5px; margin-top: 15px;text-align: left;font-weight: bold;">Service User Number</h2>
 
         <p>
           <table style="background-color: #ffffff;border: 1px solid #000000;border-collapse: collapse;" summary="Branch Sort Code">
@@ -361,7 +361,7 @@
           </table>
         </p>
 
-        <h2 style="font-size: 1em;margin-bottom: -10px;text-align: left;font-weight: bold;">Reference:</h2>
+        <h2 style="font-size: 1em;margin-bottom: -5px; margin-top: 15px;text-align: left;font-weight: bold;">Reference:</h2>
 
         <p>
           <div style="background-color: #ffffff;border: 1px solid #999999;padding: 0px 5px;">
@@ -370,7 +370,7 @@
         </p>
 
 
-        <h2 style="font-size: 1em;text-align: center;font-weight: bold;margin-bottom: -10px;">Instruction to your Bank or Building Society</h2>
+        <h2 style="font-size: 1em;text-align: left;font-weight: bold;margin-bottom: 3px; margin-top: 15px;">Instruction to your Bank or Building Society</h2>
 
         <p>
         Please pay {$company_address.company_name} Direct Debits from the account detailed in this Instruction subject to the safeguards assured by the Direct Debit Guarantee. I understand that this Instruction may remain with {$company_address.company_name} and, if so, details will be passed electronically to my Bank / Building Society.

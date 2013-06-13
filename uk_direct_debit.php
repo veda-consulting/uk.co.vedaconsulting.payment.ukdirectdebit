@@ -17,7 +17,7 @@ function register_install() {
 
 function uk_direct_debit_civicrm_install( ) {
   register_install();
-  
+
   require_once 'CRM/Core/BAO/Setting.php';
   CRM_Core_BAO_Setting::setItem('Veda Test Company',
           'UK Direct Debit',
@@ -97,6 +97,11 @@ function uk_direct_debit_civicrm_install( ) {
   CRM_Core_BAO_Setting::setItem('WEB',
           'UK Direct Debit',
           'transaction_prefix'
+        );
+
+  CRM_Core_BAO_Setting::setItem('Y',
+          'UK Direct Debit',
+          'auto_renew_membership'
         );
 
   // Create an Direct Debit Activity Type
@@ -193,6 +198,8 @@ function uk_direct_debit_message_template() {
    $msg_title   = 'direct_debit_confirmation';
    $msg_subject = 'Thank you for your direct debit sign-up';
 
+   $text = ' ';
+/*
    $text  = '{ts 1=$displayName}Dear %1{/ts},';
    $text .= '';
    $text .= '{ts}Thanks for your direct debit sign-up.{/ts}';
@@ -223,7 +230,10 @@ function uk_direct_debit_message_template() {
    $text .= 'Thanks for being a gas company plc customer. If we can help at all please get in touch – that’s what we’re here for.';
    $text .= '';
    $text .= 'Yours sincerely,';
+*/
+   $html = ' ';
 
+/*
    $html  = '<div>{full_address}</div>';
    $html .= '<p>&nbsp;</p>';
    $html .= '<div>Dear {salutation_name},</div>';
@@ -292,7 +302,7 @@ function uk_direct_debit_message_template() {
    $html .= '</div>';
    $html .= '<p>';
    $html .= ' &nbsp;</p>';
-
+*/
    $template_sql  = " INSERT INTO civicrm_msg_template SET ";
    $template_sql .= " msg_title   = %0, ";
    $template_sql .= " msg_subject = %1, ";
@@ -356,40 +366,6 @@ function uk_direct_debit_civicrm_config( &$config ) {
 
 function uk_direct_debit_civicrm_xmlMenu( &$files ) {
   $files[] = dirname(__FILE__)."/xml/Menu/DirectDebit.xml";
-}
-
-
-function _uk_direct_debit_civicrm_pageRun( &$page ) {
-//print_r($page);
-//die;
-    $name = $page->getVar( '_name' );
-    $gid = null;
-    if ( $name == 'CRM_Profile_Page_Dynamic' ) {
-        $gid = $page->getVar( '_gid' );
-        $gname = CRM_Core_DAO::getFieldValue( 'CRM_Core_DAO_UFGroup', $gid, 'name', 'id' );
-        switch ( $gname ) {
-        case "Parent_Information":
-            return _school_civicrm_pageRun_Profile_Page_Dynamic_Parent_Information( $page, $gid );
-        case "Student_Information":
-            return _school_civicrm_pageRun_Profile_Page_Dynamic_Student_Information( $page, $gid );
-          case "Participant_Status":
-            return _school_civicrm_pageRun_Profile_Page_Dynamic_Participant_Status( $page, $gid );
-        }
-    } else if ( $name == 'CRM_Contact_Page_View_CustomData' ) {
-        if ( $page->getVar( '_groupId' ) != $gid ) {
-            return;
-        }
-
-        // get the details from smarty
-        $smarty  =& CRM_Core_Smarty::singleton( );
-        $details =& $smarty->get_template_vars( 'viewCustomData' );
-
-        require_once 'School/Utils/ExtendedCare.php';
-         School_Utils_ExtendedCare::sortDetails( $details );
-
-         // CRM_Core_Error::debug( 'POST', $details );
-        $smarty->assign_by_ref( 'viewCustomData', $details );
-    }
 }
 
 function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
@@ -484,15 +460,6 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
         }
     }
 
-//    // get the details from smarty
-//    $smarty  =& CRM_Core_Smarty::singleton( );
-//    $details =& $smarty->get_template_vars( 'viewCustomData' );
-//
-//    require_once 'School/Utils/ExtendedCare.php';
-//    School_Utils_ExtendedCare::sortDetails( $details );
-//
-//    // CRM_Core_Error::debug( 'POST', $details );
-//    $smarty->assign_by_ref( 'viewCustomData', $details );
 }
 
 /*************************************************************
@@ -543,87 +510,196 @@ function call_CiviCRM_IPN($url){
  *
  */
 function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
-    // Check the form being submitted is a contribution form
-    if ( is_a( $form, 'CRM_Contribute_Form_Contribution_Confirm' ) ) {
-        CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess #1');
-        CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess form='.print_r($form, TRUE));
+  // Check the form being submitted is a contribution form
+  if ( is_a( $form, 'CRM_Contribute_Form_Contribution_Confirm' ) ) {
+    CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess #1');
+    CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess form='.print_r($form, TRUE));
 
-        CRM_Core_Error::debug_log_message('CRM_Contribute_Form_Contribution_Confirm #1');
+    CRM_Core_Error::debug_log_message('CRM_Contribute_Form_Contribution_Confirm #1');
 
-        require_once 'UK_Direct_Debit/Form/Main.php';
+    require_once 'UK_Direct_Debit/Form/Main.php';
 
-        CRM_Core_Error:: debug_log_message( 'Firing IPN code');
+    CRM_Core_Error:: debug_log_message( 'Firing IPN code');
 
-        $paymentType = urlencode($form->_paymentProcessor['payment_type']);
-        $isRecur = urlencode($form->_values['is_recur']);
+    $paymentType = urlencode( $form->_paymentProcessor['payment_type'] );
+    $isRecur     = urlencode( $form->_values['is_recur'] );
 
-        // Now only do this is the payment processor type is Direct Debit as other payment processors may do this another way
-        if ( ($paymentType == 2) &&
-             ($isRecur == 1)
-           ) {
+    // Now only do this is the payment processor type is Direct Debit as other payment processors may do this another way
+    if ( $paymentType == 2 ) {
+      $aContribValue  = array();
+      $aContribParam  = array( 'contact_id' => $form->_contactID );
+      $aContribReturn = array( 'id'
+                             , 'contribution_recur_id'
+                             );
+      CRM_Core_DAO::commonRetrieve( 'CRM_Contribute_DAO_Contribution'
+                                 , $aContribParam
+                                 , $aContribValue
+                                 , $aContribReturn
+                                 );
+      $contributionID      = $aContribValue['id'];
+      $contributionRecurID = $aContribValue['contribution_recur_id'];
 
-            CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess #2');
+      $start_date     = urlencode( $form->_params['start_date'] );
 
-            $paymentProcessorType = urlencode($form->_paymentProcessor['payment_processor_type']);
-            $membershipID = urlencode($form->_values['membership_id']);
-            $contributionID = urlencode($form->_values['contribution_id']);
-            $contactID = urlencode($form->getVar( '_contactID' ));
-            $invoiceID = urlencode($form->_params['invoiceID']);
-            $amount = urlencode($form->_params['amount']);
-            $trxn_id = urlencode($form->_params['trxn_id']);
-            $collection_day = urlencode($form->_params['preferred_collection_day']);
-            $start_date = urlencode($form->_params['start_date']);
+      if ( $isRecur == 1 ) {
+        CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess #2');
 
-            CRM_Core_Error::debug_log_message( 'paymentProcessorType='.$paymentProcessorType);
-            CRM_Core_Error::debug_log_message( 'paymentType='.$paymentType);
-            CRM_Core_Error::debug_log_message( 'membershipID='.$membershipID);
-            CRM_Core_Error::debug_log_message( 'contributionID='.$contributionID);
-            CRM_Core_Error::debug_log_message( 'contactID='.$contactID);
-            CRM_Core_Error::debug_log_message( 'invoiceID='.$invoiceID);
-            CRM_Core_Error::debug_log_message( 'amount='.$amount);
-            CRM_Core_Error::debug_log_message( 'isRecur='.$isRecur);
-            CRM_Core_Error::debug_log_message( 'trxn_id='.$trxn_id);
-            CRM_Core_Error::debug_log_message( 'start_date='.$start_date);
-            CRM_Core_Error::debug_log_message( 'collection_day='.$collection_day);
+        $paymentProcessorType = urlencode( $form->_paymentProcessor['payment_processor_type'] );
+        $membershipID         = urlencode( $form->_values['membership_id'] );
+        $contactID            = urlencode( $form->getVar( '_contactID' ) );
+        $invoiceID            = urlencode( $form->_params['invoiceID'] );
+        $amount               = urlencode( $form->_params['amount'] );
+        $trxn_id              = urlencode( $form->_params['trxn_id'] );
+        $collection_day       = urlencode( $form->_params['preferred_collection_day'] );
 
-            $contributionRecurID = $form->getVar( 'contributionRecurID' );
-            if (empty($contributionRecurID)) {
-                // Need to get the recurring ID for the contribution as this should be a recurring contribution if Direct Debit is being used
-                $sql = <<<EOF
-                SELECT contribution_recur_id
-                FROM   civicrm_contribution
-                WHERE  id = %0
-EOF;
+        CRM_Core_Error::debug_log_message( 'paymentProcessorType='.$paymentProcessorType);
+        CRM_Core_Error::debug_log_message( 'paymentType='.$paymentType);
+        CRM_Core_Error::debug_log_message( 'membershipID='.$membershipID);
+        CRM_Core_Error::debug_log_message( 'contributionID='.$contributionID);
+        CRM_Core_Error::debug_log_message( 'contactID='.$contactID);
+        CRM_Core_Error::debug_log_message( 'invoiceID='.$invoiceID);
+        CRM_Core_Error::debug_log_message( 'amount='.$amount);
+        CRM_Core_Error::debug_log_message( 'isRecur='.$isRecur);
+        CRM_Core_Error::debug_log_message( 'trxn_id='.$trxn_id);
+        CRM_Core_Error::debug_log_message( 'start_date='.$start_date);
+        CRM_Core_Error::debug_log_message( 'collection_day='.$collection_day);
+        CRM_Core_Error::debug_log_message( 'contributionRecurID:' .$contributionRecurID );
+        CRM_Core_Error::debug_log_message( 'CIVICRM_UF_BASEURL='.CIVICRM_UF_BASEURL);
 
-                $contributionRecurID = CRM_Core_DAO::singleValueQuery( $sql, array( array( $contributionID, 'Integer' ) ) );
-            } else {
-                $contributionRecurID = $form->getVar( 'contributionRecurID' );
-            }
+        $query = "processor_name=".$paymentProcessorType."&module=contribute&contactID=".$contactID."&contributionID=".$contributionID."&membershipID=".$membershipID."&invoice=".$invoiceID."&mc_gross=".$amount."&payment_status=Completed&txn_type=recurring_payment&contributionRecurID=$contributionRecurID&txn_id=$trxn_id&first_collection_date=$start_date&collection_day=$collection_day";
 
-            CRM_Core_Error::debug_log_message( 'contributionRecurID:' .$contributionRecurID );
-            CRM_Core_Error::debug_log_message( 'CIVICRM_UF_BASEURL='.CIVICRM_UF_BASEURL);
+        CRM_Core_Error:: debug_log_message( 'uk_direct_debit_civicrm_postProcess query = '.$query);
 
-            $query = "processor_name=".$paymentProcessorType."&module=contribute&contactID=".$contactID."&contributionID=".$contributionID."&membershipID=".$membershipID."&invoice=".$invoiceID."&mc_gross=".$amount."&payment_status=Completed&txn_type=recurring_payment&contributionRecurID=$contributionRecurID&txn_id=$trxn_id&first_collection_date=$start_date&collection_day=$collection_day";
+        // Get the recur ID for the contribution
+        $url = CRM_Utils_System::url(
+                    'civicrm/payment/ipn', // $path
+                    $query,
+                    FALSE, // $absolute
+                    NULL, // $fragment
+                    FALSE, // $htmlize
+                    FALSE, // $frontend
+                    FALSE // $forceBackend
+                );
 
-            CRM_Core_Error:: debug_log_message( 'uk_direct_debit_civicrm_postProcess query = '.$query);
+        $url = CIVICRM_UF_BASEURL.$url;
 
-            // Get the recur ID for the contribution
-            $url = CRM_Utils_System::url(
-                        'civicrm/payment/ipn', // $path
-                        $query,
-                        FALSE, // $absolute
-                        NULL, // $fragment
-                        FALSE, // $htmlize
-                        FALSE, // $frontend
-                        FALSE // $forceBackend
-                    );
+        CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess url='.$url);
+        call_CiviCRM_IPN($url);
 
-            $url = CIVICRM_UF_BASEURL.$url;
+  //dpm($membershipID, "Before renew_membership - membershipID");
+        renew_membership_by_one_period($membershipID);
 
-            CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess url='.$url);
-            call_CiviCRM_IPN($url);
-            return;
+        return;
+      } else {
+        /* PS 23/05/2013
+         * Not Recurring, only need to move the receive_date of the contribution
+         */
+        $contrib_result = civicrm_api(   "Contribution"
+                                        ,"create"
+                                        ,array ('version'         => '3'
+                                               ,'contribution_id' => $contributionID
+                                               ,'id'              => $contributionID
+                                               ,'receive_date'    => $start_date
+                                               )
+                                          );
+      } // Recurring
+    } // Paid by DD
+  }
+}
+
+/**
+ * Renew Membership by one period if the membership expires
+ * before the contribution collection date starts
+ * @author shobbs
+ */
+function renew_membership_by_one_period($membershipID) {
+
+    $autoRenewMembership = UK_Direct_Debit_Form_Main::getAutoRenewMembership();
+
+    if ($autoRenewMembership = 'Y') {
+
+        // Check if Membership End Date has been updated
+        $getMembership = civicrm_api("Membership"
+                                    ,"get"
+                                    , array ('version'       => '3'
+                                            ,'membership_id' => $membershipID
+                                            )
+                                    );
+
+        $membershipEndDate   = $getMembership['values'][$membershipID]['end_date'];  
+        $contributionRecurID = $getMembership['values'][$membershipID]['contribution_recur_id'];
+
+        // Get the Contribution ID
+        $getMembershipPayment = civicrm_api("MembershipPayment"
+                                           ,"get"
+                                           , array ('version'       => '3'
+                                                   ,'membership_id' => $membershipID
+                                                   )
+                                           );
+
+        $contributionID = $getMembershipPayment['values'][$getMembershipPayment['id']]['contribution_id'];
+
+        // Get the contribution
+        $contribution = civicrm_api("Contribution"
+                                   ,"get"
+                                   ,array ('version'         => '3'
+                                          ,'contribution_id' => $contributionID
+                                          )
+                                   );
+
+        $contributionReceiveDate = $contribution['values'][$contributionID]['receive_date'];
+
+        $contributionReceiveDateString = date("Ymd", strtotime($contributionReceiveDate));
+        $membershipEndDateString = date("Ymd", strtotime($membershipEndDate));
+
+        if ($contributionReceiveDateString > $membershipEndDateString) {
+
+            $contributionRecurring = civicrm_api("ContributionRecur"
+                                                ,"get"
+                                                , array ('version' => '3'
+                                                        ,'id'      => $contributionRecurID
+                                                        )
+                                                );
+
+            $frequencyUnit = $contributionRecurring['values'][$contributionRecurID]['frequency_unit'];
+
+            if (!is_null($frequencyUnit)) {
+                $membershipEndDateString = date("Y-m-d",strtotime(date("Y-m-d", strtotime($membershipEndDate)) . " +1 $frequencyUnit"));
         }
+
+        }
+
+        $updatedMember = civicrm_api("Membership"
+                                    ,"create"
+                                    , array ('version'       => '3',
+                                             'membership_id' => $membershipID,
+                                             'id'            => $membershipID,
+                                             'end_date'      => $membershipEndDateString,
+                                            )
+                                    );
+
+    }
+
+}
+
+/**
+ * TODO To add "" to search contribution actions
+ * @author mzeman
+ */
+function uk_direct_debit_civicrm_searchTasks( $objectName, &$tasks ) {
+    //for contributions only
+    if($objectName != 'membership') {
+        return;
+    }
+//    if (!is_null(array_search('Renew Memberships', $tasks)))
+    if (!(array_search('Renew Memberships', $tasks)))
+    {
+      $tasks[] = array(
+        'title' => 'Renew Memberships',
+        'class' => array('CRM_Member_Form_Task_RenewMembership'),
+        'result' => true
+      );
     }
 }
+
 

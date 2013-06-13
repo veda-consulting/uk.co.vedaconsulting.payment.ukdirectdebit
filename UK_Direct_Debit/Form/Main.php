@@ -163,6 +163,10 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'transaction_prefix' );
   }
 
+  function getAutoRenewMembership() {
+    return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'auto_renew_membership' );
+  }
+
   function getCountry( $country_id ) {
     $country = null;
     if ( !empty( $country_id ) ) {
