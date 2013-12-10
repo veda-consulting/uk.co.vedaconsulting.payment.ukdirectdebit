@@ -369,7 +369,7 @@ EOF;
     CRM_Core_Error::debug_log_message( '$sqlParams:'           . print_r( $sqlParams          , true ) );
     CRM_Core_Error::debug_log_message( '$contributionRecurId:' . print_r( $contributionRecurId, true ) );
 */
-    $paymentProcessorID = CRM_Core_DAO::getFieldValue(  'CRM_Core_DAO_PaymentProcessorType'
+    $paymentProcessorID = CRM_Core_DAO::getFieldValue(  'CRM_Financial_DAO_PaymentProcessorType'
                                                       , 'Smart Debit'
                                                       , 'id'
                                                       , 'name'
