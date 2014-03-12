@@ -120,21 +120,25 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
   }
 
   function getCompanyName() {
-    return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME,'company_name' );
+    $domain = CRM_Core_BAO_Domain::getDomain();
+    return $domain->name;
   }
 
   function getCompanyAddress() {
-
     $companyAddress = array();
 
-    $companyAddress['company_name'] = CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME,'company_name'     );
-    $companyAddress['address1']     = CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME,'company_address1' );
-    $companyAddress['address2']     = CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME,'company_address2' );
-    $companyAddress['address3']     = CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME,'company_address3' );
-    $companyAddress['address4']     = CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME,'company_address4' );
-    $companyAddress['town']         = CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME,'company_town'     );
-    $companyAddress['county']       = CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME,'company_county'   );
-    $companyAddress['postcode']     = CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME,'company_postcode' );
+    $domain = CRM_Core_BAO_Domain::getDomain();
+    $domainLoc = $domain->getLocationValues();
+
+    $companyAddress['company_name'] = $domain->name;
+    $companyAddress['address1']     = $domainLoc['address'][1]['street_address'];
+    $companyAddress['address2']     = $domainLoc['address'][1]['supplemental_address_1'];
+    $companyAddress['address3']     = $domainLoc['address'][1]['supplemental_address_2'];
+    //$companyAddress['address4']     = NULL;
+    $companyAddress['town']         = $domainLoc['address'][1]['city'];
+    $companyAddress['county']       = CRM_Core_PseudoConstant::county($domainLoc['address'][1]['county_id']);
+    $companyAddress['country_id']   = CRM_Core_PseudoConstant::country($domainLoc['address'][1]['country_id']);
+    $companyAddress['postcode']     = $domainLoc['address'][1]['postal_code'];
 
     return $companyAddress;
   }
