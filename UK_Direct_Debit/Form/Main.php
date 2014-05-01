@@ -119,26 +119,27 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     return $isComplete;
   }
 
-  function getCompanyName() {
+  static function getCompanyName() {
     $domain = CRM_Core_BAO_Domain::getDomain();
     return $domain->name;
   }
 
-  function getCompanyAddress() {
+  static function getCompanyAddress() {
     $companyAddress = array();
 
     $domain = CRM_Core_BAO_Domain::getDomain();
     $domainLoc = $domain->getLocationValues();
 
     $companyAddress['company_name'] = $domain->name;
-    $companyAddress['address1']     = $domainLoc['address'][1]['street_address'];
-    $companyAddress['address2']     = $domainLoc['address'][1]['supplemental_address_1'];
-    $companyAddress['address3']     = $domainLoc['address'][1]['supplemental_address_2'];
-    //$companyAddress['address4']     = NULL;
-    $companyAddress['town']         = $domainLoc['address'][1]['city'];
-    $companyAddress['county']       = CRM_Core_PseudoConstant::county($domainLoc['address'][1]['county_id']);
-    $companyAddress['country_id']   = CRM_Core_PseudoConstant::country($domainLoc['address'][1]['country_id']);
-    $companyAddress['postcode']     = $domainLoc['address'][1]['postal_code'];
+    if (!empty($domainLoc['address'])) {
+      $companyAddress['address1']     = $domainLoc['address'][1]['street_address'];
+      $companyAddress['address2']     = $domainLoc['address'][1]['supplemental_address_1'];
+      $companyAddress['address3']     = $domainLoc['address'][1]['supplemental_address_2'];
+      $companyAddress['town']         = $domainLoc['address'][1]['city'];
+      $companyAddress['postcode']     = $domainLoc['address'][1]['postal_code'];
+      $companyAddress['county']       = CRM_Core_PseudoConstant::county($domainLoc['address'][1]['county_id']);
+      $companyAddress['country_id']   = CRM_Core_PseudoConstant::country($domainLoc['address'][1]['country_id']);
+    }
 
     return $companyAddress;
   }
@@ -323,7 +324,7 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
           $form->add( $field['htmlType'],
                       $field['name'],
                       $field['title'],
-                      $field['attributes'],
+                      CRM_Utils_Array::value('attributes', $field),
                       $useRequired ? $field['is_required'] : FALSE
                     );
         }
@@ -353,7 +354,7 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     $form->setDefaults($defaults);
   }
 
-  function formatPrefferedCollectionDay( $collectionDay ) {
+  static function formatPrefferedCollectionDay( $collectionDay ) {
     $ends = array( 'th'
                  , 'st'
                  , 'nd'
@@ -376,14 +377,14 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
   /*
    * Function will return the SUN number broken down into individual characters passed as an array
    */
-  function getSUNParts() {
+  static function getSUNParts() {
     return str_split( self::getSUN() );
   }
 
   /*
    * Function will return the SUN number broken down into individual characters passed as an array
    */
-  function getSUN() {
+  static function getSUN() {
     return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'service_user_number' );
   }
 
