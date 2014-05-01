@@ -68,9 +68,9 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
 
     CRM_Core_DAO::executeQuery("
         INSERT INTO civicrm_direct_debit
-        (ddi_reference)
+        (ddi_reference, created)
         VALUES
-        (%1)
+        (%1, NOW())
         ", array(1 => array((string)$tempDDIReference , 'String'))
     );
 

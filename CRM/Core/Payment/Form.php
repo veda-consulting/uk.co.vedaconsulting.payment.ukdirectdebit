@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.2                                                |
+ | CiviCRM version 4.3                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2012                                |
+ | Copyright CiviCRM LLC (c) 2004-2013                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,11 +28,26 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2012
+ * @copyright CiviCRM LLC (c) 2004-2013
  * $Id$
  *
  */
 class CRM_Core_Payment_Form {
+
+  /**
+   * Add payment fields are depending on payment type
+   *
+   * @param int $type eg CRM_Core_Payment::PAYMENT_TYPE_DIRECT_DEBIT
+   * @param CRM_Core_Form $form
+   */
+  static public function setPaymentFieldsByType($type, &$form) {
+    if ($type & CRM_Core_Payment::PAYMENT_TYPE_DIRECT_DEBIT) {
+      CRM_Core_Payment_Form::setDirectDebitFields($form);
+    }
+    else {
+      CRM_Core_Payment_Form::setCreditCardFields($form);
+    }
+  }
 
   /**
    * create all common fields needed for a credit card or direct debit transaction
@@ -40,7 +55,7 @@ class CRM_Core_Payment_Form {
    * @return void
    * @access protected
    */
-  protected function _setPaymentFields(&$form) {
+  static protected function _setPaymentFields(&$form) {
     $bltID = $form->_bltID;
 
     $form->_paymentFields['billing_first_name'] = array(
@@ -126,7 +141,7 @@ class CRM_Core_Payment_Form {
    * @return void
    * @access public
    */
-  function setCreditCardFields(&$form) {
+  static function setCreditCardFields(&$form) {
     CRM_Core_Payment_Form::_setPaymentFields($form);
 
     $form->_paymentFields['credit_card_number'] = array(
@@ -146,7 +161,7 @@ class CRM_Core_Payment_Form {
       'attributes' => array('size' => 5, 'maxlength' => 10, 'autocomplete' => 'off'),
       'is_required' => CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME,
         'cvv_backoffice_required',
-        CRM_Core_Component::getComponentID('CiviContribute')
+        NULL
         ,1
       ),
     );
@@ -176,7 +191,7 @@ class CRM_Core_Payment_Form {
    * @return void
    * @access public
    */
-  function setDirectDebitFields(&$form) {
+  static function setDirectDebitFields(&$form) {
     CRM_Core_Payment_Form::_setPaymentFields($form);
 
     $form->_paymentFields['account_holder'] = array(
@@ -224,7 +239,7 @@ class CRM_Core_Payment_Form {
    * @return None
    * @access public
    */
-  function buildCreditCard(&$form, $useRequired = FALSE) {
+  static function buildCreditCard(&$form, $useRequired = FALSE) {
     if ($form->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_FORM) {
       self::setCreditCardFields($form);
       foreach ($form->_paymentFields as $name => $field) {
@@ -276,7 +291,6 @@ class CRM_Core_Payment_Form {
    * @access public
    */
   function buildDirectDebit(&$form, $useRequired = FALSE) {
-
     if ($form->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_FORM) {
       self::setDirectDebitFields($form);
       foreach ($form->_paymentFields as $name => $field) {
@@ -305,8 +319,8 @@ class CRM_Core_Payment_Form {
       // also take care of state country widget
       $stateCountryMap = array(
         1 => array('country' => "billing_country_id-{$form->_bltID}",
-          'state_province' => "billing_state_province_id-{$form->_bltID}",
-        ));
+        'state_province' => "billing_state_province_id-{$form->_bltID}",
+      ));
       CRM_Core_BAO_Address::addStateCountryMap($stateCountryMap);
     }
 
@@ -317,6 +331,25 @@ class CRM_Core_Payment_Form {
         $form->_paymentProcessor['url_button'],
         array('class' => 'form-submit')
       );
+    }
+  }
+
+  /**
+   * Make sure that credit card number and cvv are valid
+   * Called within the scope of a QF formRule function
+   */
+  static function validateCreditCard($values, &$errors) {
+    if (!empty($values['credit_card_type'])) {
+      if (!empty($values['credit_card_number']) &&
+        !CRM_Utils_Rule::creditCardNumber($values['credit_card_number'], $values['credit_card_type'])
+      ) {
+        $errors['credit_card_number'] = ts('Please enter a valid Credit Card Number');
+      }
+      if (!empty($values['cvv2']) &&
+        !CRM_Utils_Rule::cvv($values['cvv2'], $values['credit_card_type'])
+      ) {
+        $errors['cvv2'] = ts('Please enter a valid Credit Card Verification Number');
+      }
     }
   }
 
@@ -389,7 +422,7 @@ class CRM_Core_Payment_Form {
    * function to return state/province is_required = true/false
    *
    */
-  function checkRequiredStateProvince($form) {
+  static function checkRequiredStateProvince($form) {
     // If selected country has possible values for state/province mark the
     // state/province field as required.
     $config = CRM_Core_Config::singleton();
