@@ -262,16 +262,17 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.getValue name=
 
     $participant = &$objects['participant'];
     $membership  = &$objects['membership'];
-    $first_membership_object = &$membership[key($membership)];
-    
-    // PS Set the recurring against the membership in case its not set already
-    // Not sure why its not getting set - seems like a bug in core somewhere thats probably something to do with the payment instrument being credit card or something 
-    CRM_Core_Error::debug_log_message("About to check if recurring (".$first_membership_object->contribution_recur_id.")");
-    if ($recur && $first && empty($first_membership_object->contribution_recur_id)) {
+    if (!empty($membership)) {
+      $first_membership_object = &$membership[key($membership)];
+
+      // PS Set the recurring against the membership in case its not set already
+      // Not sure why its not getting set - seems like a bug in core somewhere thats probably something to do with the payment instrument being credit card or something 
+      CRM_Core_Error::debug_log_message("About to check if recurring (".$first_membership_object->contribution_recur_id.")");
+      if ($recur && $first && empty($first_membership_object->contribution_recur_id)) {
         CRM_Core_Error::debug_log_message("Its Recurring and membership isn't set so set it to ".$ids['contributionRecur']);
         $first_membership_object->contribution_recur_id = $ids['contributionRecur'];
-    }
-    
+      }
+    }    
     CRM_Core_Error::debug_log_message( 'membership:' . print_r( $membership, true ) );
 
     $status = $input['paymentStatus'];
