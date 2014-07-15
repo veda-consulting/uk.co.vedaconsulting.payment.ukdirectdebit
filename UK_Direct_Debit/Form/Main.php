@@ -101,7 +101,7 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     return $DDIReference;
   }
 
-  function isDDSubmissionComplete( $DDIReference ) {
+  static function isDDSubmissionComplete( $DDIReference ) {
     $isComplete = false;
 
     $selectSql     =  " SELECT complete_flag ";
@@ -160,7 +160,7 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'email_address' );
   }
 
-  function getDomainName() {
+  static function getDomainName() {
     return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'domain_name' );
   }
 
@@ -516,7 +516,7 @@ EOF;
     return $activityID;
   }
 
-  function firstCollectionDate( $collectionDay, $startDate ) {
+  static function firstCollectionDate( $collectionDay, $startDate ) {
 
     // Initialise date objects with today's date
     $today                    = new DateTime();
@@ -733,7 +733,7 @@ EOF;
       exit;
   }
 
-  function record_response( $direct_debit_response ) {
+  static function record_response( $direct_debit_response ) {
     $sql  = <<<EOF
             UPDATE civicrm_direct_debit
             SET    created                  = NOW()
