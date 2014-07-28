@@ -144,15 +144,15 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     return $companyAddress;
   }
 
-  function getActivityType() {
+  static function getActivityType() {
     return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'activity_type' );
   }
 
-  function getActivityTypeLetter() {
+  static function getActivityTypeLetter() {
     return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'activity_type_letter' );
   }
 
-  function getTelephoneNumber() {
+  static function getTelephoneNumber() {
     return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'telephone_number' );
   }
 
@@ -164,11 +164,11 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'domain_name' );
   }
 
-  function getTransactionPrefix() {
+  static function getTransactionPrefix() {
     return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'transaction_prefix' );
   }
 
-  function getAutoRenewMembership() {
+  static function getAutoRenewMembership() {
     return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'auto_renew_membership' );
   }
 
@@ -517,7 +517,6 @@ EOF;
   }
 
   static function firstCollectionDate( $collectionDay, $startDate ) {
-
     // Initialise date objects with today's date
     $today                    = new DateTime();
     $todayPlusDateInterval    = new DateTime();
