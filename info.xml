@@ -4,6 +4,11 @@
   <file>uk_direct_debit</file>
   <name>UK Direct Debit</name>
   <description>Direct Debit by Veda Consulting</description>
+  <license>AGPL-3.0</license>
+  <maintainer>
+    <author>Veda Consulting</author>
+    <email>parvez@vedaconsulting.co.uk</email>
+  </maintainer>
   <urls>
     <url desc="Main Extension Page"></url>
     <url desc="Documentation"></url>
@@ -11,13 +16,9 @@
     <url desc="Licensing"></url>
   </urls>
   <license>AGPL</license>
-  <maintainer>
-    <author>Veda Consulting</author>
-    <email>parvez@vedaconsulting.co.uk</email>
-  </maintainer>
   <releaseDate>2013-06-13</releaseDate>
-  <version>1.0.3</version>
-  <develStage>alpha</develStage>
-  <compatibility><ver>4.x</ver></compatibility>
+  <version>2.0</version>
+  <develStage>beta</develStage>
+  <compatibility><ver>4.4</ver></compatibility>
   <comments></comments>
 </extension>
