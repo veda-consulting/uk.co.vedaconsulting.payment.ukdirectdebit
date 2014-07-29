@@ -146,6 +146,7 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.getValue name=
           //$recur->start_date = $now;
           $recur->payment_instrument_id = UK_Direct_Debit_Form_Main::getDDPaymentInstrumentID();
           $recur->trxn_id = $input['trxn_id'];
+          $recur->processor_id = $input['trxn_id'];
           $recur->cycle_day = $input['collection_day'];
           $recur->start_date = $input['start_date'];
         }

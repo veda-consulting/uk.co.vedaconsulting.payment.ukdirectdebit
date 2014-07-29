@@ -571,18 +571,7 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
         CRM_Core_Error:: debug_log_message( 'uk_direct_debit_civicrm_postProcess query = '.$query);
 
         // Get the recur ID for the contribution
-        $url = CRM_Utils_System::url(
-                    'civicrm/payment/ipn', // $path
-                    $query,
-                    FALSE, // $absolute
-                    NULL, // $fragment
-                    FALSE, // $htmlize
-                    FALSE, // $frontend
-                    FALSE // $forceBackend
-                );
-
-        $url = CIVICRM_UF_BASEURL.$url;
-
+        $url = CRM_Utils_System::url('civicrm/payment/ipn', $query,  TRUE, NULL, FALSE, TRUE);
         CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess url='.$url);
         call_CiviCRM_IPN($url);
 
