@@ -459,6 +459,14 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
           $form->addRule('price_3', ts('This field is required.'), 'required');
         }
     }
+    
+    if ($formName == 'CRM_Contribute_Form_UpdateSubscription') {
+      $form->add('text', 'account_holder', ts('Account Holder'), array('size' => 20, 'maxlength' => 18, 'autocomplete' => 'on'), TRUE);
+      $form->add('text', 'bank_account_number', ts('Bank Account Number'), array('size' => 20, 'maxlength' => 8, 'autocomplete' => 'off'), TRUE);
+      $form->add('text', 'bank_identification_number', ts('Sort Code'), array('size' => 20, 'maxlength' => 6, 'autocomplete' => 'off'), TRUE);
+      $form->add('text', 'bank_name', ts('Bank Name'), array('size' => 20, 'maxlength' => 64, 'autocomplete' => 'off'), TRUE);
+      
+    }
 
 }
 
