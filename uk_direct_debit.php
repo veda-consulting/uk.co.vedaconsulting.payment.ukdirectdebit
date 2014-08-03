@@ -461,12 +461,39 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
     }
     
     if ($formName == 'CRM_Contribute_Form_UpdateSubscription') {
-      $form->add('text', 'account_holder', ts('Account Holder'), array('size' => 20, 'maxlength' => 18, 'autocomplete' => 'on'), TRUE);
-      $form->add('text', 'bank_account_number', ts('Bank Account Number'), array('size' => 20, 'maxlength' => 8, 'autocomplete' => 'off'), TRUE);
-      $form->add('text', 'bank_identification_number', ts('Sort Code'), array('size' => 20, 'maxlength' => 6, 'autocomplete' => 'off'), TRUE);
-      $form->add('text', 'bank_name', ts('Bank Name'), array('size' => 20, 'maxlength' => 64, 'autocomplete' => 'off'), TRUE);
-      
+      $paymentProcessor = $form->_paymentProcessor;
+      if($paymentProcessor['payment_processor_type'] == 'Smart Debit') {
+        $form->removeElement('installments');
+        $frequencyType = array(
+          'D'  => 'Daily',
+          'W'  => 'Weekly',
+          'M'  => 'Monthly',
+          'Y'  => 'Annually'
+        );
+
+        $form->addElement('select', 'frequency_unit', ts('Frequency'),
+            array('' => ts('- select -')) + $frequencyType
+        );
+        $form->addDate('start_date', ts('Start Date'), FALSE, array('formatType' => 'custom'));
+        $form->addDate('end_date', ts('End Date'), FALSE, array('formatType' => 'custom'));
+        $form->add('text', 'account_holder', ts('Account Holder'), array('size' => 20, 'maxlength' => 18, 'autocomplete' => 'on'));
+        $form->add('text', 'bank_account_number', ts('Bank Account Number'), array('size' => 20, 'maxlength' => 8, 'autocomplete' => 'off'));
+        $form->add('text', 'bank_identification_number', ts('Sort Code'), array('size' => 20, 'maxlength' => 6, 'autocomplete' => 'off'));
+        $form->add('text', 'bank_name', ts('Bank Name'), array('size' => 20, 'maxlength' => 64, 'autocomplete' => 'off'));
+        $form->add('hidden', 'payment_processor_type', 'Smart Debit');
+        $subscriptionDetails  = $form->getVar('_subscriptionDetails');
+        $reference            = $subscriptionDetails->subscription_id;
+        $frequencyUnit        = $subscriptionDetails->frequency_unit;
+        $frequencyUnits       = array('D' =>'day','W'=> 'week','M'=> 'month', 'Y' => 'year');
+        $recur = new CRM_Contribute_BAO_ContributionRecur();
+        $recur->processor_id  = $reference;
+        $recur->find(TRUE);
+        $startDate        = $recur->start_date;
+        list($defaults['start_date'], $defaults['start_date_time']) = CRM_Utils_Date::setDateDefaults($startDate, NULL);
+        $defaults['frequency_unit'] = array_search($frequencyUnit, $frequencyUnits);
+        $form->setDefaults($defaults);
     }
+  }
 
 }
 
@@ -602,7 +629,7 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
       } // Recurring
     } // Paid by DD
   }
-}
+  }
 
 /**
  * Renew Membership by one period if the membership expires
@@ -699,4 +726,12 @@ function uk_direct_debit_civicrm_searchTasks( $objectName, &$tasks ) {
     }
 }
 
-
+function uk_direct_debit_civicrm_pre( $op, $objectName, $id, &$params ) {
+  if(($objectName == 'ContributionRecur' && $op =='edit') && ($params['payment_processor_type'] == 'Smart Debit') ) {
+    $params['start_date'] = CRM_Utils_Date::processDate($params['start_date']);
+    $params['end_date']   = CRM_Utils_Date::processDate($params['end_date']);
+    $frequencyUnit        = $params['frequency_unit'];
+    $frequencyUnits       = array('D' =>'day','W'=> 'week','M'=> 'month', 'Y' => 'year');
+    $params['frequency_unit'] = CRM_Utils_Array::value($frequencyUnit, $frequencyUnits);
+  }
+}

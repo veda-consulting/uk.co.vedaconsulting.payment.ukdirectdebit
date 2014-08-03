@@ -36,8 +36,19 @@
       <td>{$form.currency.html|crmAddClass:eight}&nbsp;{$form.amount.html|crmAddClass:eight} ({ts}every{/ts} {$frequency_interval} {$frequency_unit})</td>
     </tr>
     <tr><td class="label">{$form.installments.label}</td><td>{$form.installments.html}<br />
-          <span class="description">{ts}Total number of payments to be made. Set this to 0 if this is an open-ended commitment i.e. no set end date.{/ts}</span></td></tr>
+          {*<span class="description">{ts}Total number of payments to be made. Set this to 0 if this is an open-ended commitment i.e. no set end date.{/ts}</span></td></tr> *}
     {if $paymentProcessor.payment_processor_type == 'Smart Debit'}
+    <tr>
+      <td class="label">{$form.frequency_unit.label}</td><td>{$form.frequency_unit.html}<br /> 
+    </tr>
+    <tr>
+      <td class="label">{$form.start_date.label}</td><td>
+        <span class="value">{include file="CRM/common/jcalendar.tpl" elementName=start_date}</span></td>
+    </tr>
+    <tr>
+      <td class="label">{$form.end_date.label}</td><td>
+        <span class="value">{include file="CRM/common/jcalendar.tpl" elementName=end_date}</span></td>
+    </tr>
     <tr>
       <td class="label">{$form.account_holder.label}</td><td>{$form.account_holder.html}<br /> 
     </tr>
