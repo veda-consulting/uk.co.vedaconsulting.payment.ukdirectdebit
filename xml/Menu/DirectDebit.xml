@@ -19,5 +19,14 @@
      <page_type>0</page_type>
      <component>Contact</component>
   </item>
+  <item>
+    <path>civicrm/directdebit/sync</path>
+    <title>Sync civi with smart debit</title>
+    <path_arguments></path_arguments>
+    <page_callback>CRM_DirectDebit_Form_Sync</page_callback>
+    <access_arguments>administer CiviCRM</access_arguments>
+    <page_type>0</page_type>
+    <component>Contact</component>
+  </item>
 </menu>
 
