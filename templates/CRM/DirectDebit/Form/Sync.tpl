@@ -3,10 +3,10 @@
     <div class="help">
       {ts}Sync completed with result counts as:{/ts}<br/> 
       <table class="form-layout-compressed bold">
-      <tr><td>{ts}Added Contributions{/ts}:</td><td>{$stats.Added}</td></tr>
-      <tr><td>{ts}Updated{/ts}:</td><td>{$stats.Updated}</td></tr>
-      <tr><td>{ts}Cancelled{/ts}:</td><td>{$stats.Canceled}</td></tr>
-      <tr><td>{ts}Civi Blocked{/ts}:</td><td>{$stats.Blocked}&nbsp; (no matching records found in civi)</td></tr>
+      <tr><td>{ts}Added Contributions to CiviCRM{/ts}:</td><td>{$stats.Added}</td></tr>
+      <tr><td>{ts}New Direct Debit{/ts}:</td><td>{$stats.New}</td></tr>
+      <tr><td>{ts}Cancelled Direct Debit{/ts}:</td><td>{$stats.Canceled}</td></tr>
+      <tr><td>{ts}Failed Direct Debit{/ts}:</td><td>{$stats.Failed}</td></tr>
       <tr colspan=2><td>{ts}Total{/ts}:</td><td>{$stats.Total}</td></tr>
       </table>
     </div>

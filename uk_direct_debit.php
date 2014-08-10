@@ -548,7 +548,7 @@ function call_CiviCRM_IPN($url){
 
   $header = curl_getinfo( $session );
 
-  CRM_Core_Error::debug( 'result : ', $output);
+  CRM_Core_Error::debug_var( 'result : ', $output);
 
 } // END function requestPost()
 
