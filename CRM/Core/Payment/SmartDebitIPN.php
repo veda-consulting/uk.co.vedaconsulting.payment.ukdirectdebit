@@ -126,8 +126,25 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.getValue name=
     //set transaction type
     $txnType = $input['txnType'];
     //Changes for paypal pro recurring payment
-
+   
     switch ( strtolower( $txnType ) ) {
+
+      case 'subscr_cancel':
+        $recur->contribution_status_id = 3;
+        $recur->cancel_date = $now;
+        $objects['contribution']->source  = ts('Cancel Recurring Contribution: Smart Debit API');
+        $objects['contribution']->receive_date  = $now;
+        CRM_Activity_BAO_Activity::addActivity($objects['contribution'], NULL);
+        break;
+
+      case 'subscr_failed':
+        $recur->contribution_status_id = 4;
+        $recur->modified_date = $now;
+        $objects['contribution']->source  = ts('Fail Recurring Contribution: Smart Debit API');
+        $objects['contribution']->receive_date  = $now;
+        CRM_Activity_BAO_Activity::addActivity($objects['contribution'], NULL);
+        break;
+      
       case 'recurring_payment_profile_created':
         CRM_Core_Error::debug_log_message("recurring_payment_profile_created");
         $recur->create_date            = $now;
@@ -199,6 +216,12 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.getValue name=
 
       // create a contribution and then get it processed
       $contribution = new CRM_Contribute_BAO_Contribution();
+      $contribution->trxn_id = $input['trxn_id'];
+      if ($contribution->trxn_id && $contribution->find()) {
+        CRM_Core_Error::debug_log_message("returning since contribution has already been handled");
+        echo "Success: Contribution has already been handled<p>";
+        return TRUE;
+      }
       $contribution->contact_id = $ids['contact'];
       $contribution->contribution_type_id = $objects['contributionType']->id;
       $contribution->contribution_page_id = $ids['contributionPage'];
@@ -343,6 +366,7 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.getValue name=
       $ids['contributionPage']    = self::retrieve( 'contributionPageID' , 'Integer', 'GET', FALSE );
       $ids['related_contact']     = self::retrieve( 'relatedContactID'   , 'Integer', 'GET', FALSE );
       $ids['onbehalf_dupe_alert'] = self::retrieve( 'onBehalfDupeAlert'  , 'Integer', 'GET', FALSE );
+      $ids['financial_type_id']   = self::retrieve( 'financial_type_id'  , 'Integer', 'GET', FALSE );
     }
     
 

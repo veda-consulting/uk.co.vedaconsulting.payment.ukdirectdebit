@@ -191,6 +191,19 @@ function uk_direct_debit_civicrm_install( ) {
   //$import->run($xml_file);
   //require_once('CRM_Core_Invoke');
   //CRM_Core_Invoke::rebuildMenuAndCaches( );
+  
+  // create a sync job
+  $params = array(
+    'sequential' => 1,
+    'name'          => 'SmartDebit Sync',
+    'description'   => 'Sync contacts from smartdebit to civicrm.',
+    'run_frequency' => 'Daily',
+    'api_entity'    => 'Ukdirectdebit',
+    'api_action'    => 'sync',
+    'is_active'     => 0,
+  );
+  $result = civicrm_api3('job', 'create', $params);
+
 }
 
 function uk_direct_debit_message_template() {
@@ -535,7 +548,7 @@ function call_CiviCRM_IPN($url){
 
   $header = curl_getinfo( $session );
 
-  CRM_Core_Error::debug( 'result : ', $output);
+  CRM_Core_Error::debug_var( 'result : ', $output);
 
 } // END function requestPost()
 
