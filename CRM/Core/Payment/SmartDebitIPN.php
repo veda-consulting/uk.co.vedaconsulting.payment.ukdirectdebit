@@ -401,7 +401,7 @@ EOF;
                                                       , 'name'
                                                       );
 
-    if ( !$this->validateData( $input, $ids, $objects, TRUE, $paymentProcessorID ) ) {
+    if ( !$this->validateData( $input, $ids, $objects, FALSE, $paymentProcessorID ) ) {
       return FALSE;
     }
 
