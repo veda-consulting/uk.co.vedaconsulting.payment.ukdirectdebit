@@ -116,103 +116,102 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
       }
       
       if($recurID && $contributionID) {
-        //set transaction type
-       /* Smart Debit statuses are as follows
-                    0 Draft
-                    1 New
-                    10 Live
-                    11 Cancelled
-                    12 Rejected
-                   * 
-                   */
-        $now              = date('Ymd');
-        $today_date       = strtotime($now);
-        $today_date       = date("Y-m-d", $today_date);
-        $frequency_type   = $smartDebitRecord['frequency_type'];
-        $txnType          = $smartDebitRecord['current_state'];
-        $amount           = $smartDebitRecord['regular_amount'];
-        $amount           = str_replace("£","",$amount);
-        $start_date       = $smartDebitRecord['start_date'];
-        
-        switch ($txnType) {
-          case '1':
-            //Do nothing as the first contribution is already there in civicrm
-            $setting  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats');
-            CRM_Core_BAO_Setting::setItem(array('Added' => $setting['Added'], 'New' => (1 + $setting['New']), 'Canceled' => $setting['Canceled'], 'Failed' => $setting['Failed']),
-              CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats'
-            );
-            break;
-            
-          case '10':
-            
-            $receiveDate  = strtotime($receiveDate);
-            $receiveDate  = date("Y-m-d", $receiveDate);
-            
-            if( ($today_date > $start_date) && ($frequency_type == 'M')){
-              $result = CRM_DirectDebit_Form_Sync::dateDifference($today_date, $receiveDate,'%m');
-            }
-            
-            if( ($today_date > $start_date) && ($frequency_type == 'Y')){
-              $result = CRM_DirectDebit_Form_Sync::dateDifference($today_date, $receiveDate,'%y');
-            }
-            
-            if( ($today_date > $start_date) && ($frequency_type == 'Q')){
-              $result = CRM_DirectDebit_Form_Sync::dateDifference($today_date, $receiveDate,'%m');
-              $result = (int)($result/3);
-            }
-            
-            if( ($today_date > $start_date) && ($frequency_type == 'W')){
-              $result = CRM_DirectDebit_Form_Sync::dateDifference($today_date, $receiveDate,'%m');
-              $result = $result * 4;
-            }
-            
-            if($result>0) {
-              $i = 1;
-              while ($i <= $result) {
-                $trxn_id = $smartDebitRecord['reference_number'].'-'.$today_date.'-'.$i;
-                $query = "processor_name=Smart+Debit&module=contribute&contactID=".$contactID."&contributionID=".$contributionID."&mc_gross=".$amount."&invoice=".$invoice_id."&payment_status=Completed&txn_type=recurring_payment&contributionRecurID=".$recurID."&txn_id=".$trxn_id."&financial_type_id=".$financial_type_id;
-                $url = CRM_Utils_System::url('civicrm/payment/ipn', $query,  TRUE, NULL, FALSE, TRUE);
-                call_CiviCRM_IPN($url);
-                $i++;
-              }
-            }
-            
-            $setting  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats');
-            CRM_Core_BAO_Setting::setItem(array('Added' => ($result + $setting['Added']), 'New' => $setting['New'], 'Canceled' => $setting['Canceled'], 'Failed' => $setting['Failed']),
-              CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats'
-            );
-            break;
-            
-          case '11':
-            $trxn_id = $smartDebitRecord['reference_number'].'-'.$today_date;
-            $query = "processor_name=Smart+Debit&module=contribute&contactID=".$contactID."&contributionID=".$contributionID."&mc_gross=".$amount."&invoice=".$invoice_id."&payment_status=Completed&txn_type=subscr_cancel&contributionRecurID=".$recurID."&txn_id=".$trxn_id."&financial_type_id=".$financial_type_id;
-            $url = CRM_Utils_System::url('civicrm/payment/ipn', $query,  TRUE, NULL, FALSE, TRUE);
-            call_CiviCRM_IPN($url);
-            
-            $setting  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats');
-            CRM_Core_BAO_Setting::setItem(array('Added' => $setting['Added'], 'New' => $setting['New'], 'Canceled' => (1 + $setting['Canceled']), 'Failed' => $setting['Failed']),
-              CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats'
-            );
-            break;
-          
-          case '12':
-            $trxn_id = $smartDebitRecord['reference_number'].'-'.$today_date;
-            $query = "processor_name=Smart+Debit&module=contribute&contactID=".$contactID."&contributionID=".$contributionID."&mc_gross=".$amount."&invoice=".$invoice_id."&payment_status=Completed&txn_type=subscr_failed&contributionRecurID=".$recurID."&txn_id=".$trxn_id."&financial_type_id=".$financial_type_id;
-            $url = CRM_Utils_System::url('civicrm/payment/ipn', $query,  TRUE, NULL, FALSE, TRUE);
-            call_CiviCRM_IPN($url);
-            
-            $setting  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats');
-            CRM_Core_BAO_Setting::setItem(array('Added' => $setting['Added'], 'New' => $setting['New'], 'Canceled' => $setting['Canceled'], 'Failed' => (1 + $setting['Failed'])),
-              CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats'
-            );
-            break;
+        self::syncContribution($smartDebitRecord, $receiveDate, $contributionID, $financial_type_id, $contactID, $recurID, $invoice_id);
+        continue;
+      }
+      // if the smart debit record has contact ID as a reference
+      $amount           = $smartDebitRecord['regular_amount'];
+      $frequencyUnit    = $smartDebitRecord['frequency_type'];
+      $amount           = str_replace("£","",$amount);
+      $frequencyUnits   = array('D' =>'day','W'=> 'week','M'=> 'month', 'Y' => 'year');
 
+      $contact      = new CRM_Contact_BAO_Contact();
+      $contact->id  = $smartDebitRecord['payerReference'];
+      if($contact->id && $contact->find()) {
+        $contactID  = $contact->id;
+        $contributionRecur              = new CRM_Contribute_BAO_ContributionRecur();
+        $contributionRecur->contact_id  = $contact->id;
+        // if recur record found for the contact
+        if($contributionRecur->contact_id && $contributionRecur->find()) {
+          if($contributionRecur->fetch()) 
+            $recurID  = $contributionRecur->id;
+          $whereClause = "contribution_recur_id = {$recurID}";
         }
+        // else create new recur record
+        else {
+          $config                                     = CRM_Core_Config::singleton();
+          $contributionRecur->currency                = $config->defaultCurrency;
+          $contributionRecur->contribution_status_id  = 5;
+          $contributionRecur->amount                  = $amount;
+          $contributionRecur->start_date              = CRM_Utils_Date::processDate($smartDebitRecord['start_date']);
+          $contributionRecur->frequency_unit          = CRM_Utils_Array::value($frequencyUnit, $frequencyUnits);
+          $contributionRecur->frequency_interval      = 1;
+          $contributionRecur->processor_id            = $smartDebitRecord['reference_number'];
+          $contributionRecur->trxn_id                 = $smartDebitRecord['reference_number'];
+          $contributionRecur->invoice_id              = md5(uniqid(rand(), TRUE ));
+          $contributionRecur->save();
+
+          // To differentiate the direct debit contribution among other contributions use payment_ins_id, for RTS is 7
+          $whereClause = "contact_id = {$contactID} AND payment_instrument_id = 7";
+        }
+        $query = "
+          SELECT id, contribution_recur_id, invoice_id, contact_id, financial_type_id, max(receive_date) as receive_date 
+          FROM civicrm_contribution
+          WHERE $whereClause AND is_test = 0";
+
+        $recurID    = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $contact->id, 'id', 'contact_id');
+        $invoiceID  = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $contact->id, 'invoice_id', 'contact_id');
+
+        $dao = CRM_Core_DAO::executeQuery($query);
+
+        if($dao->fetch()) {
+          $contributionID         = $dao->id;
+          $receiveDate            = $dao->receive_date;
+          $financial_type_id      = $dao->financial_type_id;
+          $contactID              = $dao->contact_id;
+          $invoice_id             = $dao->invoice_id;
+        }
+        if($contributionID && $recurID) {
+
+          $contributionRecur  = new CRM_Contribute_BAO_ContributionRecur();
+          $contributionRecur->id  = $recurID;
+          if($contributionRecur->fetch()) {
+            //invoice id needs to be matched between the contribution and recur
+            $contributionRecur->invoice_id  = $invoice_id;
+          }
+          self::syncContribution($smartDebitRecord, $receiveDate, $contributionID, $financial_type_id, $contactID, $recurID, $invoice_id);
+        }
+
+        // no contribution at all in civicrm for this particular contact ID
+        else if (empty($contributionID) && $recurID){
+          $contribution = new CRM_Contribute_BAO_Contribution();
+          $contribution->receive_date = CRM_Utils_Date::processDate($smartDebitRecord['start_date']);
+          $contribution->contact_id = $contact->id;
+          $contribution->contribution_recur_id  = $recurID;
+          $contribution->total_amount = $amount;
+          $contribution->invoice_id   = $invoiceID;
+          $contribution->trxn_id      = $smartDebitRecord['reference_number'];
+          $contribution->payment_instrument_id  = 7;//RTS Payment instrument ID for direct debit
+
+          $contribution->save();
+
+          $contID = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $contact->id, 'id', 'contact_id');
+
+          CRM_Core_Error::debug_log_message( 'sync contacts $conID= '. print_r($contID, true), $out = false );
+          self::syncContribution($smartDebitRecord, $smartDebitRecord['start_date'], $contID, NULL , $contact->id, $recurID, $invoiceID);
+      }
+      }
+      // if contact id is not present in smart debit record
+      else {
+        CRM_Core_Error::debug_log_message( 'syncContacts: Contact not found in CiviCRM ID=  '. print_r($contact->id, true), $out = false );
+        $setting  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats');
+        CRM_Core_BAO_Setting::setItem(array('Added' => $setting['Added'], 'New' => $setting['New'], 'Canceled' => $setting['Canceled'], 'Failed' => $setting['Failed'], 'Not_Handled' => (1+ $setting['Not_Handled']), 'Live' => $setting['Live']),
+          CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats'
+        );
       }
     }
     return CRM_Queue_Task::TASK_SUCCESS;
-  }
-  
+   }
   
   static function dateDifference($date_1 , $date_2 , $differenceFormat = '%a' ) {
       $datetime1 = date_create($date_1);
@@ -336,4 +335,92 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
         return $resultsArray;
 
     } // END function requestPost()
+    
+  static function syncContribution($smartDebitRecord = array(), $receiveDate, $contributionID, $financial_type_id, $contactID, $recurID, $invoice_id ) {
+    //set transaction type
+      /* Smart Debit statuses are as follows
+                   0 Draft
+                   1 New
+                   10 Live
+                   11 Cancelled
+                   12 Rejected
+                  * 
+                  */
+    $now              = date('Ymd');
+    $today_date       = strtotime($now);
+    $today_date       = date("Y-m-d", $today_date);
+    $frequency_type   = $smartDebitRecord['frequency_type'];
+    $txnType          = $smartDebitRecord['current_state'];
+    $amount           = $smartDebitRecord['regular_amount'];
+    $amount           = str_replace("£","",$amount);
+    $start_date       = $smartDebitRecord['start_date'];
+
+    switch ($txnType) {
+      case '1':
+        //Do nothing as the first contribution is already there in civicrm
+        $new =  1;
+        break;
+
+      case '10':
+
+        $receiveDate  = strtotime($receiveDate);
+        $receiveDate  = date("Y-m-d", $receiveDate);
+
+        if( ($today_date > $start_date) && ($frequency_type == 'M')){
+          $result = CRM_DirectDebit_Form_Sync::dateDifference($today_date, $receiveDate,'%m');
+        }
+
+        if( ($today_date > $start_date) && ($frequency_type == 'Y')){
+          $result = CRM_DirectDebit_Form_Sync::dateDifference($today_date, $receiveDate,'%y');
+        }
+
+        if( ($today_date > $start_date) && ($frequency_type == 'Q')){
+          $result = CRM_DirectDebit_Form_Sync::dateDifference($today_date, $receiveDate,'%m');
+          $result = (int)($result/3);
+        }
+
+        if( ($today_date > $start_date) && ($frequency_type == 'W')){
+          $result = CRM_DirectDebit_Form_Sync::dateDifference($today_date, $receiveDate,'%m');
+          $result = $result * 4;
+        }
+
+        if($result>0) {
+          $i = 1;
+          while ($i <= $result) {
+            $trxn_id = $smartDebitRecord['reference_number'].'-'.$today_date.'-'.$i;
+            $query = "processor_name=Smart+Debit&module=contribute&contactID=".$contactID."&contributionID=".$contributionID."&mc_gross=".$amount."&invoice=".$invoice_id."&payment_status=Completed&txn_type=recurring_payment&contributionRecurID=".$recurID."&txn_id=".$trxn_id."&financial_type_id=".$financial_type_id;
+            $url = CRM_Utils_System::url('civicrm/payment/ipn', $query,  TRUE, NULL, FALSE, TRUE);
+            call_CiviCRM_IPN($url);
+            $i++;
+          }
+        }
+
+        $added    = $result;
+        $live     = 1;
+        break;
+
+      case '11':
+        $trxn_id = $smartDebitRecord['reference_number'].'-'.$today_date;
+        $query = "processor_name=Smart+Debit&module=contribute&contactID=".$contactID."&contributionID=".$contributionID."&mc_gross=".$amount."&invoice=".$invoice_id."&payment_status=Completed&txn_type=subscr_cancel&contributionRecurID=".$recurID."&txn_id=".$trxn_id."&financial_type_id=".$financial_type_id;
+        $url = CRM_Utils_System::url('civicrm/payment/ipn', $query,  TRUE, NULL, FALSE, TRUE);
+        call_CiviCRM_IPN($url);
+
+        $canceled = 1;
+        break;
+
+      case '12':
+        $trxn_id = $smartDebitRecord['reference_number'].'-'.$today_date;
+        $query = "processor_name=Smart+Debit&module=contribute&contactID=".$contactID."&contributionID=".$contributionID."&mc_gross=".$amount."&invoice=".$invoice_id."&payment_status=Completed&txn_type=subscr_failed&contributionRecurID=".$recurID."&txn_id=".$trxn_id."&financial_type_id=".$financial_type_id;
+        $url = CRM_Utils_System::url('civicrm/payment/ipn', $query,  TRUE, NULL, FALSE, TRUE);
+        call_CiviCRM_IPN($url);
+
+        $failed   = 1;
+        break;
+
+    }
+    $setting  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats');
+    CRM_Core_BAO_Setting::setItem(array('Added' => ($added + $setting['Added']), 'New' => ($new + $setting['New']), 'Canceled' => ($canceled + $setting['Canceled']), 'Failed' => ($failed + $setting['Failed']), 'Not_Handled' => $setting['Not_Handled'], 'Live' => ($live + $setting['Live'])),
+      CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats'
+    );
+  }
 }
