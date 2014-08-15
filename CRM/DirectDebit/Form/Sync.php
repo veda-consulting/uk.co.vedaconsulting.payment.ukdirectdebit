@@ -326,10 +326,9 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
     $query = "
         SELECT cc.id as contribution_id, cr.id as recur_id, cc.invoice_id, cc.`contact_id`, cc.financial_type_id, max(receive_date) as receive_date
         FROM civicrm_contribution_recur cr
-        LEFT JOIN civicrm_contribution cc ON cr.id = cc.`contribution_recur_id`
+        LEFT JOIN civicrm_contribution cc ON (cr.id = cc.`contribution_recur_id` AND cc.`is_test` = 0)
         WHERE cr.processor_id = %1
-        AND cr.processor_id IS NOT NULL
-        AND cc.`is_test` = 0";
+        AND cr.processor_id IS NOT NULL";
       
       $params = array( 1 => array($smartDebitRecord['reference_number'], 'String' ) );
       $dao = CRM_Core_DAO::executeQuery( $query, $params);
@@ -344,7 +343,6 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
       
     
     if($recurID && $contributionID) {
-      CRM_Core_Error::debug_log_message( 'syncSmartDebitReco: 1=  ');
       self::addContribution($smartDebitRecord, $receiveDate, $contactID, $contributionID, $invoice_id, $recurID, $financial_type_id);
       return TRUE;
     }
