@@ -103,6 +103,22 @@ function uk_direct_debit_civicrm_install( ) {
           'UK Direct Debit',
           'auto_renew_membership'
         );
+  CRM_Core_BAO_Setting::setItem('payerReference',
+          'UK Direct Debit',
+          'api_contact_key'
+        );
+  CRM_Core_BAO_Setting::setItem(NULL,
+          'UK Direct Debit',
+          'api_contact_val_regex'
+        );
+  CRM_Core_BAO_Setting::setItem(NULL,
+          'UK Direct Debit',
+          'api_contact_val_regex_index'
+        );
+  CRM_Core_BAO_Setting::setItem(NULL,
+          'UK Direct Debit',
+          'financial_type'
+        );
 
   // Create an Direct Debit Activity Type
   require_once 'api/api.php';
