@@ -590,18 +590,20 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
 
     // Now only do this is the payment processor type is Direct Debit as other payment processors may do this another way
     if ( $paymentType == 2 ) {
-      $aContribValue  = array();
-      $aContribParam  = array( 'contact_id' => $form->_contactID );
-      $aContribReturn = array( 'id'
-                             , 'contribution_recur_id'
-                             );
-      CRM_Core_DAO::commonRetrieve( 'CRM_Contribute_DAO_Contribution'
-                                 , $aContribParam
-                                 , $aContribValue
-                                 , $aContribReturn
-                                 );
-      $contributionID      = $aContribValue['id'];
-      $contributionRecurID = $aContribValue['contribution_recur_id'];
+      $aContribParam = 
+        array(
+          1 => array($form->_contactID, 'Integer'),
+          2 => array($form->_id, 'Integer'),
+        );
+      $query  = "SELECT id, contribution_recur_id 
+        FROM civicrm_contribution 
+        WHERE contact_id = %1 AND contribution_page_id = %2
+        ORDER BY id DESC LIMIT 1";
+      $dao    = CRM_Core_DAO::executeQuery($query, $aContribParam);
+      $dao->fetch();
+
+      $contributionID      = $dao->id;
+      $contributionRecurID = $dao->contribution_recur_id;
 
       $start_date     = urlencode( $form->_params['start_date'] );
 
