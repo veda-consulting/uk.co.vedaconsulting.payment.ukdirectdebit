@@ -165,7 +165,16 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
   }
 
   function getTransactionPrefix() {
-    return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'transaction_prefix' );
+    $prefix = CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'transaction_prefix' );
+    if (!$prefix) {
+      // For those who upgraded, may not have this set
+      CRM_Core_BAO_Setting::setItem('WEB',
+        'UK Direct Debit',
+        'transaction_prefix'
+      );
+      $prefix = CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'transaction_prefix' );
+    }
+    return $prefix;
   }
 
   function getAutoRenewMembership() {
@@ -374,6 +383,149 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     return $abbreviation;
   }
 
+  // Function to create the direct transfer record when a new recurring contrib is updated
+  // Note: this is specific to llr
+  static function createDirectTransferRecord($ddiReference, $contactID, $startDate, $campaignId, $recurringId, $amount) {
+
+    watchdog('CiviCRM DD Update Direct Transfer', 'Inside' );
+    $DDpaymentInstrumentID = self::getDDPaymentInstrumentID();
+
+    /* Direct Transfer Record should now be created with the external identifier, not the PC Ref */
+    // Check if the contact exists
+    require_once 'CRM/Contact/DAO/Contact.php';
+    $contact = new CRM_Contact_DAO_Contact();
+    $contact->id = $contactID;
+    $contact->find();
+    if (!$contact->fetch()) {
+      throw new CRM_Finance_BAO_Import_ValidateException(
+        "Can't find contact for this id");
+    }
+    $contactDatabaseID = $contact->external_identifier;
+
+    if (empty($campaignId)) {
+      $campaignId = 0;
+    }
+
+    // Lets check if we have a direct transfer with this ID for this contact already
+    $query  = " SELECT * ";
+    $query .= " FROM civicrm_value_direct_transfers_32 ";
+    $query .= " WHERE reference_number_134 = %1 ";
+    $query .= " AND direct_transfer_type_135 = 'DIRECTDEBIT' ";
+    $query .= " AND active_pledge_138 = 1 ";
+    $query .= " ORDER BY id DESC ";
+    $query .= " LIMIT 1 ";
+
+    $params = array( 1 => array( $ddiReference, 'String' ) );
+    $dao = CRM_Core_DAO::executeQuery( $query, $params );
+
+    if (!$dao->fetch()) {
+      watchdog('CiviCRM DD Update Direct Transfer', 'Do Insert' );
+      $query  = " INSERT INTO civicrm_value_direct_transfers_32 ";
+      $query .= " (entity_id ";
+      $query .= " ,reference_number_134 ";
+      $query .= " ,direct_transfer_type_135 ";
+      $query .= " ,date_pledge_created_136 ";
+      $query .= " ,pledge_date_137 ";
+      $query .= " ,active_pledge_138 ";
+      $query .= " ,pledge_start_date_139 ";
+      $query .= " ,amount_per_payment_140 ";
+      $query .= " ,payment_frequency_141 ";
+      $query .= " ,pledge_campaign_142 ";
+      $query .= " ,banking_reference_143) ";
+      $query .= " VALUES ";
+      $query .= " (%1 ";
+      $query .= " ,%2 ";
+      $query .= " ,'DIRECTDEBIT' ";
+      $query .= " ,NOW() ";
+      $query .= " ,NOW() ";
+      $query .= " ,1 ";
+      $query .= " ,%5 ";
+      $query .= " ,%6 ";
+      $query .= " ,'M' ";
+      $query .= " ,%7 ";
+      $query .= " ,%8) ";
+
+      $bankingReference = $ddiReference." Recurring Contribution : ".$recurringId;
+
+      $date = new DateTime($startDate);
+      $startDate = $date->format('Ymd');
+
+      $params = array( 1 => array($contactID, 'Int' )
+        ,2 => array($contactDatabaseID, 'String' )
+        ,5 => array($startDate, 'Date' )
+        ,6 => array($amount, 'String' )
+        ,7 => array($campaignId, 'String' )
+        ,8 => array($bankingReference, 'String' )
+      );
+
+      $dao = CRM_Core_DAO::executeQuery( $query, $params );
+    }
+  }
+
+  // specific to llr. Generates DD signup pdf which will be attached with
+  // notification mail in th end 
+  static function createDDSignupPdf($response, $params) {
+    $sql = "SELECT msg_html FROM civicrm_msg_template mt WHERE mt.msg_title = 'direct_debit_confirmation_pdf'";
+    $pdfHtml = CRM_Core_DAO::singleValueQuery( $sql );
+    
+    $recurDAO = new CRM_Contribute_DAO_ContributionRecur();
+    $recurDAO->id = $params['contributionRecurID'];
+    $recurDAO->find(TRUE);
+
+    $frequencyInterval = $recurDAO->frequency_interval;
+    $frequencyUnit = $recurDAO->frequency_unit;
+    $numberOfInstallemts = $recurDAO->installments;
+    $bankName = $params['bank_name'];
+    $accountHolder = $params['account_holder'];
+    $accountNumber = 'xxxx'. substr($params['bank_account_number'], 4);
+    $sortcode = $params['bank_identification_number'];
+    $startDate = date("jS F Y", strtotime($recurDAO->start_date));
+    $transactionReference = $recurDAO->trxn_id;
+    $firstPaymentAmount = $recurDAO->amount;
+    $recurringPaymentAmount = $recurDAO->amount;
+    $serviceUserNumber = UK_Direct_Debit_Form_Main::getSUN();
+    $serviceUserName = UK_Direct_Debit_Form_Main::getCompanyName();
+    $telephoneNumber = UK_Direct_Debit_Form_Main::getTelephoneNumber();
+    $emailAddress = UK_Direct_Debit_Form_Main::getEmailAddress();
+    $salutationName = $params['billing_first_name'].' '.$params['billing_middle_name'].' '.$params['billing_last_name'];
+    $address = '';
+    $address .= !empty($params['billing_street_address-5'])    ? $params['billing_street_address-5'].'<br/>' : '';
+    $address .= !empty($params['billing_city-5'])              ? $params['billing_city-5'].'<br/>' : '';
+    $address .= !empty($params['billing_state_province_id-5']) ? UK_Direct_Debit_Form_Main::getStateProvince($params['billing_state_province_id-5']).'<br/>' : '';
+    $address .= !empty($params['billing_postal_code-5'])       ? $params['billing_postal_code-5'].'<br/>' : '';
+    $address .= !empty($params['billing_country_id-5'])        ? UK_Direct_Debit_Form_Main::getCountry($params['billing_country_id-5']).'<br/>' : '';
+    
+    $pdfHtml = str_replace(  '{full_address}'            , $address ,                $pdfHtml);
+    $pdfHtml = str_replace(  '{salutation_name}'         , $salutationName ,         $pdfHtml);
+    $pdfHtml = str_replace(  '{account_holder}'          , $accountHolder ,          $pdfHtml);
+    $pdfHtml = str_replace(  '{account_number}'          , $accountNumber ,          $pdfHtml);
+    $pdfHtml = str_replace(  '{sortcode}'                , $sortcode ,               $pdfHtml);
+    $pdfHtml = str_replace(  '{start_date}'              , $startDate ,              $pdfHtml);
+    $pdfHtml = str_replace(  '{first_payment_amount}'    , $firstPaymentAmount ,     $pdfHtml);
+    $pdfHtml = str_replace(  '{recurring_payment_amount}', $recurringPaymentAmount , $pdfHtml);
+    $pdfHtml = str_replace(  '{frequency_unit}'          , $frequencyUnit ,          $pdfHtml);
+    $pdfHtml = str_replace(  '{telephone_number}'        , $telephoneNumber ,        $pdfHtml);
+    $pdfHtml = str_replace(  '{email_address}'           , $emailAddress ,           $pdfHtml);
+    $pdfHtml = str_replace(  '{service_user_number}'     , $serviceUserNumber ,      $pdfHtml);
+    $pdfHtml = str_replace(  '{service_user_name}'       , $serviceUserName ,        $pdfHtml);
+    $pdfHtml = str_replace(  '{transaction_reference}'   , $transactionReference ,   $pdfHtml);
+
+    list($fileName, $filePathName) = UK_Direct_Debit_Form_Main::getDDSignupPdfPath($params['contributionRecurID']);
+    $fileContent  = UK_Direct_Debit_Form_Main::html2pdf($pdfHtml , $fileName , "external");
+
+    $handle = fopen($filePathName, 'w');
+    file_put_contents($filePathName, $fileContent);
+    fclose($handle);                   
+  }
+
+  // specific to llr
+  static function getDDSignupPdfPath($recurID) {
+    $config   = CRM_Core_Config::singleton( );  
+    $fileName = 'DDSignUp-ContributionRecur-'. $recurID .'.pdf';
+    $filePathName = "{$config->customFileUploadDir}{$fileName}";
+    return array($fileName, $filePathName);
+  }
+
   /*
    * Function will return the SUN number broken down into individual characters passed as an array
    */
@@ -460,6 +612,11 @@ EOF;
     
     // Create an activity to indicate Direct Debit Sign up
     $activityID = self::createDDSignUpActivity( $params );
+    list($fileName, $filePathName) = UK_Direct_Debit_Form_Main::getDDSignupPdfPath($objects['contributionRecur']->id);
+    if ($params['confirmation_method_post_activity_id'] && $fileName) {
+      // attach pdf made earlier to post activity
+      self::insert_file_for_activity($fileName , $params['confirmation_method_post_activity_id']);
+    }
 
     // Set the DD Record to be complete
     $sql = <<<EOF
@@ -479,6 +636,7 @@ EOF;
 
     require_once 'api/api.php';
 
+    $resultLetter = array();
     if ( $params['confirmation_method'] == 'POST' ) {
         $activityTypeLetterID = self::getActivityTypeLetter();
 
@@ -512,6 +670,8 @@ EOF;
 
     $result     = civicrm_api( 'activity','create', $activityParams );
     $activityID = $result['id'];
+    $params['confirmation_method_email_activity_id'] = $activityID;
+    $params['confirmation_method_post_activity_id']  = CRM_Utils_Array::value('id', $resultLetter);
 
     return $activityID;
   }

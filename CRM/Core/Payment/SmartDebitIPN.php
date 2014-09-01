@@ -120,7 +120,7 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.getValue name=
       }
     }
 
-    $sendNotification          = FALSE;
+    $sendNotification          = TRUE;
     $subscriptionPaymentStatus = NULL;
 
     //set transaction type
@@ -148,6 +148,7 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.getValue name=
           $recur->trxn_id = $input['trxn_id'];
           $recur->cycle_day = $input['collection_day'];
           $recur->start_date = $input['start_date'];
+          $subscriptionPaymentStatus = CRM_Core_Payment::RECURRING_PAYMENT_START;
         }
         else {
           $recur->modified_date = $now;
@@ -177,12 +178,12 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.getValue name=
         $autoRenewMembership = TRUE;
       }
       //send recurring Notification email for user
-      CRM_Contribute_BAO_ContributionPage::recurringNotify( $subscriptionPaymentStatus,
-                                                            $ids['contact'],
-                                                            $ids['contributionPage'],
-                                                            $recur,
-                                                            $autoRenewMembership
-                                                           );
+      self::recurringNotify( $subscriptionPaymentStatus,
+        $ids['contact'],
+        $ids['contributionPage'],
+        $recur,
+        $autoRenewMembership
+      );
     }
 
     CRM_Core_Error::debug_log_message("Check Recurring : $txnType");
@@ -441,5 +442,102 @@ EOF;
     $input['fee_amount'] = self::retrieve( 'mc_fee'       , 'Money'  , 'POST', FALSE );
     $input['net_amount'] = self::retrieve( 'settle_amount', 'Money'  , 'POST', FALSE );
     $input['trxn_id']    = self::retrieve( 'txn_id'       , 'String' , 'GET', FALSE );
+  }
+
+  // Overriding core CRM_Contribute_BAO_ContributionPage::recurringNotify()
+  // Because 1. in llr core template doesn't exist with correct mapping, 2. they
+  // have separate msg-template for direct debit
+  static function recurringNotify($type, $contactID, $pageID, $recur, $autoRenewMembership = FALSE) {
+    $notifyAttachments = array();
+    list($fileName, $filePathName) = UK_Direct_Debit_Form_Main::getDDSignupPdfPath($recur->id);
+    if ($fileName && $filePathName) {
+      $notifyAttachments = array( 
+        array(
+          'fullPath'  => $filePathName,
+          'mime_type' => 'application/pdf',
+          'cleanName' => $fileName,
+        )
+      );
+    }
+
+    $value = array();
+    if ($pageID) {
+      CRM_Core_DAO::commonRetrieveAll('CRM_Contribute_DAO_ContributionPage', 'id', $pageID, $value, array(
+          'title',
+          'is_email_receipt',
+          'receipt_from_name',
+          'receipt_from_email',
+          'cc_receipt',
+          'bcc_receipt',
+        ));
+    }
+
+    $isEmailReceipt = CRM_Utils_Array::value('is_email_receipt', $value[$pageID]);
+    $isOfflineRecur = FALSE;
+    if (!$pageID && $recur->id) {
+      $isOfflineRecur = TRUE;
+    }
+    if ($isEmailReceipt || $isOfflineRecur) {
+      if ($pageID) {
+        $receiptFrom = '"' . CRM_Utils_Array::value('receipt_from_name', $value[$pageID]) . '" <' . $value[$pageID]['receipt_from_email'] . '>';
+
+        $receiptFromName = $value[$pageID]['receipt_from_name'];
+        $receiptFromEmail = $value[$pageID]['receipt_from_email'];
+      }
+      else {
+        $domainValues     = CRM_Core_BAO_Domain::getNameAndEmail();
+        $receiptFrom      = "$domainValues[0] <$domainValues[1]>";
+        $receiptFromName  = $domainValues[0];
+        $receiptFromEmail = $domainValues[1];
+      }
+
+      list($displayName, $email) = CRM_Contact_BAO_Contact_Location::getEmailDetails($contactID, FALSE);
+      $templatesParams = array(
+        'groupName' => 'msg_tpl_workflow_contribution',
+        'valueName' => 'direct_debit_confirmation', //changed from 'contribution_recurring_notify',
+        'contactId' => $contactID,
+        'tplParams' => array(
+          'recur_frequency_interval' => $recur->frequency_interval,
+          'recur_frequency_unit' => $recur->frequency_unit,
+          'recur_installments' => $recur->installments,
+          'recur_start_date' => $recur->start_date,
+          'recur_end_date' => $recur->end_date,
+          'recur_amount' => $recur->amount,
+          'recur_txnType' => $type,
+          'displayName' => $displayName,
+          'receipt_from_name' => $receiptFromName,
+          'receipt_from_email' => $receiptFromEmail,
+          'auto_renew_membership' => $autoRenewMembership,
+        ),
+        'from' => $receiptFrom,
+        'toName' => $displayName,
+        'toEmail' => $email,
+        'attachments' => $notifyAttachments
+      );
+
+      if ($recur->id) {
+        // in some cases its just recurringNotify() thats called for the first time and these urls don't get set.
+        // like in PaypalPro, & therefore we set it here additionally.
+        $template         = CRM_Core_Smarty::singleton();
+        $paymentProcessor = CRM_Financial_BAO_PaymentProcessor::getProcessorForEntity($recur->id, 'recur', 'obj');
+        $url              = $paymentProcessor->subscriptionURL($recur->id, 'recur');
+        $template->assign('cancelSubscriptionUrl', $url);
+
+        $url = $paymentProcessor->subscriptionURL($recur->id, 'recur', 'billing');
+        $template->assign('updateSubscriptionBillingUrl', $url);
+
+        $url = $paymentProcessor->subscriptionURL($recur->id, 'recur', 'update');
+        $template->assign('updateSubscriptionUrl', $url);
+      }
+
+      list($sent, $subject, $message, $html) = CRM_Core_BAO_MessageTemplates::sendTemplate($templatesParams);
+
+      if ($sent) {
+        CRM_Core_Error::debug_log_message('Success: mail sent for recurring notification.');
+      }
+      else {
+        CRM_Core_Error::debug_log_message('Failure: mail not sent for recurring notification.');
+      }
+    }
   }
 }

@@ -111,7 +111,7 @@ class CRM_Core_Payment_Form {
       'attributes' => array(
         '' => ts('- select -')) +
       CRM_Core_PseudoConstant::stateProvince(),
-      'is_required' => self::checkRequiredStateProvince($form),
+      //'is_required' => self::checkRequiredStateProvince($form),
     );
 
     $form->_paymentFields["billing_postal_code-{$bltID}"] = array(
