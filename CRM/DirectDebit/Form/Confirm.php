@@ -20,8 +20,11 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       $status = 1;
       
       $ids  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Confirm::SD_SETTING_GROUP, 'result_ids');
+      $rejectedids  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Confirm::SD_SETTING_GROUP, 'rejected_ids');
       $this->assign('ids', $ids);
-      $this->assign('totalContribution', count($ids));
+      $this->assign('rejectedids', $rejectedids);
+      $this->assign('totalValidContribution', count($ids));
+      $this->assign('totalRejectedContribution', count($rejectedids));
       
       
     }
@@ -119,9 +122,56 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       ));
       
       // Reset the counter when sync starts
-      $query = "UPDATE civicrm_setting SET value = NULL WHERE name = 'result_ids'"; 
+      $query1 = "UPDATE civicrm_setting SET value = NULL WHERE name = 'result_ids'"; 
+      $query2 = "UPDATE civicrm_setting SET value = NULL WHERE name = 'rejected_ids'"; 
       
-      CRM_Core_DAO::executeQuery($query);
+      CRM_Core_DAO::executeQuery($query1);
+      CRM_Core_DAO::executeQuery($query2);
+      
+      // Add contributions for rejected payments with the status of 'failed'
+      $ids = array();
+      foreach ($auddisFile as $key => $value) {
+      
+        $sql = "
+          SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id  
+          FROM civicrm_contribution_recur ctrc 
+          INNER JOIN civicrm_contact cont ON (ctrc.contact_id = cont.id) 
+          WHERE ctrc.trxn_id = %1";
+
+        $params = array( 1 => array( $value['reference'], 'String' ) );
+        $dao = CRM_Core_DAO::executeQuery( $sql, $params);
+        
+        $financialType    = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
+        $financialTypeID  = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialType', $financialType, 'id', 'name');
+        
+        if ($dao->fetch()) {
+          $contributeParams = 
+          array(
+            'version'                => 3,
+            'contact_id'             => $dao->contact_id,
+            'contribution_recur_id'  => $dao->contribution_recur_id,
+            'total_amount'           => $dao->amount,
+            'invoice_id'             => md5(uniqid(rand(), TRUE )),
+            'trxn_id'                => $value['reference'].'/'.$auddisDate,
+            'financial_type_id'      => $financialTypeID,
+            'payment_instrument_id'  => $dao->payment_instrument_id,
+            'contribution_status_id' => 4,
+          );
+
+          $contributeResult = civicrm_api('Contribution', 'create', $contributeParams);
+          
+          if(!$contributeResult['is_error']) {
+            $contributionID   = $contributeResult['id'];
+            $ids[$contributionID]= array('cid' => $contributeResult['values'][$contributionID]['contact_id'], 'id' => $contributionID);
+          }
+          
+        }
+        
+      }
+    
+      CRM_Core_BAO_Setting::setItem($ids,
+        CRM_DirectDebit_Form_Confirm::SD_SETTING_GROUP, 'rejected_ids'
+      );
       return $runner;
     }
     return FALSE;
