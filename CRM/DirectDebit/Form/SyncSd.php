@@ -45,6 +45,11 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
   function postProcess() {
     $params = $this->controller->exportValues();
     $auddisDate = $params['auddis_date'];
+    $details    = CRM_Core_DAO::getFieldValue('CRM_Activity_DAO_Activity', $auddisDate, 'details', 'subject');
+    if($details) {
+      CRM_Core_Session::setStatus(ts($details), Error, 'error');
+      CRM_Utils_System::redirect(CRM_Utils_System::url( 'civicrm/directdebit/syncsd', '&reset=1'));
+    }
    
     CRM_Utils_System::redirect(CRM_Utils_System::url( 'civicrm/directdebit/auddis', 'date=' . $auddisDate. '&reset=1'));
       

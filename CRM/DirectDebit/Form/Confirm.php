@@ -66,6 +66,15 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     
     $runner = self::getRunner($auddisDate);
     if ($runner) {
+      // Create activity for the sync just finished with the auddis date
+      $params = array(
+        'version' => 3,
+        'sequential' => 1,
+        'activity_type_id' => 6,
+        'subject' => $auddisDate,
+        'details' => 'Sync had been processed already for this date '.$auddisDate,
+      );
+      $result = civicrm_api('Activity', 'create', $params);
       // Run Everything in the Queue via the Web.
       $runner->runAllViaWeb();
     } else {
