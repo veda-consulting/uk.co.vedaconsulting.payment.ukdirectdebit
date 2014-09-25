@@ -229,7 +229,7 @@ function uk_direct_debit_civicrm_install( ) {
         array(
           'label' => ts('Import Smart Debit Contributions'),
           'name'  => 'Import Smart Debit Contributions',
-          'url'   => 'civicrm/directdebit/syncsd&reset=1',
+          'url'   => 'civicrm/directdebit/syncsd?reset=1',
         ),
       );
 
