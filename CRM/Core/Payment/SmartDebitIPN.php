@@ -166,6 +166,30 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.getValue name=
           $recur->processor_id = $input['trxn_id'];
           $recur->cycle_day = $input['collection_day'];
           $recur->start_date = $input['start_date'];
+		  
+		  //Create membership_id column in recur table if not exists.
+          if($ids['membership']) {
+            $columnExists = CRM_Core_DAO::checkFieldExists('civicrm_contribution_recur', 'membership_id');
+            if(!$columnExists) {
+              $query = "
+                ALTER TABLE civicrm_contribution_recur
+                ADD membership_id int(10) unsigned AFTER contact_id,
+                ADD CONSTRAINT FK_civicrm_contribution_recur_membership_id
+                FOREIGN KEY(membership_id) REFERENCES civicrm_membership(id) ON DELETE CASCADE ON UPDATE RESTRICT";
+
+              CRM_Core_DAO::executeQuery($query);
+            }
+
+            // Populate membership_id
+
+            $query = "
+            UPDATE civicrm_contribution_recur
+            SET membership_id = %1
+            WHERE id = %2 ";
+
+            $params = array( 1 => array( $ids['membership'][0], 'Int' ), 2 => array($ids['contributionRecur'], 'Int') );
+            $dao = CRM_Core_DAO::executeQuery($query, $params);
+          }
         }
         else {
           $recur->modified_date = $now;

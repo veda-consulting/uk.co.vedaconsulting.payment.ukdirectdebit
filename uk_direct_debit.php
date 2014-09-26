@@ -219,7 +219,46 @@ function uk_direct_debit_civicrm_install( ) {
     'is_active'     => 0,
   );
   $result = civicrm_api3('job', 'create', $params);
+  
+  $parentId = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Navigation', 'Contributions', 'id', 'name');
+  $weight   = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Navigation', 'Import Contributions', 'weight', 'name');
 
+  if ($parentId) {
+    $smartdebitMenu = 
+      array(
+        array(
+          'label' => ts('Import Smart Debit Contributions'),
+          'name'  => 'Import Smart Debit Contributions',
+          'url'   => 'civicrm/directdebit/syncsd?reset=1',
+        ),
+      );
+
+    foreach ($smartdebitMenu as $key => $menuItems) {
+      $menuItems['is_active'] = 1;
+      $menuItems['parent_id'] = $parentId;
+      $menuItems['weight']    = ++$weight;
+      $menuItems['permission'] = 'administer CiviCRM';
+      CRM_Core_BAO_Navigation::add($menuItems);
+    }
+    CRM_Core_BAO_Navigation::resetNavigation();
+  }
+
+}
+
+function uk_direct_debit_civicrm_uninstall( ) {
+  
+  $smartdebitMenuItems = array(
+    'Import Smart Debit Contributions', 
+  );
+
+  foreach ($smartdebitMenuItems as $name) {
+    $itemId = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Navigation', $name, 'id', 'name', TRUE);
+    if ($itemId) {
+      CRM_Core_BAO_Navigation::processDelete($itemId);
+    }
+  }
+  CRM_Core_BAO_Navigation::resetNavigation();
+  
 }
 
 function uk_direct_debit_message_template() {
