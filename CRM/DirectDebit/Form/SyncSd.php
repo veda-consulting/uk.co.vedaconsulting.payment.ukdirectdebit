@@ -12,8 +12,11 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
   public function buildQuickForm() {
     $auddisDetails    = array();
     $auddisDates      = array();
+    
+    // Get all auddis files from the API
     $auddisArray      = CRM_DirectDebit_Form_SyncSd::getSmartDebitAuddis();
     
+    // Get the auddis Dates from the Auddis Files
     if($auddisArray) {
       foreach ($auddisArray as $key => $auddis) {
           $auddisDetails['auddis_id']              = $auddis['auddis_id'];
@@ -23,8 +26,42 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
 
       }
     }
-     
+    
+    // Get the already processed Auddis Dates
+    $processedAuddisDates = array();    
+    if($auddisDates) {
+      foreach ($auddisDates as $auddisDate) {
+        $details    = CRM_Core_DAO::getFieldValue('CRM_Activity_DAO_Activity', $auddisDate, 'details', 'subject');
+        if($details) {
+          $processedAuddisDates[] = $auddisDate;
+        }
+      }
+    }
+
+    // Show only the valid auddis dates in the multi select box
+    $auddisDates = array_diff($auddisDates, $processedAuddisDates);
     $auddisDates = array_combine($auddisDates, $auddisDates);
+    
+    if (count($auddisDates) <= 10) {
+      // setting minimum height to 2 since widget looks strange when size (height) is 1
+      $groupSize = max(count($auddisDates), 2);
+    }
+    else {
+      $groupSize = 10;
+    }
+    
+    $inG = &$this->addElement('advmultiselect', 'includeAuddisDate',
+      ts('Include Auddis Date(s)') . ' ',
+      $auddisDates,
+      array(
+        'size' => $groupSize,
+        'style' => 'width:auto; min-width:240px;',
+        'class' => 'advmultiselect',
+      )
+    );
+    
+    $this->assign('groupCount', count($auddisDates));
+    
     $this->addElement('select', 'auddis_date', ts('Auddis Date'), array('' => ts('- select -')) + $auddisDates);
     $this->addDate('sync_date', ts('Sync Date'), FALSE, array('formatType' => 'custom'));
     $this->addButtons(array(
@@ -44,14 +81,14 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
   
   function postProcess() {
     $params = $this->controller->exportValues();
-    $auddisDate = $params['auddis_date'];
-    $details    = CRM_Core_DAO::getFieldValue('CRM_Activity_DAO_Activity', $auddisDate, 'details', 'subject');
-    if($details) {
-      CRM_Core_Session::setStatus(ts($details), Error, 'error');
-      CRM_Utils_System::redirect(CRM_Utils_System::url( 'civicrm/directdebit/syncsd', '&reset=1'));
-    }
+    $auddisDates = $params['includeAuddisDate'];
    
-    CRM_Utils_System::redirect(CRM_Utils_System::url( 'civicrm/directdebit/auddis', 'date=' . $auddisDate. '&reset=1'));
+    // Make the query string to send in the url for the next page
+    foreach ($auddisDates as $value) {
+      $queryDates .= "auddisDates[]=".$value."&";
+    }
+    
+    CRM_Utils_System::redirect(CRM_Utils_System::url( 'civicrm/directdebit/auddis', ''.$queryDates. '&reset=1'));
       
     parent::postProcess();
   }
