@@ -241,6 +241,52 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
 
         if(!$contributeResult['is_error']) {
           $contributionID   = $contributeResult['id'];
+          $contriReurID     = $contributeResult['values'][$contributionID]['contribution_recur_id'];
+          $membershipQuery  = "SELECT `membership_id` FROM `civicrm_contribution_recur` WHERE `id` = %1";
+          
+          $membershipID   = CRM_Core_DAO::singleValueQuery($membershipQuery, array( 1 => array( $contriReurID, 'Int' ) ) );
+          
+          $getMembership  = civicrm_api("Membership"
+                                    ,"get"
+                                    , array ('version'       => '3'
+                                            ,'membership_id' => $membershipID
+                                            )
+                                    );
+
+          $membershipEndDate   = $getMembership['values'][$membershipID]['end_date'];  
+          
+          $contributionReceiveDate = $contributeResult['values'][$contributionID]['receive_date'];
+
+          $contributionReceiveDateString = date("Ymd", strtotime($contributionReceiveDate));
+          $membershipEndDateString = date("Ymd", strtotime($membershipEndDate));
+        
+          if ($contributionReceiveDateString > $membershipEndDateString) {
+
+            $contributionRecurring = civicrm_api("ContributionRecur"
+                                                ,"get"
+                                                , array ('version' => '3'
+                                                        ,'id'      => $contriReurID
+                                                        )
+                                                );
+
+            $frequencyUnit = $contributionRecurring['values'][$contriReurID]['frequency_unit'];
+
+            if (!is_null($frequencyUnit)) {
+                $membershipEndDateString = date("Y-m-d",strtotime(date("Y-m-d", strtotime($membershipEndDate)) . " +1 $frequencyUnit"));
+            }
+
+          }
+          $updatedMember = civicrm_api("Membership"
+                                    ,"create"
+                                    , array ('version'       => '3',
+                                             'membership_id' => $membershipID,
+                                             'id'            => $membershipID,
+                                             'end_date'      => $membershipEndDateString,
+                                            )
+                                    );
+        
+
+          
           $ids[$contributionID]= array('cid' => $contributeResult['values'][$contributionID]['contact_id'], 'id' => $contributionID);
         }
       }

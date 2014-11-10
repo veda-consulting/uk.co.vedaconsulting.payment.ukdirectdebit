@@ -191,7 +191,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     }
     return $auddisDetails;
   }
-    
-    
+  
+ 
   
 }
