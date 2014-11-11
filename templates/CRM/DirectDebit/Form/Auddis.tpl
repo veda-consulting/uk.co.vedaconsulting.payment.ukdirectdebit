@@ -107,6 +107,42 @@
         </tr>
         
     </table>
+            <br>
+    <h3>{ts}Contacts for which no record found in CiviCRM{/ts}</h3>
+    <table class="form-layout">
+        <tr style="background-color: #CDE8FE;">
+           <td><b>{ts}Reference{/ts}</td>
+           <td><b>{ts}Contact{/ts}</td>
+           <td><b>{ts}Frequency{/ts}</td>
+           <td><b>{ts}Start Date{/ts}</td>
+           <td><b>{ts}Total{/ts}</td>
+           <td></td>
+        </tr>
+        {foreach from=$missingArray item=row}
+        {assign var=id value=$row.id} 
+        <tr>
+            <td>{$row.transaction_id}</td>
+            <td>
+                {if $row.contact_id gt 0}
+                    <a href="/civicrm/contact/view?cid={$row.contact_id}">{$row.contact_name}</a>
+                {else}
+                    {$row.contact_name}
+                {/if}</td>
+            <td>{$row.frequency}</td>
+            <td>{$row.start_date|crmDate}</td>
+            <td>{$row.amount}</td>
+        </tr>
+        {/foreach}
+        <br/>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        
+    </table>
         <div class="crm-block crm-form-block crm-campaignmonitor-sync-form-block">
     <div class="crm-submit-buttons">
       {include file="CRM/common/formButtons.tpl"}
