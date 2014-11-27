@@ -2,20 +2,20 @@
   require_once 'CRM/Core/Form.php';
   require_once 'CRM/Core/Session.php';
   require_once 'CRM/Core/PseudoConstant.php';
-    
+
 class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
-  
+
   function preProcess() {
     parent::preProcess();
   }
-  
+
   public function buildQuickForm() {
     $auddisDetails    = array();
     $auddisDates      = array();
-    
+
     // Get all auddis files from the API
     $auddisArray      = CRM_DirectDebit_Form_SyncSd::getSmartDebitAuddis();
-    
+
     // Get the auddis Dates from the Auddis Files
     if($auddisArray) {
       foreach ($auddisArray as $key => $auddis) {
@@ -26,9 +26,9 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
 
       }
     }
-    
+
     // Get the already processed Auddis Dates
-    $processedAuddisDates = array();    
+    $processedAuddisDates = array();
     if($auddisDates) {
       foreach ($auddisDates as $auddisDate) {
         $details    = CRM_Core_DAO::getFieldValue('CRM_Activity_DAO_Activity', $auddisDate, 'details', 'subject');
@@ -40,8 +40,11 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
 
     // Show only the valid auddis dates in the multi select box
     $auddisDates = array_diff($auddisDates, $processedAuddisDates);
-    $auddisDates = array_combine($auddisDates, $auddisDates);
-    
+    // Check if array to not empty, to avoid warning
+    if (!empty($auddisDates)) {
+      $auddisDates = array_combine($auddisDates, $auddisDates);
+    }
+
     if (count($auddisDates) <= 10) {
       // setting minimum height to 2 since widget looks strange when size (height) is 1
       $groupSize = max(count($auddisDates), 2);
@@ -49,7 +52,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     else {
       $groupSize = 10;
     }
-    
+
     $inG = &$this->addElement('advmultiselect', 'includeAuddisDate',
       ts('Include Auddis Date(s)') . ' ',
       $auddisDates,
@@ -59,10 +62,14 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
         'class' => 'advmultiselect',
       )
     );
-    
+
     $this->assign('groupCount', count($auddisDates));
-    
-    $this->addElement('select', 'auddis_date', ts('Auddis Date'), array('' => ts('- select -')) + $auddisDates);
+
+    $auddisDatesArray = array('' => ts('- select -'));
+    if (!empty($auddisDates)) {
+      $auddisDatesArray = $auddisDatesArray + $auddisDates;
+    }
+    $this->addElement('select', 'auddis_date', ts('Auddis Date'), $auddisDatesArray);
     $this->addDate('sync_date', ts('Sync Date'), FALSE, array('formatType' => 'custom'));
     $this->addButtons(array(
               array(
@@ -78,34 +85,37 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     );
     parent::buildQuickForm();
   }
-  
+
   function postProcess() {
     $params = $this->controller->exportValues();
     $auddisDates = $params['includeAuddisDate'];
-   
+
     // Make the query string to send in the url for the next page
+    $queryDates = '';
     foreach ($auddisDates as $value) {
       $queryDates .= "auddisDates[]=".$value."&";
     }
-    
+
     CRM_Utils_System::redirect(CRM_Utils_System::url( 'civicrm/directdebit/auddis', ''.$queryDates. '&reset=1'));
-      
+
     parent::postProcess();
   }
-  
+
   static function getSmartDebitAuddis($uri = NULL) {
     $paymentProcessorType = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
     $paymentProcessorTypeId = CRM_Utils_Array::key('Smart Debit', $paymentProcessorType);
+    $domainID = CRM_Core_Config::domainID();
 
     $sql  = " SELECT user_name ";
     $sql .= " ,      password ";
-    $sql .= " ,      signature "; 
-    $sql .= " FROM civicrm_payment_processor "; 
-    $sql .= " WHERE payment_processor_type_id = %1 "; 
-    $sql .= " AND is_test= %2 ";
+    $sql .= " ,      signature ";
+    $sql .= " FROM civicrm_payment_processor ";
+    $sql .= " WHERE payment_processor_type_id = %1 ";
+    $sql .= " AND is_test= %2 AND domain_id = %3";
 
     $params = array( 1 => array( $paymentProcessorTypeId, 'Integer' )
-                   , 2 => array( '0', 'Int' )    
+                   , 2 => array( '0', 'Int' )
+                   , 3 => array( $domainID, 'Int' )
                    );
 
     $dao = CRM_Core_DAO::executeQuery( $sql, $params);
@@ -120,7 +130,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
 
     if($uri) {
       $urlAuddis          = $uri."?query[service_user][pslid]=$pslid";
-      $responseAuddis     = self::requestPost( $urlAuddis, $username, $password );   
+      $responseAuddis     = self::requestPost( $urlAuddis, $username, $password );
       $scrambled          = str_replace(" ","+",$responseAuddis['file']);
       $outputafterencode  = base64_decode($scrambled);
       $auddisArray        = json_decode(json_encode((array) simplexml_load_string($outputafterencode)),1);
@@ -145,7 +155,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
   // Send payment POST to the target URL
       $urlAuddis = "https://secure.ddprocessing.co.uk/api/auddis/list?query[service_user][pslid]=$pslid";
 
-      $responseAuddis = self::requestPost( $urlAuddis, $username, $password );    
+      $responseAuddis = self::requestPost( $urlAuddis, $username, $password );
 
       // Take action based upon the response status
       switch ( strtoupper( $responseAuddis["Status"] ) ) {
@@ -156,7 +166,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
               // Cater for a single response
               if (isset($responseAuddis['auddis'])) {
                 $auddisArray = $responseAuddis['auddis'];
-              }           
+              }
               return $auddisArray;
 
           default:
@@ -195,16 +205,16 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
         // $output contains the output string
         $output = curl_exec($session);
         $header = curl_getinfo( $session );
-        //Store the raw response for later as it's useful to see for integration and understanding 
+        //Store the raw response for later as it's useful to see for integration and understanding
         $_SESSION["rawresponse"] = $output;
 
         if(curl_errno($session)) {
-          $resultsArray["Status"] = "FAIL";  
+          $resultsArray["Status"] = "FAIL";
           $resultsArray['StatusDetail'] = curl_error($session);
         }
         else {
           // Results are XML so turn this into a PHP Array
-          $resultsArray = json_decode(json_encode((array) simplexml_load_string($output)),1);  
+          $resultsArray = json_decode(json_encode((array) simplexml_load_string($output)),1);
 
           // Determine if the call failed or not
           switch ($header["http_code"]) {
@@ -220,21 +230,21 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
         return $resultsArray;
 
     } // END function requestPost()
-    
-    
+
+
     static function getSmartDebitPayments($referenceNumber = NULL) {
       $paymentProcessorType = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
       $paymentProcessorTypeId = CRM_Utils_Array::key('Smart Debit', $paymentProcessorType);
-  
+
       $sql  = " SELECT user_name ";
       $sql .= " ,      password ";
-      $sql .= " ,      signature "; 
-      $sql .= " FROM civicrm_payment_processor "; 
-      $sql .= " WHERE payment_processor_type_id = %1 "; 
+      $sql .= " ,      signature ";
+      $sql .= " FROM civicrm_payment_processor ";
+      $sql .= " WHERE payment_processor_type_id = %1 ";
       $sql .= " AND is_test= %2 ";
 
       $params = array( 1 => array( $paymentProcessorTypeId, 'Integer' )
-                     , 2 => array( '0', 'Int' )    
+                     , 2 => array( '0', 'Int' )
                      );
 
       $dao = CRM_Core_DAO::executeQuery( $sql, $params);
@@ -246,22 +256,22 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
           $pslid    = $dao->signature;
 
       }
-    
+
     // Send payment POST to the target URL
     $url = "https://secure.ddprocessing.co.uk/api/data/dump?query[service_user][pslid]=$pslid&query[report_format]=XML";
     // Restrict to a single payer if we have a reference
     if ($referenceNumber) {
       $url .= "&query[reference_number]=$referenceNumber";
     }
-		
-    $response = self::requestPost( $url, $username, $password );    
+
+    $response = self::requestPost( $url, $username, $password );
 
     // Take action based upon the response status
     switch ( strtoupper( $response["Status"] ) ) {
         case 'OK':
-        
+
             $smartDebitArray = array();
-						
+
 					  // Cater for a single response
 					  if (isset($response['Data']['PayerDetails']['@attributes'])) {
 							$smartDebitArray[] = $response['Data']['PayerDetails']['@attributes'];
@@ -269,13 +279,13 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
 							foreach ($response['Data']['PayerDetails'] as $key => $value) {
 							  $smartDebitArray[] = $value['@attributes'];
 							}
-						}             
+						}
             return $smartDebitArray;
-            
+
         default:
             return false;
     }
-   
+
   }
-    
+
 }
