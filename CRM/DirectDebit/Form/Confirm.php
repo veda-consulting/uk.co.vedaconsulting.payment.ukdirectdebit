@@ -103,11 +103,12 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       }
     }
     
-    $selectQuery = "SELECT `transaction_id` as trxn_id FROM `veda_civicrm_smartdebit_import`";
+    $selectQuery = "SELECT `transaction_id` as trxn_id, `receive_date` as receive_date FROM `veda_civicrm_smartdebit_import`";
     $dao = CRM_Core_DAO::executeQuery($selectQuery);
     $traIds = array();
     while($dao->fetch()) {
       $traIds[] = $dao->trxn_id;
+      $receiveDate  = $dao->receive_date;
     }
   
     $count  = count($traIds);
@@ -172,7 +173,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
               'contribution_recur_id'  => $dao->contribution_recur_id,
               'total_amount'           => $dao->amount,
               'invoice_id'             => md5(uniqid(rand(), TRUE )),
-              'trxn_id'                => $value['reference'].'/'.$value['effective-date'],
+              'trxn_id'                => $value['reference'].'/'.CRM_Utils_Date::processDate($receiveDate),
               'financial_type_id'      => $financialTypeID,
               'payment_instrument_id'  => $dao->payment_instrument_id,
               'contribution_status_id' => 4,

@@ -25,6 +25,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     // Display the rejected payments
     $newAuddisArray = array();
     $key = 0;
+    $rejectedIds  = array();
     foreach ($auddisFiles as $auddisFile) {
       foreach ($auddisFile as $inside => $value) {
 
@@ -36,7 +37,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
 
           $params = array( 1 => array( $value['reference'], 'String' ) );
           $dao = CRM_Core_DAO::executeQuery( $sql, $params);
-
+          $rejectedIds[]  = "'".$value['reference']."' ";
           if ($dao->fetch()) {
 
             $newAuddisArray[$key]['contribution_recur_id']    = $dao->contribution_recur_id;
@@ -70,10 +71,12 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     // Display the valid payments
     $transactionIdList = "'dummyId'";
     $contributintrxnId = "'dummyId'";
+    $sdTrxnIds         = array();
     $selectQuery = "SELECT `transaction_id` as trxn_id, receive_date as receive_date FROM `veda_civicrm_smartdebit_import`";
     $dao = CRM_Core_DAO::executeQuery($selectQuery);
     while($dao->fetch()) {
       $transactionIdList .= ", '".$dao->trxn_id."' "; // Transaction ID
+      $sdTrxnIds[]        = "'".$dao->trxn_id."' ";
       $contributintrxnId .= ", '".$dao->trxn_id.'/'.CRM_Utils_Date::processDate($dao->receive_date)."' ";
     }
     
@@ -86,20 +89,26 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
       $dao = CRM_Core_DAO::executeQuery($contributionQuery);
       $contriTraIds = "'dummyId'";
       $processedIds = "'dummyId'";
+      $proIds       = array();
       while($dao->fetch()){
         $processedIds .= ", '".$dao->ctrc_trxn_id."' ";
+        $proIds[] = "'".$dao->ctrc_trxn_id."' ";
         $contriTraIds .= ", '".$dao->cc_trxn_id."' ";
       }
+    $validIds = array_diff($sdTrxnIds, $proIds, $rejectedIds);
     
+    if(!empty($validIds)){
+    $validIdsString = implode(',', $validIds);
     $sql = "SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id  
       FROM civicrm_contribution_recur ctrc 
       INNER JOIN civicrm_contact cont ON (ctrc.contact_id = cont.id) 
-      WHERE ctrc.trxn_id IN ($transactionIdList) AND ctrc.trxn_id NOT IN ( $processedIds )";
+      WHERE ctrc.trxn_id IN ($validIdsString)";
 
       $dao = CRM_Core_DAO::executeQuery($sql);
       $key = 0;
+      $matchTrxnIds = array();
       while ($dao->fetch()) {
-
+        $matchTrxnIds[] = "'".$dao->trxn_id."' ";
         $listArray[$key]['contribution_recur_id'] = $dao->contribution_recur_id;
         $listArray[$key]['contact_id']            = $dao->contact_id;
         $listArray[$key]['contact_name']          = $dao->display_name;
@@ -112,11 +121,13 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
         $key++;
 
       }
+    }
       
       // Show the already processed contributions
     $contributionQuery = "
-        SELECT cc.contact_id, cont.display_name, cc.total_amount, cc.trxn_id
+        SELECT cc.contact_id, cont.display_name, cc.total_amount, cc.trxn_id, ctrc.start_date, ctrc.frequency_unit
         FROM `civicrm_contribution` cc
+        LEFT JOIN civicrm_contribution_recur ctrc ON (ctrc.id = cc.contribution_recur_id)
         INNER JOIN civicrm_contact cont ON (cc.contact_id = cont.id) 
         WHERE cc.`trxn_id` IN ( $contributintrxnId )";
       $dao = CRM_Core_DAO::executeQuery($contributionQuery);
@@ -135,18 +146,56 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
         $key++;
 
       }
+      
+    $missingTrxnIds = array_diff($validIds, $matchTrxnIds);
+    if(!empty($missingTrxnIds)) {
+      $missingTrxnIdsString = implode(',', $missingTrxnIds);  
+      $findMissingQuery = "
+          SELECT `transaction_id` as trxn_id, contact as display_name, amount as amount
+          FROM `veda_civicrm_smartdebit_import`
+          WHERE transaction_id IN ($missingTrxnIdsString)";
+      $dao  = CRM_Core_DAO::executeQuery($findMissingQuery);
+      $key = 0;
+      $missingArray = array();
+      while($dao->fetch()) {
+        $missingArray[$key]['contribution_recur_id'] = $dao->contribution_recur_id;
+        $missingArray[$key]['contact_id']            = $dao->contact_id;
+        $missingArray[$key]['contact_name']          = $dao->display_name;
+        $missingArray[$key]['start_date']            = $dao->start_date;
+        $missingArray[$key]['frequency']             = $dao->frequency_unit;
+        $missingArray[$key]['amount']                = $dao->amount;
+        $missingArray[$key]['contribution_status_id']    = $dao->contribution_status_id;
+        $missingArray[$key]['transaction_id']        = $dao->trxn_id;
+        $key++;
+      }
+    }
+    
     foreach ($auddisDates as $value) {
       $queryDates .= "auddisDates[]=".$value."&";
     }
     
     $redirectUrlBack      = CRM_Utils_System::url('civicrm/directdebit/syncsd', 'reset=1');
     $redirectUrlContinue  = CRM_Utils_System::url('civicrm/directdebit/syncsd/confirm');
-    $this->addButtons(array(
-            array(
-              'type' => 'next',
-              'js' => array('onclick' => "location.href='{$redirectUrlContinue}' + '?' + '{$queryDates}' ; return false;"),
-              'name' => ts('Continue'),
+    if(!empty($matchTrxnIds)) {
+      $this->addButtons(array(
+              array(
+                'type' => 'next',
+                'js' => array('onclick' => "location.href='{$redirectUrlContinue}' + '?' + '{$queryDates}' ; return false;"),
+                'name' => ts('Continue'),
+                ),
+              array(
+                'type' => 'back',
+                'js' => array('onclick' => "location.href='{$redirectUrlBack}'; return false;"),
+                'name' => ts('Cancel'),
               ),
+
+            )
+      );
+    }
+    
+    else {
+      CRM_Core_Session::setStatus('There are no contributions found to be added','No Contributions', 'Info');
+      $this->addButtons(array(
             array(
               'type' => 'back',
               'js' => array('onclick' => "location.href='{$redirectUrlBack}'; return false;"),
@@ -154,7 +203,8 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
             ),
             
           )
-    );
+      );
+    }
               
     $total = 0;
     foreach ($listArray as $value) {
@@ -167,6 +217,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     $this->assign('listArray', $listArray);
     $this->assign('total', $total);
     $this->assign('existArray', $existArray);
+    $this->assign('missingArray', $missingArray);
     
     parent::buildQuickForm();
   }
@@ -191,7 +242,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     }
     return $auddisDetails;
   }
-  
- 
+    
+    
   
 }

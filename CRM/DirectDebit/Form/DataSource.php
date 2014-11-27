@@ -4,7 +4,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
   
    private $defaultCsvToDbParams = array(
         'fieldsTerminatedBy' => ',',
-        'ignoreLines' => 1,
+        'ignoreLines' => 0,
         'linesTerminatedBy' => '\n',
         'optionallyEnclosedBy' => '"',
         'characterSet' => 'utf8',
