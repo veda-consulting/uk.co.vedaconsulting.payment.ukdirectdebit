@@ -28,8 +28,12 @@
 
 <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="top"}</div>
   <table class="form-layout-compressed">
-    <tr><td class="label">{$form.uploadFile.label}</td><td class="html-adjust"> {$form.uploadFile.html}<br />
-            <span class="description">{ts}File format must be comma-separated-values (CSV).{/ts}</span></td></tr>
+    <tr>
+    <td class="label">{$form.collection_date.label}</td>
+    <!-- MV changes to select the collection date -->
+    <!-- <td class="html-adjust"> {$form.collection_date.html}<br /> -->
+    <td class="html-adjust"> {include file="CRM/common/jcalendar.tpl" elementName=collection_date}<br /></td>
+            <!-- <span class="description">{ts}File format must be comma-separated-values (CSV).{/ts}</span></td></tr> -->
        
     </table>
 <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="bottom"}</div>
