@@ -207,7 +207,7 @@ function uk_direct_debit_civicrm_install( ) {
   //$import->run($xml_file);
   //require_once('CRM_Core_Invoke');
   //CRM_Core_Invoke::rebuildMenuAndCaches( );
-  
+
   // create a sync job
   $params = array(
     'sequential' => 1,
@@ -219,17 +219,17 @@ function uk_direct_debit_civicrm_install( ) {
     'is_active'     => 0,
   );
   $result = civicrm_api3('job', 'create', $params);
-  
+
   $parentId = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Navigation', 'Contributions', 'id', 'name');
   $weight   = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Navigation', 'Import Contributions', 'weight', 'name');
 
   if ($parentId) {
-    $smartdebitMenu = 
+    $smartdebitMenu =
       array(
         array(
           'label' => ts('Import Smart Debit Contributions'),
           'name'  => 'Import Smart Debit Contributions',
-          'url'   => 'civicrm/directdebit/syncsd?reset=1',
+          'url'   => 'civicrm/directdebit/syncsd/import?reset=1',
         ),
       );
 
@@ -246,9 +246,9 @@ function uk_direct_debit_civicrm_install( ) {
 }
 
 function uk_direct_debit_civicrm_uninstall( ) {
-  
+
   $smartdebitMenuItems = array(
-    'Import Smart Debit Contributions', 
+    'Import Smart Debit Contributions',
   );
 
   foreach ($smartdebitMenuItems as $name) {
@@ -258,7 +258,7 @@ function uk_direct_debit_civicrm_uninstall( ) {
     }
   }
   CRM_Core_BAO_Navigation::resetNavigation();
-  
+
 }
 
 function uk_direct_debit_message_template() {
@@ -527,7 +527,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
           $form->addRule('price_3', ts('This field is required.'), 'required');
         }
     }
-    
+
     if ($formName == 'CRM_Contribute_Form_UpdateSubscription') {
       $paymentProcessor = $form->_paymentProcessor;
       if($paymentProcessor['payment_processor_type'] == 'Smart Debit') {
@@ -629,13 +629,13 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
 
     // Now only do this is the payment processor type is Direct Debit as other payment processors may do this another way
     if ( $paymentType == 2 ) {
-      $aContribParam = 
+      $aContribParam =
         array(
           1 => array($form->_contactID, 'Integer'),
           2 => array($form->_id, 'Integer'),
         );
-      $query  = "SELECT id, contribution_recur_id 
-        FROM civicrm_contribution 
+      $query  = "SELECT id, contribution_recur_id
+        FROM civicrm_contribution
         WHERE contact_id = %1 AND contribution_page_id = %2
         ORDER BY id DESC LIMIT 1";
       $dao    = CRM_Core_DAO::executeQuery($query, $aContribParam);
@@ -720,7 +720,7 @@ function renew_membership_by_one_period($membershipID) {
                                             )
                                     );
 
-        $membershipEndDate   = $getMembership['values'][$membershipID]['end_date'];  
+        $membershipEndDate   = $getMembership['values'][$membershipID]['end_date'];
         $contributionRecurID = $getMembership['values'][$membershipID]['contribution_recur_id'];
 
         // Get the Contribution ID

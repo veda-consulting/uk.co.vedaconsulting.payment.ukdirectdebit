@@ -1,5 +1,9 @@
-
 <div class="crm-block crm-form-block crm-export-form-block">
+  <div class="crm-block crm-form-block crm-campaignmonitor-sync-form-block">
+    <div class="crm-submit-buttons">
+      {include file="CRM/common/formButtons.tpl" location="top"}
+    </div>
+  </div>
    <h3>{ts}Rejected Contribution in the auddis{/ts}</h3>
     <table class="form-layout">
          <tr style="background-color: #CDE8FE;">
@@ -47,7 +51,7 @@
            <td></td>
         </tr>
         {foreach from=$listArray item=row}
-        {assign var=id value=$row.id} 
+        {assign var=id value=$row.id}
         <tr>
             <td>{$row.transaction_id}</td>
             <td>
@@ -69,7 +73,7 @@
             <td><b>{ts}Total Contribution{/ts}</td>
             <td><b>{ts}{$total}{/ts}</td>
         </tr>
-        
+
     </table>
          <br>
     <h3>{ts}Contacts for which contribution already processed{/ts}</h3>
@@ -83,7 +87,7 @@
            <td></td>
         </tr>
         {foreach from=$existArray item=row}
-        {assign var=id value=$row.id} 
+        {assign var=id value=$row.id}
         <tr>
             <td>{$row.transaction_id}</td>
             <td>
@@ -105,7 +109,7 @@
             <td></td>
             <td></td>
         </tr>
-        
+
     </table>
             <br>
     <h3>{ts}Contacts for which no record found in CiviCRM{/ts}</h3>
@@ -119,7 +123,7 @@
            <td></td>
         </tr>
         {foreach from=$missingArray item=row}
-        {assign var=id value=$row.id} 
+        {assign var=id value=$row.id}
         <tr>
             <td>{$row.transaction_id}</td>
             <td>
@@ -141,11 +145,11 @@
             <td></td>
             <td></td>
         </tr>
-        
+
     </table>
         <div class="crm-block crm-form-block crm-campaignmonitor-sync-form-block">
     <div class="crm-submit-buttons">
-      {include file="CRM/common/formButtons.tpl"}
+      {include file="CRM/common/formButtons.tpl" location="bottom"}
     </div>
         </div>
 </div>
