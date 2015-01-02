@@ -88,6 +88,10 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
       $aCollectionDate  = self::getSmartDebitPayments( $dateOfCollection );
     }
 
+    if( $aCollectionDate === false ){
+      return false;
+    }
+
     // $fileName         = $this->controller->exportValue($this->_name, 'uploadFile');
     // $fileName         = $fileName['name'];
 
@@ -156,32 +160,14 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
   #MV : added new function to get collections by date
   static function getSmartDebitPayments( $dateOfCollection ) { 
     if( empty($dateOfCollection)){
+      CRM_Core_Session::setStatus(ts('Please Select the Date of Collection'), Error, 'error');
       return false;
     }
 
-    $paymentProcessorType = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
-    $paymentProcessorTypeId = CRM_Utils_Array::key('Smart Debit', $paymentProcessorType);
-
-    $sql  = " SELECT user_name ";
-    $sql .= " ,      password ";
-    $sql .= " ,      signature "; 
-    $sql .= " FROM civicrm_payment_processor "; 
-    $sql .= " WHERE payment_processor_type_id = %1 "; 
-    $sql .= " AND is_test= %2 ";
-
-    $params = array( 1 => array( $paymentProcessorTypeId, 'Integer' )
-                   , 2 => array( '0', 'Int' )    
-                   );
-
-    $dao = CRM_Core_DAO::executeQuery( $sql, $params);
-
-    if ($dao->fetch()) {
-
-        $username = $dao->user_name;
-        $password = $dao->password;
-        $pslid    = $dao->signature;
-
-    }
+    $userDetails = self::getSmartDebitUserDetails();
+    $username    = CRM_Utils_Array::value('username', $userDetails);
+    $password    = CRM_Utils_Array::value('password', $userDetails);
+    $pslid       = CRM_Utils_Array::value('pslid', $userDetails);
   
     $collections = array();
     $url         = "https://secure.ddprocessing.co.uk/api/get_collection_report?query[service_user][pslid]=$pslid&query[debit_date]=$dateOfCollection";
@@ -208,6 +194,47 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     }//end switch
    
   }
+
+  static function getSmartDebitUserDetails(){
+
+    $paymentProcessorType   = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
+    $paymentProcessorTypeId = CRM_Utils_Array::key('Smart Debit', $paymentProcessorType);
+    $domainID               = CRM_Core_Config::domainID();
+
+    if(empty($paymentProcessorTypeId)) {
+      CRM_Core_Session::setStatus(ts('Make sure Payment Processor Type (Smart Debit) is set in Payment Processor setting'), Error, 'error');
+      return FALSE;
+    }
+
+    $sql  = " SELECT user_name ";
+    $sql .= " ,      password ";
+    $sql .= " ,      signature ";
+    $sql .= " FROM civicrm_payment_processor ";
+    $sql .= " WHERE payment_processor_type_id = %1 ";
+    $sql .= " AND is_test= %2 AND domain_id = %3";
+
+    $params = array( 1 => array( $paymentProcessorTypeId, 'Integer' )
+                   , 2 => array( '0', 'Int' )
+                   , 3 => array( $domainID, 'Int' )
+                   );
+
+    $dao    = CRM_Core_DAO::executeQuery( $sql, $params);
+    $result = array();
+    if ($dao->fetch()) {
+      if(empty($dao->user_name) || empty($dao->password) || empty($dao->signature)) {
+        CRM_Core_Session::setStatus(ts('Smart Debit API User Details Missing, Please check the Smart Debit Payment Processor is configured Properly'), Error, 'error');
+        return FALSE;
+      }
+      $result   = array(
+        'username' => $dao->user_name,
+        'password' => $dao->password,
+        'pslid'    => $dao->signature,
+      );
+
+    }
+    return $result;
+
+  }//end function
 
 }
 
