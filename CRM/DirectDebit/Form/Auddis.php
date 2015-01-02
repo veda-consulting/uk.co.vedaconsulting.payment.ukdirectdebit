@@ -11,7 +11,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
   } 
   
   function buildQuickForm() {
-    
+    $auddisFiles = array();
     $auddisDates = CRM_Utils_Request::retrieve('auddisDates', 'String', $this, false);
       
     $auddisArray = CRM_DirectDebit_Form_SyncSd::getSmartDebitAuddis();
@@ -99,7 +99,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     
     if(!empty($validIds)){
     $validIdsString = implode(',', $validIds);
-    $sql = "SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id  
+    $sql = "SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id, ctrc.contribution_status_id  
       FROM civicrm_contribution_recur ctrc 
       INNER JOIN civicrm_contact cont ON (ctrc.contact_id = cont.id) 
       WHERE ctrc.trxn_id IN ($validIdsString)";
@@ -158,20 +158,23 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
       $key = 0;
       $missingArray = array();
       while($dao->fetch()) {
-        $missingArray[$key]['contribution_recur_id'] = $dao->contribution_recur_id;
-        $missingArray[$key]['contact_id']            = $dao->contact_id;
+        // $missingArray[$key]['contribution_recur_id'] = $dao->contribution_recur_id;
+        // $missingArray[$key]['contact_id']            = $dao->contact_id;
         $missingArray[$key]['contact_name']          = $dao->display_name;
-        $missingArray[$key]['start_date']            = $dao->start_date;
-        $missingArray[$key]['frequency']             = $dao->frequency_unit;
+        // $missingArray[$key]['start_date']            = $dao->start_date;
+        // $missingArray[$key]['frequency']             = $dao->frequency_unit;
         $missingArray[$key]['amount']                = $dao->amount;
-        $missingArray[$key]['contribution_status_id']    = $dao->contribution_status_id;
+        // $missingArray[$key]['contribution_status_id']    = $dao->contribution_status_id;
         $missingArray[$key]['transaction_id']        = $dao->trxn_id;
         $key++;
       }
     }
     
-    foreach ($auddisDates as $value) {
-      $queryDates .= "auddisDates[]=".$value."&";
+    $queryDates = "";
+    if(!empty($auddisDates)){
+      foreach ($auddisDates as $value) {
+        $queryDates .= "auddisDates[]=".$value."&";
+      }
     }
     
     $redirectUrlBack      = CRM_Utils_System::url('civicrm/directdebit/syncsd', 'reset=1');
