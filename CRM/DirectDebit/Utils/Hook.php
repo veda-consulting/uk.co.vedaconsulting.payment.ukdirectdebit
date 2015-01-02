@@ -67,6 +67,16 @@ abstract class CRM_DirectDebit_Utils_Hook {
                             $fnSuffix );
 
   /**
+   * This hook allows to validate contribution params when importing smart debit charge file
+   * @param array   $params     Contribution params
+   *
+   * @access public
+   */
+  static function validateSmartDebitContributionParams( &$params ) {
+    return self::singleton( )->invoke( 1, $params, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_validateSmartDebitContributionParams' );
+  }
+
+  /**
    * This hook allows to alter contribution params when importing smart debit charge file
    * @param array   $params     Contribution params
    *

@@ -48,7 +48,7 @@
            <td><b>{ts}Frequency{/ts}</td>
            <td><b>{ts}Start Date{/ts}</td>
            <td><b>{ts}Total{/ts}</td>
-           <td></td>
+           <td><b>{ts}Message{/ts}</b></td>
         </tr>
         {foreach from=$listArray item=row}
         {assign var=id value=$row.id}
@@ -63,6 +63,7 @@
             <td>{$row.frequency}</td>
             <td>{$row.start_date|crmDate}</td>
             <td>{$row.amount}</td>
+            <td>{$row.message}</td>
         </tr>
         {/foreach}
         <br/>
