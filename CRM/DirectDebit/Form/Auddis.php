@@ -61,7 +61,8 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     foreach ($newAuddisArray as $key => $value) {
       $totalRejected += $value['amount'];
     }
-    $totalRejected='£'.number_format((float)$totalRejected, 2, '.', '');
+    $summary['Rejected Contribution in the auddis']['count'] = count($newAuddisArray);
+    $summary['Rejected Contribution in the auddis']['total'] = CRM_Utils_Money::format($totalRejected);
     $this->assign('totalRejected', $totalRejected);
 
     $listArray = array();
@@ -152,6 +153,13 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
         $key++;
 
       }
+    $totalExist = 0;
+    foreach ($existArray as $value) {
+      $totalExist += $value['amount'];
+    }
+    
+    $summary['Contribution already processed']['count'] = count($existArray);
+    $summary['Contribution already processed']['total'] = CRM_Utils_Money::format($totalExist);
 
     $missingTrxnIds = array_diff($validIds, $matchTrxnIds);
     if(!empty($missingTrxnIds)) {
@@ -175,6 +183,12 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
         $key++;
       }
     }
+    $totalMissing = 0;
+    foreach ($missingArray as $value) {
+      $totalMissing += $value['amount'];
+    }
+    $summary['Contribution not matched to contacts']['count'] = count($missingArray);
+    $summary['Contribution not matched to contacts']['total'] = CRM_Utils_Money::format($totalMissing);
 
     $queryDates = "";
     if(!empty($auddisDates)){
@@ -215,18 +229,28 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
       );
     }
 
-    $total = 0;
+    $totalList = 0;
     foreach ($listArray as $value) {
-      $total += $value['amount'];
+      $totalList += $value['amount'];
     }
-    $total='£'.number_format((float)$total, 2, '.', '');
+    
+    $summary['Contribution matched to contacts']['count'] = count($listArray);
+    $summary['Contribution matched to contacts']['total'] = CRM_Utils_Money::format($totalList);
+    
+    $totalSummaryNumber = count($newAuddisArray) + count($existArray) + count($missingArray) + count($listArray);
+    $totalSummaryAmount = $totalRejected + $totalExist + $totalMissing + $totalList ;
 
 
     $this->assign('newAuddisArray', $newAuddisArray);
     $this->assign('listArray', $listArray);
-    $this->assign('total', $total);
+    $this->assign('total', CRM_Utils_Money::format($totalList));
+    $this->assign('totalExist', CRM_Utils_Money::format($totalExist));
+    $this->assign('totalMissing', CRM_Utils_Money::format($totalMissing));
     $this->assign('existArray', $existArray);
     $this->assign('missingArray', $missingArray);
+    $this->assign('summaryNumber', $totalSummaryNumber);
+    $this->assign('totalSummaryAmount', CRM_Utils_Money::format($totalSummaryAmount));
+    $this->assign('summary', $summary);
 
     parent::buildQuickForm();
   }
