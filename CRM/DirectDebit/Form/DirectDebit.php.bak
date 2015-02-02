@@ -63,7 +63,7 @@ class CRM_DirectDebit_Form_DirectDebit extends CRM_Core_Form
             $defaults = array(
                               'setting_id'=>$dao->id ,
                               'setting_name'=>$dao->name,
-                              'setting_value'=> unserialize($dao->value),
+                              'setting_value'=>unserialize($dao->value),
                               );
         }
 

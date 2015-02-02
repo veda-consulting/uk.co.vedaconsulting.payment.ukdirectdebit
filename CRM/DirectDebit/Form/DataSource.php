@@ -34,7 +34,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     }
 
     #MV: to get the collection details
-    $dateOfCollection = '2014-01-01';
+    // $dateOfCollection = '2014-01-01';
     $this->addDate('collection_date', ts('Collection Date'), FALSE, array('formatType' => 'custom'));
 
 
@@ -133,7 +133,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
           'transaction_id' => $value['reference_number'], 
           'contact'        => $value['account_name'], 
           'amount'         => $value['amount'], 
-          'receive_date'   => !empty($value['debit_date']) ? date('YmdHis', strtotime($value['debit_date'])) : NULL,
+          'receive_date'   => !empty($value['debit_date']) ? date('YmdHis', strtotime(str_replace('/', '-', $value['debit_date']))) : NULL,
         ); 
         $insertValue[] = " ( \"". implode('", "', $resultCollection) . "\" )";
       }

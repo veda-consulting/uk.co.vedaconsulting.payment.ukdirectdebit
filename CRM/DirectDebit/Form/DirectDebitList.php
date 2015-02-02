@@ -86,7 +86,7 @@ class CRM_DirectDebit_Form_DirectDebitList extends CRM_Core_Form {
 
             $directDebitArray[$dao->id]['id'] = $dao->id;
             $directDebitArray[$dao->id]['name'] = $dao->name;
-            $directDebitArray[$dao->id]['value'] = $dao->value;
+            $directDebitArray[$dao->id]['value'] = unserialize($dao->value);
         }
 
         $this->assign( 'directDebitArray', $directDebitArray );
