@@ -361,10 +361,12 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
 
             $frequencyUnit = $contributionRecurring['values'][$contriReurID]['frequency_unit'];
             $frequency     = $contributionRecurring['values'][$contriReurID]['frequency_unit'];
-// CRM_Core_Error::debug_log_message('frequencyUnit = '. print_r($frequencyUnit, TRUE));
+            $frequencyInterval     = $contributionRecurring['values'][$contriReurID]['frequency_interval'];
+            
+            // CRM_Core_Error::debug_log_message('frequencyUnit = '. print_r($frequencyUnit, TRUE));
             if (!is_null($frequencyUnit)) {
-              $membershipEndDateString = date("Y-m-d",strtotime(date("Y-m-d", strtotime($membershipEndDate)) . " +1 $frequencyUnit"));
-              $membership_renew_to    = date("Y-m-d",strtotime(date("Y-m-d", strtotime($membershipEndDate)) . " +1 $frequencyUnit"));
+              $membershipEndDateString = date("Y-m-d",strtotime(date("Y-m-d", strtotime($membershipEndDate)) . " +$frequencyInterval $frequencyUnit"));
+              $membership_renew_to    = date("Y-m-d",strtotime(date("Y-m-d", strtotime($membershipEndDate)) . " +$frequencyInterval $frequencyUnit"));
 
               $membershipParams = array ( 'version'       => '3'
                                          , 'membership_id' => $membershipID

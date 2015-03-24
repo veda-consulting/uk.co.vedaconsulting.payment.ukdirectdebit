@@ -211,7 +211,7 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
                                                      'title'       => ts( 'Account Holder' ),
                                                      'cc_field'    => TRUE,
                                                      'attributes'  => array( 'size'         => 20
-                                                                           , 'maxlength'    => 34
+                                                                           , 'maxlength'    => 18
                                                                            , 'autocomplete' => 'on'
                                                                            ),
                                                      'is_required' => TRUE
