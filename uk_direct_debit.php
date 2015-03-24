@@ -440,7 +440,126 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
 //print($formName);
 //print_r($form);
 //die;
+  /***** Handle Gocardless return values - START ****/
+  if ($formName == 'CRM_Contribute_Form_Contribution_ThankYou'  &&  $_GET['resource_id']) {
+    CRM_Core_Error::debug_log_message( 'uk_direct_debit_civicrm_buildForm'. print_r($form, true), $out = false );
+    require_once 'lib/GoCardless.php';
 
+    $paymentProcessorType = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
+    $paymentProcessorTypeId = CRM_Utils_Array::key('Gocardless', $paymentProcessorType);
+
+    $sql  = " SELECT user_name ";
+    $sql .= " ,      password ";
+    $sql .= " ,      signature ";
+    $sql .= " ,      subject ";
+    $sql .= " FROM civicrm_payment_processor ";
+    $sql .= " WHERE payment_processor_type_id = %1 ";
+    $sql .= " AND is_test= %2 ";
+
+    $params = array( 1 => array( $paymentProcessorTypeId, 'Integer' )
+                   , 2 => array( '0', 'Int' )
+                   );
+
+    $dao = CRM_Core_DAO::executeQuery( $sql, $params);
+
+    if ($dao->fetch()) {
+        $app_id       = $dao->user_name;
+        $app_secret   = $dao->password;
+        $merchant_id  = $dao->signature;
+        $access_token = $dao->subject;
+    }
+
+    $account_details = array(
+      'app_id'        => $app_id,
+      'app_secret'    => $app_secret,
+      'merchant_id'   => $merchant_id,
+      'access_token'  => $access_token,
+    );
+
+    // Fail nicely if no account details set
+    if ( ! $account_details['app_id'] && ! $account_details['app_secret']) {
+      echo '<p>First sign up to <a href="http://gocardless.com">GoCardless</a> and
+        copy your sandbox API credentials from the \'Developer\' tab into the top of
+        this script.</p>';
+      exit();
+    }
+
+    // Initialize GoCardless
+    // Set $environment to 'production' if live. Default is 'sandbox'
+    if ($form->_mode == 'live') {
+      GoCardless::$environment = 'production';
+    }
+    
+    GoCardless::set_account_details($account_details);
+
+    $confirm_params = array(
+      'resource_id'    => $_GET['resource_id'],
+      'resource_type'  => $_GET['resource_type'],
+      'resource_uri'   => $_GET['resource_uri'],
+      'signature'      => $_GET['signature']
+    );
+
+    // State is optional
+    if (isset($_GET['state'])) {
+      $confirm_params['state'] = $_GET['state'];
+    }
+
+    $contactID = $_GET['cid'];
+    $pageID    = $form->_id;
+
+    $query = "
+            UPDATE civicrm_contribution
+            SET trxn_id = %1 , contribution_status_id = 1
+            WHERE id = %2";
+
+		$sql = "
+            SELECT max(id) as max_id
+            FROM civicrm_contribution
+            WHERE contact_id = %1
+            AND contribution_page_id = %2";
+						
+            $sql_params = array( 1 => array($contactID, 'Int'), 2 => array($pageID, 'Int') );
+						$selectdao = CRM_Core_DAO::executeQuery($sql, $sql_params);
+						$selectdao->fetch();
+						$contributionId = $selectdao->max_id;
+						
+						$sql_params = array( 1 => array( $_GET['resource_id'], 'String' ), 2 => array($contributionId, 'Int'));
+            $dao = CRM_Core_DAO::executeQuery($query, $sql_params);
+
+    CRM_Core_Error::debug_log_message( 'in the build thank you confirm parms'. print_r($confirm_params, true), $out = false );
+
+    $confirmed_resource = GoCardless::confirm_resource($confirm_params);
+    CRM_Core_Error::debug_log_message( 'in the bild thank you confirmed_resources '. print_r($confirmed_resource, true), $out = false );
+
+
+    CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_buildform #1');
+    CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_buildform form='.print_r($form, TRUE));
+
+    CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_buildform #1');
+  }
+
+  // If no subscription created
+  if ($formName == 'CRM_Contribute_Form_Contribution_ThankYou' && $form->_paymentProcessor['payment_processor_type'] == 'Gocardless' && !$_GET['resource_id']) {
+    $cancelURL  = CRM_Utils_System::url( 'civicrm/contribute/transact',
+                                          "_qf_Main_display=1&cancel=1&qfKey={$_GET['qfKey']}",
+                                          true, null, false );
+
+    CRM_Utils_System::redirect($subscription_url);
+
+    $contactID = $_GET['cid'];
+    $pageID    = $form->_id;
+
+    $query = "
+            UPDATE civicrm_contribution
+            SET contribution_status_id = %1
+            WHERE contact_id = %2
+            AND contribution_page_id = %3";
+
+            $sql_params = array( 1 => array( 4 , 'Int' ), 2 => array($contactID, 'Int'), 3 => array($pageID, 'Int') );
+            $dao = CRM_Core_DAO::executeQuery($query, $sql_params);
+  }
+  /***** Handle Gocardless return values - END ****/
+  
     require_once 'CRM/Core/Payment.php';
     require_once 'UK_Direct_Debit/Form/Main.php';
 
