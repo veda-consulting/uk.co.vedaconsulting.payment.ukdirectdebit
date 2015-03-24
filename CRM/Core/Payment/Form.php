@@ -200,7 +200,7 @@ class CRM_Core_Payment_Form {
       'name' => 'account_holder',
       'title' => ts('Account Holder'),
       'cc_field' => TRUE,
-      'attributes' => array('size' => 20, 'maxlength' => 34, 'autocomplete' => 'on'),
+      'attributes' => array('size' => 20, 'maxlength' => 18, 'autocomplete' => 'on'),
       'is_required' => TRUE,
     );
 
