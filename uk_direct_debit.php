@@ -810,12 +810,14 @@ function uk_direct_debit_civicrm_navigationMenu( &$params ) {
     #Get the maximum key of $params
     $maxKey = max(array_keys($params)); 
 		
-    #set settings navigation Id 
+    #set settings navigation Id
     $directDebitId = $maxKey+1;
     $auddisId      = $maxKey+2;
+    $civisettingId = $maxKey+3;
     
     #set navigation menu
     $parentId         = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Navigation', 'Administer', 'id', 'name');
+    // $civiContriNavId= CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Navigation', 'CiviContribute', 'id', 'name'); 
     $params[$parentId]['child'][$directDebitId]= array(
                             'attributes' => array (
                                               'label'      => 'UK Direct Debit',
@@ -843,4 +845,17 @@ function uk_direct_debit_civicrm_navigationMenu( &$params ) {
                                               'active'     => 1
                                               )
                           );
+    $params[$parentId]['child'][$directDebitId]['child'][$civisettingId]= array(
+                          'attributes' => array (
+                                            'label'      => 'UK Direct Debit Civi Setting',
+                                            'name'       => 'UK Direct Debit Civi Setting',
+                                            'url'        => 'civicrm/directdebit/display?reset=1',
+                                            'permission' => 'administer CiviCRM',
+                                            'operator'   => "",
+                                            'separator'  => null,
+                                            'parentID'   => $directDebitId,
+                                            'navID'      => $civisettingId,
+                                            'active'     => 1
+                                            )
+                        );
 }

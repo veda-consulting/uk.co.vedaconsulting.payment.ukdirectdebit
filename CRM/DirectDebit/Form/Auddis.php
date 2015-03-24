@@ -93,7 +93,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
       $proIds       = array();
       while($dao->fetch()){
         $processedIds .= ", '".$dao->ctrc_trxn_id."' ";
-        $proIds[] = "'".$dao->ctrc_trxn_id."' ";
+        $proIds[] = "'".trim($dao->ctrc_trxn_id)."' "; //MV: trim the whitespaces and match the transaction_id.
         $contriTraIds .= ", '".$dao->cc_trxn_id."' ";
       }
     $validIds = array_diff($sdTrxnIds, $proIds, $rejectedIds);
@@ -109,7 +109,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
       $key = 0;
       $matchTrxnIds = array();
       while ($dao->fetch()) {
-        $matchTrxnIds[] = "'".$dao->trxn_id."' ";
+        $matchTrxnIds[] = "'".trim($dao->trxn_id)."' ";
         $params = array('contribution_recur_id' => $dao->contribution_recur_id,
                         'contact_id' => $dao->contact_id,
                         'contact_name' => $dao->display_name,
@@ -127,6 +127,14 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
 
         $key++;
 
+      }
+      //MV: temp store the matched contribution in settings table.
+      if(!empty($matchTrxnIds)){
+          $query1 = "UPDATE civicrm_setting SET value = NULL WHERE name = 'result_ids'";
+          CRM_Core_DAO::executeQuery($query1);
+          CRM_Core_BAO_Setting::setItem($matchTrxnIds,
+            CRM_DirectDebit_Form_Confirm::SD_SETTING_GROUP, 'result_ids'
+          );
       }
     }
 
@@ -197,7 +205,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
       }
     }
 
-    $redirectUrlBack      = CRM_Utils_System::url('civicrm/directdebit/syncsd', 'reset=1');
+    $redirectUrlBack      = CRM_Utils_System::url('civicrm/directdebit/syncsd/import', 'reset=1');
     $redirectUrlContinue  = CRM_Utils_System::url('civicrm/directdebit/syncsd/confirm');
     if(!empty($matchTrxnIds)) {
       $this->addButtons(array(
