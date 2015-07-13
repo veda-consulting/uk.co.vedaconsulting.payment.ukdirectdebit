@@ -769,7 +769,8 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
         CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess #2');
 
         $paymentProcessorType = urlencode( $form->_paymentProcessor['payment_processor_type'] );
-        $membershipID         = urlencode( $form->_values['membership_id'] );
+        //$membershipID         = urlencode( $form->_values['membership_id'] );
+        $membershipID         = urlencode( $form->_params['membershipID'] );
         $contactID            = urlencode( $form->getVar( '_contactID' ) );
         $invoiceID            = urlencode( $form->_params['invoiceID'] );
         $amount               = urlencode( $form->_params['amount'] );

@@ -300,7 +300,8 @@ CRM_Core_Error::debug_log_message('CRM_Core_Payment_SmartDebitIPN.getValue name=
         // Set the received date to the date expected for DD payments
         $contribution->receive_date = $input['start_date'];
     }
-    
+    // KJ 13/07/2015 Fix for first payment's contribution receive_date as it takes today date 
+    $contribution->save();
     $transaction = new CRM_Core_Transaction();
 
     // fix for CRM-2842
@@ -434,7 +435,8 @@ EOF;
       if ( $ids['contributionRecur'] ) {
         // check if first contribution is completed, else complete first contribution
         $first = TRUE;
-        if ( $objects['contribution']->contribution_status_id == 1 ) {
+        //KJ 13/07/2015 membership contribution comes as status 'completed' before IPN fired.
+        if ( ($objects['contribution']->contribution_status_id == 1) && empty($ids['membership']) ) {
           $first = FALSE;
         }
         CRM_Core_Error::debug_log_message( 'Calling $this->recur()' );
