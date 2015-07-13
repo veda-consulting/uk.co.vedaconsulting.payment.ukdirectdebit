@@ -321,12 +321,17 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
         if ( isset($field['cc_field'] ) &&
           $field['cc_field']
         ) {
-          $form->add( $field['htmlType'],
-                      $field['name'],
-                      $field['title'],
-                      CRM_Utils_Array::value('attributes', $field),
-                      $useRequired ? $field['is_required'] : FALSE
-                    );
+          if ($field['htmlType'] == 'chainSelect') {
+            $form->addChainSelect($field['name'], array('required' => $useRequired && $field['is_required']));
+          }
+          else {
+            $form->add( $field['htmlType'],
+                        $field['name'],
+                        $field['title'],
+                        CRM_Utils_Array::value('attributes', $field),
+                        $useRequired ? $field['is_required'] : FALSE
+                      );
+          }
         }
       }
 
