@@ -63,7 +63,7 @@ abstract class CRM_DirectDebit_Utils_Hook {
   }
 
   abstract function invoke( $numParams,
-                            &$arg1, &$arg2, &$arg3, &$arg4, &$arg5,
+                            &$arg1, &$arg2, &$arg3, &$arg4, &$arg5, &$arg6,
                             $fnSuffix );
 
   /**
@@ -73,7 +73,7 @@ abstract class CRM_DirectDebit_Utils_Hook {
    * @access public
    */
   static function validateSmartDebitContributionParams( &$params ) {
-    return self::singleton( )->invoke( 1, $params, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_validateSmartDebitContributionParams' );
+    return self::singleton( )->invoke( 1, $params, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_validateSmartDebitContributionParams' );
   }
 
   /**
@@ -83,7 +83,7 @@ abstract class CRM_DirectDebit_Utils_Hook {
    * @access public
    */
   static function alterSmartDebitContributionParams( &$params ) {
-	  return self::singleton( )->invoke( 1, $params, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_alterSmartDebitContributionParams' );
+	  return self::singleton( )->invoke( 1, $params, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_alterSmartDebitContributionParams' );
   }
 
   /**
@@ -93,7 +93,7 @@ abstract class CRM_DirectDebit_Utils_Hook {
    * @access public
    */
   static function handleAuddisRejectedContribution( $contributionId ) {
-    return self::singleton( )->invoke( 1, $contributionId, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_handleAuddisRejectedContribution' );
+    return self::singleton( )->invoke( 1, $contributionId, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_handleAuddisRejectedContribution' );
   }
 
   /**
@@ -104,6 +104,6 @@ abstract class CRM_DirectDebit_Utils_Hook {
    * @access public
    */
   static function handleSmartDebitMembershipRenewal( &$params ) {
-    return self::singleton( )->invoke( 1, $params, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_handleSmartDebitMembershipRenewal' );
+    return self::singleton( )->invoke( 1, $params, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_handleSmartDebitMembershipRenewal' );
   }
 }
