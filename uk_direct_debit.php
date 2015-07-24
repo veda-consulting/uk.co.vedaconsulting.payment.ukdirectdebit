@@ -447,6 +447,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
 
     $paymentProcessorType = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
     $paymentProcessorTypeId = CRM_Utils_Array::key('Gocardless', $paymentProcessorType);
+    $domainID  = CRM_Core_Config::domainID();
 
     $sql  = " SELECT user_name ";
     $sql .= " ,      password ";
@@ -455,9 +456,16 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
     $sql .= " FROM civicrm_payment_processor ";
     $sql .= " WHERE payment_processor_type_id = %1 ";
     $sql .= " AND is_test= %2 ";
+    $sql .= " AND domain_id = %3 ";
+
+    $isTest = 0;
+    if ($form->_mode == 'test') {
+      $isTest = 1;
+    }
 
     $params = array( 1 => array( $paymentProcessorTypeId, 'Integer' )
-                   , 2 => array( '0', 'Int' )
+                   , 2 => array( $isTest, 'Int' )
+                   , 3 => array( $domainID, 'Int' )
                    );
 
     $dao = CRM_Core_DAO::executeQuery( $sql, $params);
