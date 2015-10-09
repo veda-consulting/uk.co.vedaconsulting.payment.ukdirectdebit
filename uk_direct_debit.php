@@ -987,3 +987,17 @@ function uk_direct_debit_civicrm_navigationMenu( &$params ) {
                                             )
                         );
 }
+
+function uk_direct_debit_civicrm_links( $op, $objectName, $objectId, &$links, &$mask, &$values ) {
+  if ($objectName == 'Membership') {
+    $cid = $values['cid'];
+    $id = $values['id'];
+    $links[] = array(
+              'name' => ts('Setup Direct Debit'),
+              'title' => ts('Setup Direct Debit'),
+              'url' => 'civicrm/directdebit/new',
+              'qs' => "action=add&reset=1&cid=$cid&id=$id"
+            );
+    
+  }  
+}
