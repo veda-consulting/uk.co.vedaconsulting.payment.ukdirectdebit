@@ -658,6 +658,15 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
     if ($formName == 'CRM_Contribute_Form_UpdateSubscription') {
       $paymentProcessor = $form->_paymentProcessor;
       if($paymentProcessor['payment_processor_type'] == 'Smart Debit') {
+	$recurID = $form->getVar('_crid');
+	$columnExists = CRM_Core_DAO::checkFieldExists('civicrm_contribution_recur', 'membership_id');
+	$linkedMembership = FALSE;
+	if($columnExists) {
+	  $membershipID = CRM_Core_DAO::singleValueQuery('SELECT membership_id FROM civicrm_contribution_recur WHERE id = %1', array(1=>array($recurID, 'Int')));
+	  if ($membershipID) {
+	    $linkedMembership = TRUE;
+	  }
+	}
         $form->removeElement('installments');
         $frequencyType = array(
           'D'  => 'Daily',
@@ -666,7 +675,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
           'Y'  => 'Annually'
         );
 
-        $form->addElement('select', 'frequency_unit', ts('Frequency'),
+	$form->addElement('select', 'frequency_unit', ts('Frequency'),
             array('' => ts('- select -')) + $frequencyType
         );
         $form->addDate('start_date', ts('Start Date'), FALSE, array('formatType' => 'custom'));
@@ -687,6 +696,12 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
         list($defaults['start_date'], $defaults['start_date_time']) = CRM_Utils_Date::setDateDefaults($startDate, NULL);
         $defaults['frequency_unit'] = array_search($frequencyUnit, $frequencyUnits);
         $form->setDefaults($defaults);
+	if ($linkedMembership) {
+	  $e =& $form->getElement('frequency_unit');
+	  $e->freeze();
+	  $e =& $form->getElement('start_date');
+	  $e->freeze();
+	}
     }
   }
 
@@ -992,12 +1007,58 @@ function uk_direct_debit_civicrm_links( $op, $objectName, $objectId, &$links, &$
   if ($objectName == 'Membership') {
     $cid = $values['cid'];
     $id = $values['id'];
+    $name   = ts('Setup Direct Debit');
+    $title  = ts('Setup Direct Debit');
+    $url    = 'civicrm/directdebit/new';
+    $qs	    = "action=add&reset=1&cid=$cid&id=$id";
+    $columnExists = CRM_Core_DAO::checkFieldExists('civicrm_contribution_recur', 'membership_id');
+    if($columnExists) {
+      $recurID = CRM_Core_DAO::singleValueQuery('SELECT id FROM civicrm_contribution_recur WHERE membership_id = %1', array(1=>array($id, 'Int')));
+      if (!empty($recurID)) {
+	$name   = ts('View Direct Debit');
+	$title  = ts('View Direct Debit');
+	$url    = 'civicrm/contact/view/contributionrecur';
+	$qs	= "reset=1&id=$recurID&cid=$cid";
+      }
+    }
     $links[] = array(
-              'name' => ts('Setup Direct Debit'),
-              'title' => ts('Setup Direct Debit'),
-              'url' => 'civicrm/directdebit/new',
-              'qs' => "action=add&reset=1&cid=$cid&id=$id"
+              'name' => $name,
+              'title' => $title,
+              'url' => $url,
+              'qs' => $qs
             );
     
   }  
+}
+
+function uk_direct_debit_civicrm_pageRun(&$page) {
+  $pageName = $page->getVar('_name');
+  if ($pageName == 'CRM_Contribute_Page_ContributionRecur') {
+      $session = CRM_Core_Session::singleton();
+      $contactID = $session->get('userID');
+    if (CRM_Contact_BAO_Contact_Permission::allow($contactID, CRM_Core_Permission::EDIT)) {
+      $recurID = $page->getVar('_id');
+      $query = "
+	SELECT cr.trxn_id FROM civicrm_contribution_recur cr
+	INNER JOIN civicrm_payment_processor cpp ON cpp.id = cr.payment_processor_id
+	INNER JOIN civicrm_payment_processor_type cppt ON cppt.id = cpp.payment_processor_type_id
+	WHERE cppt.name = %1 AND cr.id = %2";
+
+      $queryParams = array (
+	1 => array('Smart Debit', 'String'),
+	2 => array($recurID, 'Int'),
+      );
+
+      $smartDebitReference = CRM_Core_DAO::singleValueQuery($query, $queryParams);
+      $contributionRecurDetails = array();
+      if (!empty($smartDebitReference)) {
+	$smartDebitResponse = CRM_DirectDebit_Form_SyncSd::getSmartDebitPayments($smartDebitReference);
+	foreach ($smartDebitResponse[0] as $key => $value) {
+	  $contributionRecurDetails[$key] = $value;
+	}
+      $contributionRecurDetails = json_encode($contributionRecurDetails);
+      $page->assign('contributionRecurDetails', $contributionRecurDetails);
+      }
+    }
+  }
 }
