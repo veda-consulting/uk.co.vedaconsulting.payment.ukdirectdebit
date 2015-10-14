@@ -2,7 +2,6 @@
     <script type="text/javascript">
       CRM.$(function($) {
 	var smartDetails = {/literal}{$contributionRecurDetails}{literal};
-	console.log(smartDetails);
 	if (!CRM.$.isEmptyObject(smartDetails)) {
 	  var targetHtml = '<h3>View Smart Debit Payment</h3><table class = "crm-info-panel direct-debit">';
 	  for (var k in smartDetails) {
