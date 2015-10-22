@@ -19,7 +19,17 @@
     <div class="label">{$form.$n.label}</div>
     <div class="content">{$form.$n.html}</div>
     <div class="clear"></div>
-  </div>  
+  </div>    
+  <div class="crm-section {$form.frequency_unit.name}-section">
+    <div class="label">{$form.frequency_unit.label}</div>
+    <div class="content">{$form.frequency_unit.html}</div>
+    <div class="clear"></div>
+  </div>
+  <div class="crm-section {$form.financial_type_id.name}-section">
+    <div class="label">{$form.financial_type_id.label}</div>
+    <div class="content">{$form.financial_type_id.html}</div>
+    <div class="clear"></div>
+  </div>
   <div class="crm-section {$form.ddi_reference.name}-section">
     <div class="label">{$form.ddi_reference.label}</div>
     <div class="content">{$form.ddi_reference.html}</div>
@@ -59,7 +69,6 @@ If you do not wish to proceed any further please <a href="/">click here</a> to e
 	  <div class="label">{$form.bank_identification_number.label}</div>
 	  <div class="content">{$form.bank_identification_number.html}
 	  <div class="description">{ts}Sort Code – either 111111 or 11-11-11 format accepted.{/ts}</div></div>
-	  </div>
 	  <div class="clear"></div>
       </div>
       <div class="crm-section {$form.bank_account_number.name}-section">

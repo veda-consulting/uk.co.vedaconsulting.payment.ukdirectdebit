@@ -659,14 +659,11 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
       $paymentProcessor = $form->_paymentProcessor;
       if($paymentProcessor['payment_processor_type'] == 'Smart Debit') {
 	$recurID = $form->getVar('_crid');
-	$columnExists = CRM_Core_DAO::checkFieldExists('civicrm_contribution_recur', 'membership_id');
 	$linkedMembership = FALSE;
-	if($columnExists) {
-	  $membershipID = CRM_Core_DAO::singleValueQuery('SELECT membership_id FROM civicrm_contribution_recur WHERE id = %1', array(1=>array($recurID, 'Int')));
-	  if ($membershipID) {
-	    $linkedMembership = TRUE;
-	  }
-	}
+	$membershipID = CRM_Core_DAO::singleValueQuery('SELECT id FROM civicrm_membership WHERE contribution_recur_id = %1', array(1=>array($recurID, 'Int')));
+	if ($membershipID) {
+	  $linkedMembership = TRUE;
+	}      
         $form->removeElement('installments');
         $frequencyType = array(
           'D'  => 'Daily',
@@ -697,6 +694,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
         $defaults['frequency_unit'] = array_search($frequencyUnit, $frequencyUnits);
         $form->setDefaults($defaults);
 	if ($linkedMembership) {
+	  $form->assign('membership', TRUE);
 	  $e =& $form->getElement('frequency_unit');
 	  $e->freeze();
 	  $e =& $form->getElement('start_date');
@@ -704,7 +702,16 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
 	}
     }
   }
-
+  
+  if ($formName == 'CRM_Contribute_Form_UpdateBilling') {
+    $paymentProcessor = $form->_paymentProcessor;
+    if($paymentProcessor['payment_processor_type'] == 'Smart Debit') {
+      //Build billing details block
+      require_once 'UK_Direct_Debit/Form/Main.php';
+      $ddForm = new UK_Direct_Debit_Form_Main();
+      $ddForm->buildOfflineDirectDebit($form);	
+    }    
+  }    
 }
 
 /*************************************************************
@@ -1061,4 +1068,36 @@ function uk_direct_debit_civicrm_pageRun(&$page) {
       }
     }
   }
+}
+
+function uk_direct_debit_civicrm_validateForm($name, &$fields, &$files, &$form, &$errors) {
+  // Only do recurring edit form
+  if (!in_array($name, array(
+    'CRM_Contribute_Form_UpdateSubscription',
+  ))) {
+    return;
+  }
+  // only do if payment process is Smart Debit
+  if (isset($fields['payment_processor_type']) && $fields['payment_processor_type'] == 'Smart Debit') {
+    $recurID	      = $form->getVar('_crid');
+    $linkedMembership = FALSE; 
+    // Check this recurring contribution is linked to membership
+    $membershipID = CRM_Core_DAO::singleValueQuery('SELECT id FROM civicrm_membership WHERE contribution_recur_id = %1', array(1=>array($recurID, 'Int')));
+    if ($membershipID) {
+      $linkedMembership = TRUE;
+    }      
+    // If recurring is linked to membership then check amount is higher than membership amount
+    if ($linkedMembership) {
+      $query = "
+	SELECT cc.total_amount
+	FROM civicrm_contribution cc 
+	INNER JOIN civicrm_membership_payment cmp ON cmp.contribution_id = cc.id
+	INNER JOIN civicrm_membership cm ON cm.id = cmp.membership_id
+	WHERE cmp.membership_id = %1";
+      $membershipAmount = CRM_Core_DAO::singleValueQuery($query, array(1 => array($membershipID, 'Int')));
+      if($fields['amount'] < $membershipAmount) {
+	$errors['amount'] = ts('Amount should be higher than corresponding membership amount');	
+      }      
+    }
+  }  
 }
