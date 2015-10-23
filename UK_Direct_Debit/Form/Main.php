@@ -133,12 +133,18 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     $companyAddress['company_name'] = $domain->name;
     if (!empty($domainLoc['address'])) {
       $companyAddress['address1']     = $domainLoc['address'][1]['street_address'];
-      $companyAddress['address2']     = $domainLoc['address'][1]['supplemental_address_1'];
-      $companyAddress['address3']     = $domainLoc['address'][1]['supplemental_address_2'];
+      if (array_key_exists('supplemental_address_1', $domainLoc['address'][1])) {
+	$companyAddress['address2']     = $domainLoc['address'][1]['supplemental_address_1'];
+      }
+      if (array_key_exists('supplemental_address_2', $domainLoc['address'][1])) {
+	$companyAddress['address3']     = $domainLoc['address'][1]['supplemental_address_2'];
+      }
       $companyAddress['town']         = $domainLoc['address'][1]['city'];
       $companyAddress['postcode']     = $domainLoc['address'][1]['postal_code'];
-      $companyAddress['county']       = CRM_Core_PseudoConstant::county($domainLoc['address'][1]['county_id']);
-      $companyAddress['country_id']   = CRM_Core_PseudoConstant::country($domainLoc['address'][1]['country_id']);
+      if (array_key_exists('county_id', $domainLoc['address'][1])) {
+	$companyAddress['county']       = CRM_Core_PseudoConstant::county($domainLoc['address'][1]['county_id']);
+      }
+      $companyAddress['country_id']   = CRM_Core_PseudoConstant::country($domainLoc['address'][1]['country_id']);	
     }
 
     return $companyAddress;
@@ -794,6 +800,124 @@ EOF;
           $form->addRule('price_3', ts('This field is required.'), 'required');
         }
       }
+  }
+  
+  
+  function buildOfflineDirectDebit(&$form, $useRequired = FALSE) {
+    if ( $form->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_FORM ) {
+      self::setDirectDebitFields( $form );
+      self::setBillingDetailsFields($form);
+      foreach ( $form->_paymentFields as $name => $field ) {
+        if ( isset($field['cc_field'] ) &&
+          $field['cc_field']
+        ) {
+          if ($field['htmlType'] == 'chainSelect') {
+            $form->addChainSelect($field['name'], array('required' => $useRequired && $field['is_required']));
+          }
+          else {
+            $form->add( $field['htmlType'],
+                        $field['name'],
+                        $field['title'],
+                        CRM_Utils_Array::value('attributes', $field),
+                        $useRequired ? $field['is_required'] : FALSE
+                      );
+          }
+        }
+      }
+
+      $form->addRule( 'bank_identification_number',
+                      ts( 'Please enter a valid Bank Identification Number (value must not contain punctuation characters).' ),
+                      'nopunctuation'
+                    );
+
+      $form->addRule( 'bank_account_number',
+                      ts( 'Please enter a valid Bank Account Number (value must not contain punctuation characters).' ),
+                      'nopunctuation'
+                    );
+    }  
+    
+  }
+  
+  function setBillingDetailsFields(&$form) {
+    $bltID =  $form->_bltID;
+    $form->_paymentFields['billing_first_name'] = array(
+      'htmlType' => 'text',
+      'name' => 'billing_first_name',
+      'title' => ts('Billing First Name'),
+      'cc_field' => TRUE,
+      'attributes' => array('size' => 30, 'maxlength' => 60, 'autocomplete' => 'off'),
+      'is_required' => TRUE,
+    );
+
+    $form->_paymentFields['billing_middle_name'] = array(
+      'htmlType' => 'text',
+      'name' => 'billing_middle_name',
+      'title' => ts('Billing Middle Name'),
+      'cc_field' => TRUE,
+      'attributes' => array('size' => 30, 'maxlength' => 60, 'autocomplete' => 'off'),
+      'is_required' => FALSE,
+    );
+
+    $form->_paymentFields['billing_last_name'] = array(
+      'htmlType' => 'text',
+      'name' => 'billing_last_name',
+      'title' => ts('Billing Last Name'),
+      'cc_field' => TRUE,
+      'attributes' => array('size' => 30, 'maxlength' => 60, 'autocomplete' => 'off'),
+      'is_required' => TRUE,
+    );
+
+    $form->_paymentFields["billing_street_address-{$bltID}"] = array(
+      'htmlType' => 'text',
+      'name' => "billing_street_address-{$bltID}",
+      'title' => ts('Street Address'),
+      'cc_field' => TRUE,
+      'attributes' => array('size' => 30, 'maxlength' => 60, 'autocomplete' => 'off'),
+      'is_required' => TRUE,
+    );
+
+    $form->_paymentFields["billing_city-{$bltID}"] = array(
+      'htmlType' => 'text',
+      'name' => "billing_city-{$bltID}",
+      'title' => ts('City'),
+      'cc_field' => TRUE,
+      'attributes' => array('size' => 30, 'maxlength' => 60, 'autocomplete' => 'off'),
+      'is_required' => TRUE,
+    );
+
+    $form->_paymentFields["billing_state_province_id-{$bltID}"] = array(
+      'htmlType' => 'select',
+      'title' => ts('State/Province'),
+      'name' => "billing_state_province_id-{$bltID}",
+      'cc_field' => TRUE,
+	  'attributes' => array(
+        '' => ts('- select -'),
+      ) +
+      CRM_Core_PseudoConstant::stateProvince(),
+      'is_required' => TRUE,
+    );
+
+    $form->_paymentFields["billing_postal_code-{$bltID}"] = array(
+      'htmlType' => 'text',
+      'name' => "billing_postal_code-{$bltID}",
+      'title' => ts('Postal Code'),
+      'cc_field' => TRUE,
+      'attributes' => array('size' => 30, 'maxlength' => 60, 'autocomplete' => 'off'),
+      'is_required' => TRUE,
+    );
+
+    $form->_paymentFields["billing_country_id-{$bltID}"] = array(
+      'htmlType' => 'select',
+      'name' => "billing_country_id-{$bltID}",
+      'title' => ts('Country'),
+      'cc_field' => TRUE,
+      'attributes' => array(
+        '' => ts('- select -'),
+      ) +
+      CRM_Core_PseudoConstant::country(),
+      'is_required' => TRUE,
+    );
+   
   }
 
 }

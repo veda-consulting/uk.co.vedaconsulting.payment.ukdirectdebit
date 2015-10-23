@@ -1,3 +1,4 @@
+<!-- Customised Civi File .tpl file invoked: ukdirectdebit/templates/CRM/Contribute/Form/UpdateSubscription.tpl. Call via form.tpl if we have a form in the page. -->
 {*
  +--------------------------------------------------------------------+
  | CiviCRM version 4.4                                                |
@@ -43,7 +44,11 @@
     </tr>
     <tr>
       <td class="label">{$form.start_date.label}</td><td>
-        <span class="value">{include file="CRM/common/jcalendar.tpl" elementName=start_date}</span></td>
+	{if $membership}
+        {$form.start_date.html}
+	{else}
+	<span class="value">{include file="CRM/common/jcalendar.tpl" elementName=start_date}</span>
+	{/if}</td>
     </tr>
     <tr>
       <td class="label">{$form.end_date.label}</td><td>

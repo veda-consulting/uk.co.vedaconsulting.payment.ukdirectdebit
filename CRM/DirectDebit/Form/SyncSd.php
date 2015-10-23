@@ -224,7 +224,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     $url = "https://secure.ddprocessing.co.uk/api/data/dump?query[service_user][pslid]=$pslid&query[report_format]=XML";
     // Restrict to a single payer if we have a reference
     if ($referenceNumber) {
-      $url .= "&query[reference_number]=$referenceNumber";
+      $url .= "&query[reference_number]=".rawurlencode($referenceNumber);
     }
 
     $response = self::requestPost( $url, $username, $password );
