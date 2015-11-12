@@ -329,9 +329,13 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
 
           $contributionID   = $contributeResult['id'];
           $contriReurID     = $contributeResult['values'][$contributionID]['contribution_recur_id'];
-          $membershipQuery  = "SELECT `membership_id` FROM `civicrm_contribution_recur` WHERE `id` = %1";
-
-          $membershipID   = CRM_Core_DAO::singleValueQuery($membershipQuery, array( 1 => array( $contriReurID, 'Int' ) ) );
+	  $columnExists	    = CRM_Core_DAO::checkFieldExists('civicrm_contribution_recur', 'membership_id');
+          if($columnExists) {
+	    $membershipQuery  = "SELECT `membership_id` FROM `civicrm_contribution_recur` WHERE `id` = %1";
+	    $membershipID     = CRM_Core_DAO::singleValueQuery($membershipQuery, array( 1 => array( $contriReurID, 'Int' ) ) );
+	  } else {
+	    $membershipID = CRM_Core_DAO::singleValueQuery('SELECT id FROM civicrm_membership WHERE contribution_recur_id = %1', array(1=>array($contriReurID, 'Int')));
+	  }
           // CRM_Core_Error::debug_log_message('membershipID = '. print_r($membershipID, TRUE));
           if (!empty($membershipID)) {
 
