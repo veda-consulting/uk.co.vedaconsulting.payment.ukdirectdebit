@@ -16,6 +16,8 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
   
   public $_bltID = 5;
   
+  public $_membershihpAmount;
+  
   public function preProcess() {
     // Check permission for action.
     if (!CRM_Core_Permission::checkActionPermission('CiviContribute', CRM_Core_Action::ADD)) {
@@ -70,11 +72,16 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
     $defaults['email-'.$this->_bltID] = $contactDetails['email'];
     $defaults['amount']		      = $contactDetails['amount'];
     $defaults['frequency_unit']	      = $contactDetails['frequency_unit'];
+    $this->_membershihpAmount	      = $contactDetails['amount'];
     return $defaults;
   }
   
   public static function formRule($fields, $files, $self) {
     $errors = array ();      
+    if($fields['amount'] < $self->_membershihpAmount) {
+      $errors['amount'] = ts('Amount can not be less than corresponding membership amount');	
+      return $errors;   
+    }
     require_once self::getSmartDebitPaymentPath();
     $validateOutput = uk_co_vedaconsulting_payment_smartdebitdd::validatePayment($fields, $files, $self);
     if ($validateOutput['is_error'] == 1) {
@@ -234,7 +241,7 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
       INNER JOIN civicrm_membership_payment cmp ON cmp.contribution_id = cc.id
       INNER JOIN civicrm_membership cm ON cm.id = cmp.membership_id
       INNER JOIN civicrm_membership_type cmt ON cmt.id = cm.membership_type_id
-      INNER JOIN civicrm_email ce ON (ce.contact_id = cc.contact_id AND ce.is_primary = 1)
+      LEFT JOIN civicrm_email ce ON (ce.contact_id = cc.contact_id AND ce.is_primary = 1)
       WHERE cmp.membership_id = %1";
     $dao = CRM_Core_DAO::executeQuery($query, array(1 => array($membershipID, 'Int')));
     $contactDetails = array();
