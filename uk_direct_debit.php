@@ -712,6 +712,14 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
       $ddForm->buildOfflineDirectDebit($form);	
     }    
   }    
+  
+  if ($formName == 'CRM_Contribute_Form_CancelSubscription') {
+    $paymentProcessorObj      = $form->getVar('_paymentProcessorObj');
+    $paymentProcessorName     = $paymentProcessorObj->_processorName;
+    if ($paymentProcessorName == 'Smart Debit Processor') {
+      $form->addRule('send_cancel_request', 'Please select one of these options', 'required');
+    }
+  }
 }
 
 /*************************************************************
