@@ -24,6 +24,22 @@
  +--------------------------------------------------------------------+
 *}
 {crmRegion name="billing-block"}
+{if $paymentProcessor.payment_processor_type == 'Gocardless'}
+  <div id="gocardless_payment_information">
+    <fieldset class="billing_mode-group">
+      <legend>
+	{ts}Direct Debit Information{/ts}
+      </legend>
+      <div class="crm-section billing_mode-section gocardless-section">
+	<div class="crm-section {$form.preferred_collection_day.name}-section">
+	  <div class="label">{$form.preferred_collection_day.label}</div>
+	  <div class="content">{$form.preferred_collection_day.html}</div>
+	  <div class="clear"></div>
+	</div>
+      </div>
+    </fieldset>
+  </div>
+{/if}
 <div id="payment_information">
   {if $paymentFields|@count && (!$form.$expressButtonName || $paymentProcessor.payment_processor_type EQ 'PayPal')}
     <fieldset class="billing_mode-group {$paymentTypeName}_info-group">
