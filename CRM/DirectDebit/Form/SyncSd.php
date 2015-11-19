@@ -102,7 +102,8 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
   }
 
   static function getSmartDebitAuddis($uri = NULL) {
-
+    $session = CRM_Core_Session::singleton();
+    $dateOfCollection = $session->get('collection_date');
     $userDetails = CRM_DirectDebit_Form_DataSource::getSmartDebitUserDetails();
     $username    = CRM_Utils_Array::value('username', $userDetails);
     $password    = CRM_Utils_Array::value('password', $userDetails);
@@ -134,7 +135,8 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     else {
 
   // Send payment POST to the target URL
-      $urlAuddis = "https://secure.ddprocessing.co.uk/api/auddis/list?query[service_user][pslid]=$pslid";
+      $previousDateBackMonth = date('Y-m-d', strtotime($dateOfCollection.'-1 month'));
+      $urlAuddis = "https://secure.ddprocessing.co.uk/api/auddis/list?query[service_user][pslid]=$pslid&query[from_date]=$previousDateBackMonth&query[till_date]=$dateOfCollection";
 
       $responseAuddis = self::requestPost( $urlAuddis, $username, $password );
 

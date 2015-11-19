@@ -86,6 +86,8 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     if(!empty($dateOfCollection)){
       $dateOfCollection = date('Y-m-d', strtotime($dateOfCollection));
       $aCollectionDate  = self::getSmartDebitPayments( $dateOfCollection );
+      $session = CRM_Core_Session::singleton();
+      $session->set("collection_date", $dateOfCollection);
     }
 
     if( $aCollectionDate === false ){
