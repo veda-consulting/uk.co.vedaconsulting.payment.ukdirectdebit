@@ -514,14 +514,20 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
 
     $contactID = $_GET['cid'];
     $pageID    = $form->_id;
+    CRM_Core_Error::debug_log_message( 'in the build thank you confirm parms'. print_r($confirm_params, true), $out = false );
+    $confirmed_resource = GoCardless::confirm_resource($confirm_params);
+    CRM_Core_Error::debug_log_message( 'in the bild thank you confirmed_resources '. print_r($confirmed_resource, true), $out = false );
+    $start_date         = date('Y-m-d', strtotime($confirmed_resource->start_at));
+    $trxn_id          	= $confirmed_resource->id;
+    $recurring_contribution_status_id = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'In Progress');
 
     $query = "
             UPDATE civicrm_contribution
-            SET trxn_id = %1 , contribution_status_id = 1
+            SET trxn_id = %1 , contribution_status_id = 1, receive_date = %3
             WHERE id = %2";
 
 		$sql = "
-            SELECT max(id) as max_id
+            SELECT max(id) as max_id, contribution_recur_id
             FROM civicrm_contribution
             WHERE contact_id = %1
             AND contribution_page_id = %2";
@@ -530,15 +536,22 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
 						$selectdao = CRM_Core_DAO::executeQuery($sql, $sql_params);
 						$selectdao->fetch();
 						$contributionId = $selectdao->max_id;
+						$contributionRecurId = $selectdao->contribution_recur_id;
 						
-						$sql_params = array( 1 => array( $_GET['resource_id'], 'String' ), 2 => array($contributionId, 'Int'));
+						$sql_params = array( 1 => array( $_GET['resource_id'], 'String' ), 2 => array($contributionId, 'Int'), 3 => array($start_date, 'String'));
             $dao = CRM_Core_DAO::executeQuery($query, $sql_params);
-
-    CRM_Core_Error::debug_log_message( 'in the build thank you confirm parms'. print_r($confirm_params, true), $out = false );
-
-    $confirmed_resource = GoCardless::confirm_resource($confirm_params);
-    CRM_Core_Error::debug_log_message( 'in the bild thank you confirmed_resources '. print_r($confirmed_resource, true), $out = false );
-
+	    
+	    // Update contribution recur trxn_id and start_date and status.
+	    $recurUpdateQuery = "
+	      UPDATE civicrm_contribution_recur
+	      SET trxn_id = %1, contribution_status_id = %2, start_date = %3
+	      WHERE id = %4";
+	    $recurUpdateQueryParams = array(
+        1 => array($trxn_id, 'String'),
+        2 => array($recurring_contribution_status_id, 'Int'),
+        3 => array($start_date, 'String'),
+        4 => array($contributionRecurId, 'Int'));
+	    $recurringDao = CRM_Core_DAO::executeQuery($recurUpdateQuery, $recurUpdateQueryParams);
 
     CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_buildform #1');
     CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_buildform form='.print_r($form, TRUE));
@@ -622,7 +635,14 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
 //            $form->assign( 'company_address', UK_Direct_Debit_Form_Main::getCompanyAddress());
 
         }
-        else {
+        else if ($form->_paymentProcessor['payment_processor_type'] == 'Gocardless') {
+          $uk_direct_debit['formatted_preferred_collection_day'] 	= UK_Direct_Debit_Form_Main::formatPrefferedCollectionDay($form->_params['preferred_collection_day']);
+          $collectionDate                                         = UK_Direct_Debit_Form_Main::firstCollectionDate($form->_params['preferred_collection_day'], null); 			
+          $uk_direct_debit['first_collection_date']               = $collectionDate->format("Y-m-d");
+          $uk_direct_debit['confirmation_method']                 = 'EMAIL'; //KJ fixme as we don't give options to choose
+          $uk_direct_debit['company_name']                        = UK_Direct_Debit_Form_Main::getCompanyName();;
+	  
+        } else {
             $uk_direct_debit['formatted_preferred_collection_day'] = '';
             $uk_direct_debit['company_name']             = UK_Direct_Debit_Form_Main::getCompanyName();
             $uk_direct_debit['bank_name']                = '';
@@ -712,6 +732,14 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
       $ddForm->buildOfflineDirectDebit($form);	
     }    
   }    
+  
+  if ($formName == 'CRM_Contribute_Form_CancelSubscription') {
+    $paymentProcessorObj      = $form->getVar('_paymentProcessorObj');
+    $paymentProcessorName     = $paymentProcessorObj->_processorName;
+    if ($paymentProcessorName == 'Smart Debit Processor') {
+      $form->addRule('send_cancel_request', 'Please select one of these options', 'required');
+    }
+  }
 }
 
 /*************************************************************
