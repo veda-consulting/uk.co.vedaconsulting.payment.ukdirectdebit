@@ -126,7 +126,38 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
       );
 
       $recurring		  = CRM_Contribute_BAO_ContributionRecur::add($recurParams);
-      $contributionRecurID	  = $recurring->id;      
+      $contributionRecurID	  = $recurring->id; 
+      
+      if ($contributionRecurID && $contributionID) {
+        // Update Contribution trxn_id, recur_id, receive_date if already contribution was there to this membership
+        $contributionUpdateParams = array(
+          1 => array($contributionRecurID, 'Int'),
+          2 => array($trxn_id, 'String'),
+          3 => array(CRM_Utils_Date::processDate($start_date), 'String'),
+          4 => array($contributionID, 'Int'));
+        CRM_Core_DAO::executeQuery('UPDATE civicrm_contribution SET contribution_recur_id = %1, trxn_id = %2, receive_date = %3 WHERE id = %4', $contributionUpdateParams);
+        
+      }
+      if ($contributionRecurID && empty($contributionID)) {
+        $contributionParams     = array();
+        $contributionParams['financial_type_id']      = $financial_type_id;
+        $contributionParams['contact_id']             = $this->_contactID;
+        $contributionParams['source']                 = 'Offline Membership Direct Debit';
+        $contributionParams['total_amount']           = $params['amount'];
+        $contributionParams['invoice_id']             = $invoiceID;
+        $contributionParams['trxn_id']                = $trxn_id;
+        $contributionParams['contribution_recur_id']  = $contributionRecurID;
+        $contributionParams['contribution_status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed');
+        $contributionParams['receive_date']           = CRM_Utils_Date::processDate($start_date);
+        $contribution                                 = CRM_Contribute_BAO_Contribution::add($contributionParams);
+        $contributionID                               = $contribution->id;
+        // Attach Contribution to Membership
+        CRM_Member_BAO_MembershipPayment::create(array(
+          'membership_id' => $this->_id,
+          'contribution_id' => $contributionID,
+        ));
+      }
+      
       // Update Membership column in recurring table
       CRM_Core_DAO::executeQuery('UPDATE civicrm_membership SET contribution_recur_id = %1 WHERE id = %2', array(1=>array($contributionRecurID, 'Int'), 2=>array($this->_id, 'Int')));
       
@@ -236,24 +267,24 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
       return;
     }
     $query = "
-      SELECT cc.id, cc.invoice_id, cc.financial_type_id, ce.email, cc.total_amount, cm.contribution_recur_id, cmt.duration_unit
-      FROM civicrm_contribution cc 
-      INNER JOIN civicrm_membership_payment cmp ON cmp.contribution_id = cc.id
-      INNER JOIN civicrm_membership cm ON cm.id = cmp.membership_id
+      SELECT cc.id, cc.invoice_id, cmt.financial_type_id, ce.email, cmt.minimum_fee, cm.contribution_recur_id, cmt.duration_unit
+      FROM civicrm_membership cm 
       INNER JOIN civicrm_membership_type cmt ON cmt.id = cm.membership_type_id
-      LEFT JOIN civicrm_email ce ON (ce.contact_id = cc.contact_id AND ce.is_primary = 1)
-      WHERE cmp.membership_id = %1";
+      LEFT JOIN civicrm_membership_payment cmp ON cmp.membership_id = cm.id
+      LEFT JOIN civicrm_contribution cc ON cc.id = cmp.contribution_id      
+      LEFT JOIN civicrm_email ce ON (ce.contact_id = cm.contact_id AND ce.is_primary = 1)
+      WHERE cm.id = %1";
     $dao = CRM_Core_DAO::executeQuery($query, array(1 => array($membershipID, 'Int')));
     $contactDetails = array();
     if ($dao->fetch()) {
       $contactDetails['contribution_id']	= $dao->id;
-      $contactDetails['amount']			= $dao->total_amount;
+      $contactDetails['amount']			= $dao->minimum_fee;
       $contactDetails['invoice_id']		= $dao->invoice_id;
       $contactDetails['financial_type_id']	= $dao->financial_type_id;
       $contactDetails['email']			= $dao->email;
       $contactDetails['contribution_recur_id']  = $dao->contribution_recur_id;
       $contactDetails['frequency_unit']		= $dao->duration_unit;
-    }
+    } 
     return $contactDetails;
   }
 }
