@@ -1046,15 +1046,12 @@ function uk_direct_debit_civicrm_links( $op, $objectName, $objectId, &$links, &$
     $title  = ts('Setup Direct Debit');
     $url    = 'civicrm/directdebit/new';
     $qs	    = "action=add&reset=1&cid=$cid&id=$id";
-    $columnExists = CRM_Core_DAO::checkFieldExists('civicrm_contribution_recur', 'membership_id');
-    if($columnExists) {
-      $recurID = CRM_Core_DAO::singleValueQuery('SELECT id FROM civicrm_contribution_recur WHERE membership_id = %1', array(1=>array($id, 'Int')));
-      if (!empty($recurID)) {
-	$name   = ts('View Direct Debit');
-	$title  = ts('View Direct Debit');
-	$url    = 'civicrm/contact/view/contributionrecur';
-	$qs	= "reset=1&id=$recurID&cid=$cid";
-      }
+    $recurID = CRM_Core_DAO::singleValueQuery('SELECT contribution_recur_id FROM civicrm_membership WHERE id = %1', array(1=>array($id, 'Int')));
+    if($recurID) {
+      $name   = ts('View Direct Debit');
+      $title  = ts('View Direct Debit');
+      $url    = 'civicrm/contact/view/contributionrecur';
+      $qs   	= "reset=1&id=$recurID&cid=$cid";
     }
     $links[] = array(
               'name' => $name,
