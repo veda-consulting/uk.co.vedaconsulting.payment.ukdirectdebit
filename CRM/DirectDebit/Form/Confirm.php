@@ -343,7 +343,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
           // If membership ID is empty, check if we can get from contribution_membership table
           // Latest CiviCRM versions have contribution_recur_id in civicrm_membership table
           if (empty($membershipID)) {
-            $columnExists	    = CRM_Core_DAO::checkFieldExists('civicrm_memebrship', 'contribution_recur_id');
+            $columnExists	    = CRM_Core_DAO::checkFieldExists('civicrm_membership', 'contribution_recur_id');
             if($columnExists) {
               $membershipQuery  = "SELECT `id` FROM `civicrm_membership` WHERE `contribution_recur_id` = %1";
               $membershipID     = CRM_Core_DAO::singleValueQuery($membershipQuery, array( 1 => array( $contriReurID, 'Int' ) ) );
