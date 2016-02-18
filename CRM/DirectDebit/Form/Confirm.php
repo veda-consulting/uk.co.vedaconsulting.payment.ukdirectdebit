@@ -316,6 +316,11 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
           'receive_date'           => CRM_Utils_Date::processDate($receiveDate),
         );
 
+        // Check if the contribution is first payment
+        // if yes, update the contribution instead of creating one
+        // as CiviCRM should have created the first contribution
+        $contributeParams = self::checkIfFirstPayment($contributeParams, $dao->frequency_unit);
+
         // Allow params to be modified via hook
         CRM_DirectDebit_Utils_Hook::alterSmartDebitContributionParams( $contributeParams );
 
@@ -333,9 +338,18 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
           if($columnExists) {
 	    $membershipQuery  = "SELECT `membership_id` FROM `civicrm_contribution_recur` WHERE `id` = %1";
 	    $membershipID     = CRM_Core_DAO::singleValueQuery($membershipQuery, array( 1 => array( $contriReurID, 'Int' ) ) );
-	  } else {
-	    $membershipID = CRM_Core_DAO::singleValueQuery('SELECT id FROM civicrm_membership WHERE contribution_recur_id = %1', array(1=>array($contriReurID, 'Int')));
 	  }
+
+          // If membership ID is empty, check if we can get from contribution_membership table
+          // Latest CiviCRM versions have contribution_recur_id in civicrm_membership table
+          if (empty($membershipID)) {
+            $columnExists	    = CRM_Core_DAO::checkFieldExists('civicrm_memebrship', 'contribution_recur_id');
+            if($columnExists) {
+              $membershipQuery  = "SELECT `id` FROM `civicrm_membership` WHERE `contribution_recur_id` = %1";
+              $membershipID     = CRM_Core_DAO::singleValueQuery($membershipQuery, array( 1 => array( $contriReurID, 'Int' ) ) );
+            }
+          }
+
           // CRM_Core_Error::debug_log_message('membershipID = '. print_r($membershipID, TRUE));
           if (!empty($membershipID)) {
 
@@ -470,6 +484,87 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     return CRM_Queue_Task::TASK_SUCCESS;
   }
 
+  /*
+   * Function to check if the contribution is first contribution
+   * for the recurring contribution record
+   */
+  static function checkIfFirstPayment($params, $frequencyUnit = 'month') {
 
+    if (empty($params['contribution_recur_id'])) {
+      return;
+    }
 
+    // Get days difference to determine if this is first payment
+    $days = self::daysDifferenceForFrequency($frequencyUnit);
+
+    $contributionResult = civicrm_api3('Contribution', 'get', array(
+      'contribution_recur_id' => $params['contribution_recur_id'],
+    ));
+
+    // We have only one contribution for the recurring record
+    if ($contributionResult['count'] == 1) {
+      $contributionDetails = $contributionResult['values'][$contributionResult['id']];
+
+      if (!empty($contributionDetails['receive_date']) && !empty($params['receive_date'])) {
+        // Find the date difference between the contribution date and new collection date
+        $dateDiff = self::getDateDifference($params['receive_date'], $contributionDetails['receive_date']);
+
+        // if diff is less than set number of days, return Contribution ID to update the contribution
+        if ($dateDiff < $days) {
+          $params['id'] = $contributionResult['id'];
+          unset($params['source']);
+        }
+      }
+    }
+    // Get the recent pending contribution if there are more than 1 payment for the recurring record
+    else if ($contributionResult['count'] > 1) {
+      $sqlParams = array(
+        1 => array($params['contribution_recur_id'], 'Integer'),
+      );
+      $sql = "SELECT cc.id, cc.receive_date FROM civicrm_contribution cc WHERE cc.contribution_recur_id = %1 ORDER BY cc.receive_date DESC";
+      $dao = CRM_Core_DAO::executeQuery($sql , $sqlParams);
+      while($dao->fetch()) {
+        if (!empty($dao->receive_date) && !empty($params['receive_date'])) {
+          $dateDiff = self::getDateDifference($params['receive_date'], $dao->receive_date);
+
+          // if diff is less than set number of days, return Contribution ID to update the contribution
+          if ($dateDiff < $days) {
+            $params['id'] = $dao->id;
+            unset($params['source']);
+          }
+        }
+      }
+    }
+
+    return $params;
+	}
+
+  /*
+   * Function to return number of days difference to check between current date
+   * and payment date to determine if this is first payment or not
+   */
+  static function daysDifferenceForFrequency($frequencyUnit) {
+    switch ($frequencyUnit) {
+      case 'month':
+        $days = 7;
+        break;
+
+      case 'year':
+        $days = 30;
+        break;
+
+      default:
+        $days = 7;
+        break;
+    }
+
+    return $days;
+  }
+
+  /*
+   * Function to get number of days difference between 2 dates
+   */
+  static function getDateDifference($date1, $date2) {
+    return floor((strtotime($date1) - strtotime($date2))/(60*60*24));
+  }
 }

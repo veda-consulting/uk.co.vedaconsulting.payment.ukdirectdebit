@@ -18,12 +18,20 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
 
     // Get the auddis Dates from the Auddis Files
     if($auddisArray) {
-      foreach ($auddisArray as $key => $auddis) {
+      if (isset($auddisArray[0]['@attributes'])) {
+        // Multiple results returned
+        foreach ($auddisArray as $key => $auddis) {
           $auddisDetails['auddis_id']              = $auddis['auddis_id'];
-          $auddisDetails['report_generation_date'] = substr($auddis['report_generation_date'], 0, 10);
-          $auddisDates[]                           = substr($auddis['report_generation_date'], 0, 10);
+          $auddisDetails['report_generation_date'] = date('Y-m-d', strtotime($auddisArray['report_generation_date']));
+          $auddisDates[]                           = date('Y-m-d', strtotime($auddisArray['report_generation_date']));
           $auddisDetails['uri']                    = $auddis['@attributes']['uri'];
-
+        }
+      } else {
+        // Only one result returned
+        $auddisDetails['auddis_id']              = $auddisArray['auddis_id'];
+        $auddisDetails['report_generation_date'] = date('Y-m-d', strtotime($auddisArray['report_generation_date']));
+        $auddisDates[]                           = date('Y-m-d', strtotime($auddisArray['report_generation_date']));
+        $auddisDetails['uri']                    = $auddisArray['@attributes']['uri'];
       }
     }
 

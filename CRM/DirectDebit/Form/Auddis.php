@@ -206,12 +206,14 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     }
 
     $redirectUrlBack      = CRM_Utils_System::url('civicrm/directdebit/syncsd/import', 'reset=1');
-    $redirectUrlContinue  = CRM_Utils_System::url('civicrm/directdebit/syncsd/confirm');
+    $redirectUrlContinue  = CRM_Utils_System::url('civicrm/directdebit/syncsd/confirm', $queryDates);
+    $redirectUrlBack = str_replace('&amp;', '&', $redirectUrlBack);
+    $redirectUrlContinue = str_replace('&amp;', '&', $redirectUrlContinue);
     if(!empty($matchTrxnIds)) {
       $this->addButtons(array(
               array(
                 'type' => 'next',
-                'js' => array('onclick' => "location.href='{$redirectUrlContinue}' + '?' + '{$queryDates}' ; return false;"),
+                'js' => array('onclick' => "location.href='{$redirectUrlContinue}'; return false;"),
                 'name' => ts('Continue'),
                 ),
               array(
@@ -271,15 +273,24 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
   static function getRightAuddisFile($auddisArray = array(), $auddisDate = NULL) {
     $auddisDetails = array();
     if($auddisArray && $auddisDate) {
-     foreach ($auddisArray as $key => $auddis) {
-       if(strtotime($auddisDate) == strtotime(substr($auddis['report_generation_date'], 0, 10))){
-         $auddisDetails['auddis_id']              = $auddis['auddis_id'];
-         $auddisDetails['report_generation_date'] = substr($auddis['report_generation_date'], 0, 10);
-         $auddisDetails['uri']                    = $auddis['@attributes']['uri'];
-         break;
-       }
-
-     }
+     if (isset($auddisArray[0]['@attributes'])) {
+        // Multiple results returned
+        foreach ($auddisArray as $key => $auddis) {
+          if(strtotime($auddisDate) == strtotime(substr($auddis['report_generation_date'], 0, 10))){
+            $auddisDetails['auddis_id']              = $auddis['auddis_id'];
+            $auddisDetails['report_generation_date'] = substr($auddis['report_generation_date'], 0, 10);
+            $auddisDetails['uri']                    = $auddis['@attributes']['uri'];
+            break;
+          }
+        }
+      } else {
+        // Only one result returned
+        if(strtotime($auddisDate) == strtotime(substr($auddisArray['report_generation_date'], 0, 10))){
+          $auddisDetails['auddis_id']              = $auddisArray['auddis_id'];
+          $auddisDetails['report_generation_date'] = substr($auddisArray['report_generation_date'], 0, 10);
+          $auddisDetails['uri']                    = $auddisArray['@attributes']['uri'];
+        }
+      }
     }
     return $auddisDetails;
   }
