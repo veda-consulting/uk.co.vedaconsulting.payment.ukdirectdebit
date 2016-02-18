@@ -287,7 +287,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       $params = array( 1 => array( $smartDebitRecord, 'String' ) );
       $dao = CRM_Core_DAO::executeQuery( $sql, $params);
 
-      $selectQuery  = "SELECT `receive_date` as receive_date FROM `veda_civicrm_smartdebit_import` WHERE `transaction_id` = '{$smartDebitRecord}'";
+      $selectQuery  = "SELECT `receive_date` as receive_date, `amount` as amount FROM `veda_civicrm_smartdebit_import` WHERE `transaction_id` = '{$smartDebitRecord}'";
       $daoSelect    = CRM_Core_DAO::executeQuery($selectQuery);
       $daoSelect->fetch();
 
@@ -306,7 +306,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
           'version'                => 3,
           'contact_id'             => $dao->contact_id,
           'contribution_recur_id'  => $dao->contribution_recur_id,
-          'total_amount'           => $dao->amount,
+          'total_amount'           => $daoSelect->amount,
           'invoice_id'             => md5(uniqid(rand(), TRUE )),
           'trxn_id'                => $smartDebitRecord.'/'.CRM_Utils_Date::processDate($receiveDate),
           'financial_type_id'      => $financialTypeID,

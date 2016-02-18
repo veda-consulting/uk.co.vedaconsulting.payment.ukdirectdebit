@@ -100,8 +100,9 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
 
     if(!empty($validIds)){
     $validIdsString = implode(',', $validIds);
-    $sql = "SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id, ctrc.contribution_status_id
+    $sql = "SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , sdpayments.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id, ctrc.contribution_status_id
       FROM civicrm_contribution_recur ctrc
+      INNER JOIN veda_civicrm_smartdebit_import sdpayments ON sdpayments.transaction_id = ctrc.trxn_id
       INNER JOIN civicrm_contact cont ON (ctrc.contact_id = cont.id)
       WHERE ctrc.trxn_id IN ($validIdsString)";
 
