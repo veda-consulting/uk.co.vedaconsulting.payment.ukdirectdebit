@@ -413,6 +413,8 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
                 $tempEndDateArray['to'] = date('d -M-Y', strtotime($membershipEndDateString));
               }
             }
+              // Create membership payment
+            self::createMembershipPayment($membershipID, $contributionID);
           }
           //MV, changes to display the more information after sync.
           $tempRenewalDate  = NULL;
@@ -566,5 +568,24 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
    */
   static function getDateDifference($date1, $date2) {
     return floor((strtotime($date1) - strtotime($date2))/(60*60*24));
+  }
+  
+  function createMembershipPayment($membershipId, $contributionId) {
+    if (empty($membershipId) || empty($contributionId)) {
+      return;
+    }
+
+    // Check if membership payment already exist for the contribution
+    $params = array(
+      'version' => 3,
+      'membership_id' => $membershipId,
+      'contribution_id' => $contributionId,
+    );
+    $membershipPayment = civicrm_api('MembershipPayment', 'get', $params);
+
+    // Create if the membership payment not exists
+    if ($membershipPayment['count'] == 0) {
+      $membershipPayment = civicrm_api('MembershipPayment', 'create', $params);
+    }
   }
 }
