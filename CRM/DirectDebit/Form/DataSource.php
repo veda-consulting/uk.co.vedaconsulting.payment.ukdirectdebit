@@ -82,6 +82,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     #MV: amend to get the collections by date.
     $exportValues     = $this->controller->exportValues();
     $dateOfCollection = $exportValues['collection_date'];
+    
     $aCollectionDate  = array();
     if(!empty($dateOfCollection)){
       $dateOfCollection = date('Y-m-d', strtotime($dateOfCollection));
@@ -93,7 +94,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     if( $aCollectionDate === false ){
       return false;
     }
-
+  
     // $fileName         = $this->controller->exportValue($this->_name, 'uploadFile');
     // $fileName         = $fileName['name'];
 
@@ -128,7 +129,6 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     //         LINES TERMINATED BY '{$params['linesTerminatedBy']}'
     //         IGNORE {$params['ignoreLines']} LINES
     //         ($columnFieldsSql) SET {$setFieldsSql}";
-
     if(!empty($aCollectionDate)){
       foreach ($aCollectionDate as $key => $value) {
         $resultCollection = array( 

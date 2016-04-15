@@ -80,7 +80,9 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
   public function buildQuickForm() {
 
     $auddisDates = CRM_Utils_Request::retrieve('auddisDates', 'String', $this, false, '', 'GET');
+    $aruddDates = CRM_Utils_Request::retrieve('aruddDates', 'String', $this, false, '', 'GET');
     $this->add('hidden', 'auddisDate', serialize($auddisDates));
+    $this->add('hidden', 'aruddDate', serialize($aruddDates));
     $redirectUrlBack = CRM_Utils_System::url('civicrm/directdebit/syncsd', 'reset=1');
 
     $this->addButtons(array(
@@ -102,15 +104,19 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
 
     $params     = $this->controller->exportValues();
     $auddisDates = unserialize($params['auddisDate']);
-    $financialTypeID    = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
+    $aruddDates = unserialize($params['aruddDate']);
+    //$financialTypeID    = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
 
     // Check financialType is set in the civicrm_setting table
+    /* KJ Commenting taking financial type from recurring 
     if(empty($financialTypeID)) {
       CRM_Core_Session::setStatus(ts('Make sure Financial Type is set in UK Direct Debit setting'), Error, 'error');
       return FALSE;
     }
+     * 
+     */
 
-    $runner = self::getRunner($auddisDates);
+    $runner = self::getRunner($auddisDates, $aruddDates);
     if ($runner) {
       // Create activity for the sync just finished with the auddis date
       foreach ($auddisDates as $auddisDate) {
@@ -124,6 +130,18 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
         );
         $result = civicrm_api('Activity', 'create', $params);
       }
+      foreach ($aruddDates as $aruddDate) {
+
+        $params = array(
+          'version' => 3,
+          'sequential' => 1,
+          'activity_type_id' => 6,
+          'subject' => 'ARUDD'.$aruddDate,
+          'details' => 'Sync had been processed already for this date '.$aruddDate,
+        );
+        $result = civicrm_api('Activity', 'create', $params);
+      }
+      
       // Run Everything in the Queue via the Web.
       $runner->runAllViaWeb();
     } else {
@@ -131,7 +149,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     }
   }
 
-  static function getRunner($auddisDates = NULL) {
+  static function getRunner($auddisDates = NULL, $aruddDates = NULL) {
     // Setup the Queue
     $queue = CRM_Queue_Service::singleton()->create(array(
       'name'  => self::QUEUE_NAME,
@@ -141,11 +159,20 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
 
     // List of auddis files
     $auddisArray      = CRM_DirectDebit_Form_SyncSd::getSmartDebitAuddis();
+    $aruddArray       = CRM_DirectDebit_Form_SyncSd::getSmartDebitArudd();
     if($auddisDates) {
     // Find the relevant auddis file
       foreach ($auddisDates as $auddisDate) {
         $auddisDetails  = CRM_DirectDebit_Form_Auddis::getRightAuddisFile($auddisArray, $auddisDate);
         $auddisFiles[] = CRM_DirectDebit_Form_SyncSd::getSmartDebitAuddis($auddisDetails['uri']);
+      }
+    }
+    
+    if($aruddDates) {
+      foreach ($aruddDates as $aruddDate) {
+        $aruddDetails  = CRM_DirectDebit_Form_Auddis::getRightAruddFile($aruddArray, $aruddDate);
+        $aruddFiles[] = CRM_DirectDebit_Form_SyncSd::getSmartDebitArudd($aruddDetails['uri']);
+   
       }
     }
 
@@ -206,15 +233,16 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
         foreach ($auddisFile as $key => $value) {
 
           $sql = "
-            SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id
+            SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id, ctrc.financial_type_id
             FROM civicrm_contribution_recur ctrc
             INNER JOIN civicrm_contact cont ON (ctrc.contact_id = cont.id)
             WHERE ctrc.trxn_id = %1";
 
           $params = array( 1 => array( $value['reference'], 'String' ) );
           $dao = CRM_Core_DAO::executeQuery( $sql, $params);
+          
 
-          $financialTypeID    = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
+         // $financialTypeID    = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
           // RS: Commenting below line, as we save the financial type ID in civicrm_setting table
           // $financialTypeID  = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialType', $financialType, 'id', 'name');
 
@@ -227,7 +255,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
               'total_amount'           => $dao->amount,
               'invoice_id'             => md5(uniqid(rand(), TRUE )),
               'trxn_id'                => $value['reference'].'/'.CRM_Utils_Date::processDate($receiveDate),
-              'financial_type_id'      => $financialTypeID,
+              'financial_type_id'      => $dao->financial_type_id,
               'payment_instrument_id'  => $dao->payment_instrument_id,
               'contribution_status_id' => 4,
               'source'                 => 'Smart Debit Import',
@@ -259,6 +287,80 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
           }
         }
       }
+      
+       // Add contributions for rejected payments with the status of 'failed'
+      /*
+       * [@attributes] => Array
+                                                                (
+                                                                    [ref] => 12345689
+                                                                    [transCode] => 01
+                                                                    [returnCode] => 0
+                                                                    [payerReference] => 268855
+                                                                    [returnDescription] => REFER TO PAYER
+                                                                    [originalProcessingDate] => 2016-03-14
+                                                                    [currency] => GBP
+                                                                    [valueOf] => 10.50
+                                                                )
+       */
+      
+      foreach ($aruddFiles as $aruddFile) {
+        foreach ($aruddFile as $key => $value) {
+
+          $sql = "
+            SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id, ctrc.financial_type_id
+            FROM civicrm_contribution_recur ctrc
+            INNER JOIN civicrm_contact cont ON (ctrc.contact_id = cont.id)
+            WHERE ctrc.trxn_id = %1";
+
+          $params = array( 1 => array( $value['ref'], 'String' ) );
+          $dao = CRM_Core_DAO::executeQuery( $sql, $params);
+          
+
+         // $financialTypeID    = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
+          // RS: Commenting below line, as we save the financial type ID in civicrm_setting table
+          // $financialTypeID  = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialType', $financialType, 'id', 'name');
+
+          if ($dao->fetch()) {
+            $contributeParams =
+            array(
+              'version'                => 3,
+              'contact_id'             => $dao->contact_id,
+              'contribution_recur_id'  => $dao->contribution_recur_id,
+              'total_amount'           => $dao->amount,
+              'invoice_id'             => md5(uniqid(rand(), TRUE )),
+              'trxn_id'                => $value['ref'].'/'.CRM_Utils_Date::processDate($receiveDate),
+              'financial_type_id'      => $dao->financial_type_id,
+              'payment_instrument_id'  => $dao->payment_instrument_id,
+              'contribution_status_id' => 4,
+              'source'                 => 'Smart Debit Import',
+              'receive_date'           => $value['originalProcessingDate'],
+            );
+
+            // Allow params to be modified via hook
+            CRM_DirectDebit_Utils_Hook::alterSmartDebitContributionParams( $contributeParams );
+
+            $contributeResult = civicrm_api('Contribution', 'create', $contributeParams);
+
+            if(!$contributeResult['is_error']) {
+              $contributionID   = $contributeResult['id'];
+              // get contact display name to display in result screen
+              $contactParams = array('version' => 3, 'id' => $contributeResult['values'][$contributionID]['contact_id']);
+              $contactResult = civicrm_api('Contact', 'getsingle', $contactParams);
+
+              $ids[$contributionID]= array(   'cid' => $contributeResult['values'][$contributionID]['contact_id']
+                                            , 'id' => $contributionID
+                                            , 'display_name' => $contactResult['display_name']
+                                            , 'total_amount' => CRM_Utils_Money::format($contributeResult['values'][$contributionID]['total_amount'])
+                                            , 'trxn_id'      => $value['ref']
+                                            , 'status'       => $statusResult['label']
+                                            );
+
+              // Allow auddis rejected contribution to be handled by hook
+              CRM_DirectDebit_Utils_Hook::handleAuddisRejectedContribution( $contributionID );
+            }
+          }
+        }
+      }
 
       CRM_Core_BAO_Setting::setItem($ids,
         CRM_DirectDebit_Form_Confirm::SD_SETTING_GROUP, 'rejected_ids'
@@ -279,7 +381,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     foreach ($contactsarray as $key => $smartDebitRecord) {
 
       $sql = "
-        SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id
+        SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id, ctrc.financial_type_id
         FROM civicrm_contribution_recur ctrc
         INNER JOIN civicrm_contact cont ON (ctrc.contact_id = cont.id)
         WHERE ctrc.trxn_id = %1";
@@ -291,7 +393,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       $daoSelect    = CRM_Core_DAO::executeQuery($selectQuery);
       $daoSelect->fetch();
 
-      $financialTypeID    = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
+      //$financialTypeID    = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
       // RS: Commenting below line, as we save the financial type ID in civicrm_setting table
       //$financialTypeID  = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialType', $financialType, 'id', 'name');
 
@@ -309,7 +411,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
           'total_amount'           => $daoSelect->amount,
           'invoice_id'             => md5(uniqid(rand(), TRUE )),
           'trxn_id'                => $smartDebitRecord.'/'.CRM_Utils_Date::processDate($receiveDate),
-          'financial_type_id'      => $financialTypeID,
+          'financial_type_id'      => $dao->financial_type_id,
           'payment_instrument_id'  => $dao->payment_instrument_id,
           'contribution_status_id' => 1,
           'source'                 => 'Smart Debit Import',
