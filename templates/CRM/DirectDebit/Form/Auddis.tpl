@@ -64,6 +64,45 @@
         </tr>
     </table>
     <br>
+    <h3>{ts}Rejected Contribution in the arudd{/ts}</h3>
+    <table class="form-layout">
+         <tr style="background-color: #CDE8FE;">
+           <td><b>{ts}Reference{/ts}</td>
+           <td><b>{ts}Contact{/ts}</td>
+           <td><b>{ts}Frequency{/ts}</td>
+           <td><b>{ts}Reason code{/ts}</td>
+           <td><b>{ts}Start Date{/ts}</td>
+           <td style ="text-align: right"><b>{ts}Total{/ts}</td>
+        </tr>
+        {foreach from=$newAruddArray item=arudd}
+             {assign var=reason value='reason-code'}
+        <tr>
+        <td>{$arudd.reference}</td>
+        <td>
+            {if $arudd.contact_id gt 0}
+		{assign var=contactId value=$arudd.contact_id}
+		{capture assign=contactViewURL}{crmURL p='civicrm/contact/view' q="reset=1&cid=$contactId"}{/capture}
+                <a href="{$contactViewURL}">{$arudd.contact_name}</a>
+            {else}
+                {$arudd.contact_name}
+            {/if}
+        </td>
+        <td>{$arudd.frequency}</td>
+        <td>{$arudd.$reason}</td>
+        <td>{$arudd.start_date|crmDate}</td>
+        <td style ="text-align: right">{$arudd.amount|crmMoney}</td>
+        </tr>
+        {/foreach}
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td><b>{ts}Total Rejected Contribution Arudd{/ts}</td>
+            <td style ="text-align: right"><b>{ts}{$totalRejectedArudd|crmMoney}{/ts}</td>
+        </tr>
+    </table>
+    <br>
     
     <h3>{ts}Contribution already processed{/ts}</h3>
     <table class="form-layout">
