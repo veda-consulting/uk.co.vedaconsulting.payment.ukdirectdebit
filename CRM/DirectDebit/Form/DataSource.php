@@ -29,11 +29,8 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     }
     // if the veda_civicrm_smartdebit_import, then empty it
     else {
-      /*
       $emptySql = "TRUNCATE TABLE veda_civicrm_smartdebit_import";
       CRM_Core_DAO::executeQuery($emptySql);
-       * 
-       */
     }
 
     #MV: to get the collection details
@@ -89,17 +86,15 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     $aCollectionDate  = array();
     if(!empty($dateOfCollection)){
       $dateOfCollection = date('Y-m-d', strtotime($dateOfCollection));
-      //$aCollectionDate  = self::getSmartDebitPayments( $dateOfCollection );
+      $aCollectionDate  = self::getSmartDebitPayments( $dateOfCollection );
       $session = CRM_Core_Session::singleton();
       $session->set("collection_date", $dateOfCollection);
     }
-/*
+
     if( $aCollectionDate === false ){
       return false;
     }
- * 
- */
-
+  
     // $fileName         = $this->controller->exportValue($this->_name, 'uploadFile');
     // $fileName         = $fileName['name'];
 
@@ -134,7 +129,6 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     //         LINES TERMINATED BY '{$params['linesTerminatedBy']}'
     //         IGNORE {$params['ignoreLines']} LINES
     //         ($columnFieldsSql) SET {$setFieldsSql}";
-/*
     if(!empty($aCollectionDate)){
       foreach ($aCollectionDate as $key => $value) {
         $resultCollection = array( 
@@ -151,8 +145,6 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
               ";   
       CRM_Core_DAO::executeQuery($sql);
     }
- * 
- */
     $redirectUrlForward      = CRM_Utils_System::url('civicrm/directdebit/syncsd', 'reset=1');
     CRM_Utils_System::redirect($redirectUrlForward);
     
