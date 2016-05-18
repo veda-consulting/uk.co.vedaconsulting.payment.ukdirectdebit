@@ -476,7 +476,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
     $dao = CRM_Core_DAO::executeQuery( $sql, $params);
 
     if ($dao->fetch()) {
-      $access_token = $dao->subject;
+      $access_token = $dao->user_name;
       $api_url      = $dao->url_api;
     }
     
@@ -939,9 +939,10 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
 
     $paymentType = urlencode( $form->_paymentProcessor['payment_type'] );
     $isRecur     = urlencode( $form->_values['is_recur'] );
+    $paymentProcessorType     = urlencode( $form->_paymentProcessor['payment_processor_type']);
 
     // Now only do this is the payment processor type is Direct Debit as other payment processors may do this another way
-    if ( $paymentType == 2 ) {
+    if ( $paymentType == 2 && ($paymentProcessorType == 'Smart Debit') ) {
       $aContribParam =
         array(
           1 => array($form->_contactID, 'Integer'),
