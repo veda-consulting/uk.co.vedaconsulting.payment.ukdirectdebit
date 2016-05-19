@@ -441,6 +441,141 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
 //print_r($form);
 //die;
   /***** Handle Gocardless return values - START ****/
+  // New GoCardless Pro API
+  if ($formName == 'CRM_Contribute_Form_Contribution_ThankYou' && $_GET['redirect_flow_id']) {
+    
+    $config   = CRM_Core_Config::singleton();
+    $extenDr  = $config->extensionsDir;
+    $gocardless_extension_path = $extenDr . DIRECTORY_SEPARATOR .'uk.co.vedaconsulting.payment.gocardlessdd' .DIRECTORY_SEPARATOR;
+    include($gocardless_extension_path.'gocardless_includes.php');
+    
+    $paymentProcessorType = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
+    $paymentProcessorTypeId = CRM_Utils_Array::key('Gocardless', $paymentProcessorType);
+    $domainID  = CRM_Core_Config::domainID();
+
+    $sql  = " SELECT user_name ";
+    $sql .= " ,      password ";
+    $sql .= " ,      signature ";
+    $sql .= " ,      subject ";
+    $sql .= " ,      url_api ";
+    $sql .= " FROM civicrm_payment_processor ";
+    $sql .= " WHERE payment_processor_type_id = %1 ";
+    $sql .= " AND is_test= %2 ";
+    $sql .= " AND domain_id = %3 ";
+
+    $isTest = 0;
+    if ($form->_mode == 'test') {
+      $isTest = 1;
+    }
+
+    $params = array( 1 => array( $paymentProcessorTypeId, 'Integer' )
+                   , 2 => array( $isTest, 'Int' )
+                   , 3 => array( $domainID, 'Int' )
+                   );
+
+    $dao = CRM_Core_DAO::executeQuery( $sql, $params);
+
+    if ($dao->fetch()) {
+      $access_token = $dao->user_name;
+      $api_url      = $dao->url_api;
+    }
+    
+    if ($access_token && $api_url) {
+      $redirect_flow_id = $_GET['redirect_flow_id'];
+      $session_token    = $_GET['qfKey'];
+      //For action complete params
+      $complete_params  = array(
+        "session_token" =>  $session_token,
+      );
+
+      $data           = json_encode(array('data' => (object)$complete_params));
+      $redirect_path  = "redirect_flows/".$redirect_flow_id."/actions/complete";
+      // Create header with access token
+      $header = array();
+      $header[] = 'GoCardless-Version: 2015-07-06';
+      $header[] = 'Accept: application/json';
+      $header[] = 'Content-Type: application/json';
+      $header[] = 'Authorization: Bearer '.$access_token;
+      
+      $response = requestPostGocardless($api_url, $redirect_path, $header, $data);
+      CRM_Core_Error::debug_var('$response in thank you page', $response);
+      if (strtoupper($response["Status"] == 'OK') ) {
+          $contactID = $_GET['cid'];
+          $pageID    = $form->_id;
+          $sql = "
+                  SELECT max(id) as max_id, contribution_recur_id, total_amount
+                  FROM civicrm_contribution
+                  WHERE contact_id = %1
+                  AND contribution_page_id = %2";
+
+          $sql_params = array( 1 => array($contactID, 'Int'), 2 => array($pageID, 'Int') );
+          $selectdao = CRM_Core_DAO::executeQuery($sql, $sql_params);
+          $selectdao->fetch();
+          $contributionId = $selectdao->max_id;
+          $contributionRecurId = $selectdao->contribution_recur_id;
+          $interval_unit = 'monthly';
+          if ($form->_params['frequency_unit'] == 'year') {
+            $interval_unit = 'yearly';
+          }
+        // Create subscription
+        $subscription_params = array(
+          "amount" => 100*$selectdao->total_amount,
+          "currency" => 'GBP',
+          "name" => $form->_values['title'],
+          "interval_unit" => $interval_unit,
+          "interval" => $form->_params['frequency_interval'],
+          "links" => array( "mandate" => $response['redirect_flows']['links']['mandate'])
+        );
+        
+        if (!empty($form->_params['preferred_collection_day']) && $form->_params['frequency_unit'] == 'month') {
+          $subscription_params['day_of_month'] = $form->_params['preferred_collection_day'];
+        } else if ($form->_params['frequency_unit'] == 'month') {
+          $subscription_params['day_of_month'] = "1";//This is required field by Gocardless Pro API
+        }
+        $data = json_encode(array('subscriptions' => (object)$subscription_params));
+        $redirect_path = "subscriptions";
+        //require_once $gocardless_extension_path.'gocardless_includes.php';
+        $response = requestPostGocardless($api_url, $redirect_path, $header, $data);
+        CRM_Core_Error::debug_var('$response in thank you page after calling subscriptino', $response);
+        if (strtoupper($response["Status"] == 'OK')) {
+          $start_date         = date('Y-m-d', strtotime($response['subscriptions']['start_date']));
+          $trxn_id          	= $response['subscriptions']['id'];
+          $recurring_contribution_status_id = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'In Progress');
+
+          $query = "
+                  UPDATE civicrm_contribution
+                  SET trxn_id = %1 , contribution_status_id = 1, receive_date = %3
+                  WHERE id = %2";
+
+
+                  $sql_params = array( 1 => array( $trxn_id, 'String' ), 2 => array($contributionId, 'Int'), 3 => array($start_date, 'String'));
+                  $dao = CRM_Core_DAO::executeQuery($query, $sql_params);
+                  // Update contribution recur trxn_id and start_date and status.
+                  $recurUpdateQuery = "
+                    UPDATE civicrm_contribution_recur
+                    SET trxn_id = %1, contribution_status_id = %2, start_date = %3
+                    WHERE id = %4";
+                  $recurUpdateQueryParams = array(
+                    1 => array($trxn_id, 'String'),
+                    2 => array($recurring_contribution_status_id, 'Int'),
+                    3 => array($start_date, 'String'),
+                    4 => array($contributionRecurId, 'Int'));
+                  $recurringDao = CRM_Core_DAO::executeQuery($recurUpdateQuery, $recurUpdateQueryParams);
+        }
+
+        //CRM_Utils_System::redirect($response['redirect_flows']['redirect_url']);
+      } else {
+        CRM_Core_Error::debug_var('uk_co_vedaconsulting_payment_gocardlessdd uk_direct_debit_php thank you page api call response error', $response);
+        CRM_Core_Error::debug_var('uk_co_vedaconsulting_payment_gocardlessdd uk_direct_debit_php thank you page api post params $api_url ', $api_url);
+        CRM_Core_Error::debug_var('uk_co_vedaconsulting_payment_gocardlessdd uk_direct_debit_php thank you page api post params $redirect_path ', $redirect_path);
+        CRM_Core_Error::debug_var('uk_co_vedaconsulting_payment_gocardlessdd uk_direct_debit_php thank you page api post params $header ', $header);
+        CRM_Core_Error::debug_var('uk_co_vedaconsulting_payment_gocardlessdd uk_direct_debit_php thank you page api post params $data ', $data);
+        CRM_Core_Session::setStatus('Could not create subscription through Gocardless API, contact Admin', ts("Error"), "error");
+        CRM_Utils_System::civiExit();
+      }
+    }
+  }
+  
   if ($formName == 'CRM_Contribute_Form_Contribution_ThankYou'  &&  $_GET['resource_id']) {
     CRM_Core_Error::debug_log_message( 'uk_direct_debit_civicrm_buildForm'. print_r($form, true), $out = false );
     require_once 'lib/GoCardless.php';
@@ -560,7 +695,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
   }
 
   // If no subscription created
-  if ($formName == 'CRM_Contribute_Form_Contribution_ThankYou' && $form->_paymentProcessor['payment_processor_type'] == 'Gocardless' && !$_GET['resource_id']) {
+  if ($formName == 'CRM_Contribute_Form_Contribution_ThankYou' && $form->_paymentProcessor['payment_processor_type'] == 'Gocardless' && !$_GET['resource_id'] && !$_GET['redirect_flow_id']) {
     $cancelURL  = CRM_Utils_System::url( 'civicrm/contribute/transact',
                                           "_qf_Main_display=1&cancel=1&qfKey={$_GET['qfKey']}",
                                           true, null, false );
@@ -579,6 +714,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
             $sql_params = array( 1 => array( 4 , 'Int' ), 2 => array($contactID, 'Int'), 3 => array($pageID, 'Int') );
             $dao = CRM_Core_DAO::executeQuery($query, $sql_params);
   }
+
   /***** Handle Gocardless return values - END ****/
   
     require_once 'CRM/Core/Payment.php';
@@ -803,9 +939,10 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
 
     $paymentType = urlencode( $form->_paymentProcessor['payment_type'] );
     $isRecur     = urlencode( $form->_values['is_recur'] );
+    $paymentProcessorType     = urlencode( $form->_paymentProcessor['payment_processor_type']);
 
     // Now only do this is the payment processor type is Direct Debit as other payment processors may do this another way
-    if ( $paymentType == 2 ) {
+    if ( $paymentType == 2 && ($paymentProcessorType == 'Smart Debit') ) {
       $aContribParam =
         array(
           1 => array($form->_contactID, 'Integer'),
