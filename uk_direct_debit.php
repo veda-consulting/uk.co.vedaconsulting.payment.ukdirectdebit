@@ -508,6 +508,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
                   WHERE contact_id = %1
                   AND contribution_page_id = %2
                   ORDER BY id DESC
+                  LIMIT 1
           ";
 
           $sql_params = array( 1 => array($contactID, 'Int'), 2 => array($pageID, 'Int') );
