@@ -447,7 +447,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
     $config   = CRM_Core_Config::singleton();
     $extenDr  = $config->extensionsDir;
     $gocardless_extension_path = $extenDr . DIRECTORY_SEPARATOR .'uk.co.vedaconsulting.payment.gocardlessdd' .DIRECTORY_SEPARATOR;
-    include($gocardless_extension_path.'gocardless_includes.php');
+    require_once($gocardless_extension_path.'gocardless_includes.php');
     
     $paymentProcessorType = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
     $paymentProcessorTypeId = CRM_Utils_Array::key('Gocardless', $paymentProcessorType);
@@ -503,15 +503,18 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
           $contactID = $_GET['cid'];
           $pageID    = $form->_id;
           $sql = "
-                  SELECT max(id) as max_id, contribution_recur_id, total_amount
+                  SELECT id AS contribution_id, contribution_recur_id, total_amount
                   FROM civicrm_contribution
                   WHERE contact_id = %1
-                  AND contribution_page_id = %2";
+                  AND contribution_page_id = %2
+                  ORDER BY id DESC
+                  LIMIT 1
+          ";
 
           $sql_params = array( 1 => array($contactID, 'Int'), 2 => array($pageID, 'Int') );
           $selectdao = CRM_Core_DAO::executeQuery($sql, $sql_params);
           $selectdao->fetch();
-          $contributionId = $selectdao->max_id;
+          $contributionId = $selectdao->contribution_id;
           $contributionRecurId = $selectdao->contribution_recur_id;
           $interval_unit = 'monthly';
           if ($form->_params['frequency_unit'] == 'year') {
@@ -661,16 +664,18 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
             SET trxn_id = %1 , contribution_status_id = 1, receive_date = %3
             WHERE id = %2";
 
-		$sql = "
-            SELECT max(id) as max_id, contribution_recur_id
+    $sql = "
+            SELECT id as contribution_id, contribution_recur_id
             FROM civicrm_contribution
             WHERE contact_id = %1
-            AND contribution_page_id = %2";
+            AND contribution_page_id = %2
+            ORDER BY id DESC
+            LIMIT 1";
 						
             $sql_params = array( 1 => array($contactID, 'Int'), 2 => array($pageID, 'Int') );
 						$selectdao = CRM_Core_DAO::executeQuery($sql, $sql_params);
 						$selectdao->fetch();
-						$contributionId = $selectdao->max_id;
+						$contributionId = $selectdao->contribution_id;
 						$contributionRecurId = $selectdao->contribution_recur_id;
 						
 						$sql_params = array( 1 => array( $_GET['resource_id'], 'String' ), 2 => array($contributionId, 'Int'), 3 => array($start_date, 'String'));
