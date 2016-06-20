@@ -516,9 +516,29 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
           $selectdao->fetch();
           $contributionId = $selectdao->contribution_id;
           $contributionRecurId = $selectdao->contribution_recur_id;
+          $membershipID = CRM_Core_DAO::singleValueQuery('select membership_id from civicrm_membership_payment where contribution_id = %1', array(1=>array($contributionId, 'Int')));
           $interval_unit = 'monthly';
-          if ($form->_params['frequency_unit'] == 'year') {
-            $interval_unit = 'yearly';
+          $interval_unit_civi_format = 'month';
+          if ($membershipID) {//Membership Join Form
+            $findMembershipDurationQuery = "
+              SELECT cmt.duration_unit as unit, cmt.duration_interval as duration
+              FROM civicrm_membership cm 
+              INNER JOIN civicrm_membership_type cmt ON cmt.id = cm.membership_type_id
+              WHERE cm.id = %1";
+            $findMembershipDurationDao = CRM_Core_DAO::executeQuery($findMembershipDurationQuery, array(1=> array($membershipID, 'Int')));
+            $findMembershipDurationDao->fetch();
+            $interval_duration = $findMembershipDurationDao->duration;
+            if ($findMembershipDurationDao->unit == 'year') {
+              $interval_unit_civi_format = $findMembershipDurationDao->unit;
+              $interval_unit = 'yearly';
+            }
+          }
+          if (!$membershipID && $contributionRecurId) { // Donation Form
+            $interval_duration = $form->_params['frequency_interval'];
+            if ($form->_params['frequency_unit'] == 'year') {
+              $interval_unit_civi_format = $form->_params['frequency_unit'];
+              $interval_unit = 'yearly';
+            }
           }
         // Create subscription
         $subscription_params = array(
@@ -526,13 +546,13 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
           "currency" => 'GBP',
           "name" => $form->_values['title'],
           "interval_unit" => $interval_unit,
-          "interval" => $form->_params['frequency_interval'],
+          "interval" => $interval_duration,
           "links" => array( "mandate" => $response['redirect_flows']['links']['mandate'])
         );
         
-        if (!empty($form->_params['preferred_collection_day']) && $form->_params['frequency_unit'] == 'month') {
+        if (!empty($form->_params['preferred_collection_day']) && $interval_unit == 'monthly') {
           $subscription_params['day_of_month'] = $form->_params['preferred_collection_day'];
-        } else if ($form->_params['frequency_unit'] == 'month') {
+        } else if ($interval_unit == 'monthly') {
           $subscription_params['day_of_month'] = "1";//This is required field by Gocardless Pro API
         }
         $data = json_encode(array('subscriptions' => (object)$subscription_params));
@@ -553,19 +573,32 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
 
                   $sql_params = array( 1 => array( $trxn_id, 'String' ), 2 => array($contributionId, 'Int'), 3 => array($start_date, 'String'));
                   $dao = CRM_Core_DAO::executeQuery($query, $sql_params);
-                  // Update contribution recur trxn_id and start_date and status.
-                  $recurUpdateQuery = "
-                    UPDATE civicrm_contribution_recur
-                    SET trxn_id = %1, contribution_status_id = %2, start_date = %3
-                    WHERE id = %4";
-                  $recurUpdateQueryParams = array(
-                    1 => array($trxn_id, 'String'),
-                    2 => array($recurring_contribution_status_id, 'Int'),
-                    3 => array($start_date, 'String'),
-                    4 => array($contributionRecurId, 'Int'));
-                  $recurringDao = CRM_Core_DAO::executeQuery($recurUpdateQuery, $recurUpdateQueryParams);
+                  if ($contributionRecurId) {
+                    // Update contribution recur trxn_id and start_date and status.
+                    $recurUpdateQuery = "
+                      UPDATE civicrm_contribution_recur
+                      SET trxn_id = %1, contribution_status_id = %2, start_date = %3
+                      WHERE id = %4";
+                    $recurUpdateQueryParams = array(
+                      1 => array($trxn_id, 'String'),
+                      2 => array($recurring_contribution_status_id, 'Int'),
+                      3 => array($start_date, 'String'),
+                      4 => array($contributionRecurId, 'Int'));
+                    $recurringDao = CRM_Core_DAO::executeQuery($recurUpdateQuery, $recurUpdateQueryParams);
+                  }
+                  
+                  if ($membershipID) { // Update memberhsip dates if it is memberhip page
+                    $membershipEndDateString = date("Y-m-d",strtotime(date("Y-m-d", strtotime($start_date)) . " +$interval_duration $interval_unit_civi_format"));
+                    $updatedMember = civicrm_api("Membership" ,"create" , 
+                    array ('version'    => '3',
+                          'id'         => $membershipID,
+                          'end_date'   => $membershipEndDateString,
+                          'start_date' => $start_date,
+                          'join_date'  => $start_date,
+                          'status_id'  => 1,//New
+                    ));
+                  }
         }
-
         //CRM_Utils_System::redirect($response['redirect_flows']['redirect_url']);
       } else {
         CRM_Core_Error::debug_var('uk_co_vedaconsulting_payment_gocardlessdd uk_direct_debit_php thank you page api call response error', $response);
