@@ -224,6 +224,8 @@
             </div>
             {if $paymentProcessor.payment_type & 2}
                 <div class="display-block">
+                    <div><span style="float: right;margin: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit.gif}" alt="Direct Debit Logo" border="0"></span></div>
+                    <div style="clear: both;"></div>
                     <table>
                     <tr><td>{ts}Account Holder{/ts}:</td><td>{$account_holder}</td></tr>
                     <tr><td>{ts}Bank Account Number{/ts}:</td><td>{$bank_account_number}</td></tr>
