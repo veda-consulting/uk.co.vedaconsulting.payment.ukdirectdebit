@@ -68,27 +68,18 @@ class CRM_DirectDebit_Form_DirectDebitList extends CRM_Core_Form {
 
         require_once 'CRM/Core/Config.php';
         $config = CRM_Core_Config::singleton();
-
-        $group_name = "UK Direct Debit";
-
-        $sql  = " SELECT id ";
-        $sql .= " ,      name ";
-        $sql .= " ,      value ";
-        $sql .= " FROM civicrm_setting ";
-        $sql .= " WHERE group_name = %1 ";
-
-        $params = array( 1 => array( $group_name, 'String' ) );
-        $dao = CRM_Core_DAO::executeQuery( $sql, $params);
-
+        
+        //get direct debit setting names
+        $settingNames = self::getDirectDebitSettingNames();
         $directDebitArray = array();
-
-        while($dao->fetch()) {
-
-            $directDebitArray[$dao->id]['id'] = $dao->id;
-            $directDebitArray[$dao->id]['name'] = $dao->name;
-            $directDebitArray[$dao->id]['value'] = unserialize($dao->value);
+        foreach ($settingNames as $settingName) {
+          //get id and value for this setting name
+          list($id, $value) = self::getIdAndValueFromSettingName($settingName);
+          $directDebitArray[$id]['id'] = $id;
+          $directDebitArray[$id]['name'] = $settingName;
+          $directDebitArray[$id]['value'] = unserialize($value);
         }
-
+        
         $this->assign( 'directDebitArray', $directDebitArray );
 
             $this->addButtons( array(
@@ -110,5 +101,57 @@ class CRM_DirectDebit_Form_DirectDebitList extends CRM_Core_Form {
     public function postProcess() {
 
     }//end of function
+    
+    
+    public static function getDirectDebitSettingNames() {
+      // As from civi 4.7, there is no 'group_name' in civicrm_setting table, we have to find it manually
+      $settingNames = array(
+        'activity_type',
+        'activity_type_letter',
+        'api_contact_key',
+        'api_contact_val_regex',
+        'api_contact_val_regex_index',
+        'auto_renew_membership',
+        'collection_days',
+        'collection_interval',
+        'company_address1',
+        'company_address2',
+        'company_address3',
+        'company_address4',
+        'company_county',
+        'company_name',
+        'company_postcode',
+        'company_town',
+        'domain_name',
+        'email_address',
+        'financial_type',
+        'payment_instrument_id',
+        'service_user_number',
+        'telephone_number',
+        'transaction_prefix');
+      
+      return $settingNames;
+    }
+    
+    public static function getIdAndValueFromSettingName($settingName) {
+      if (empty($settingName)) {
+        CRM_Core_Error::debug_var('CRM_DirectDebit_Form_DirectDebitList getIdAndValueFromSettingName', 'Provided setting name is empty');
+        return;
+      }
+      
+      $sql  = " SELECT id ";
+      $sql .= " ,      name ";
+      $sql .= " ,      value ";
+      $sql .= " FROM civicrm_setting ";
+      $sql .= " WHERE name = %1 ";
+
+      $params = array( 1 => array( $settingName, 'String' ) );
+      $dao = CRM_Core_DAO::executeQuery( $sql, $params);
+      if ($dao->fetch()) {
+        return array($dao->id, $dao->value);
+      } else {
+        CRM_Core_Error::debug_var('CRM_DirectDebit_Form_DirectDebitList getIdAndValueFromSettingName', 'No data found for setting name'.$settingName);
+      }
+    }
         
 }
