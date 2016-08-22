@@ -289,7 +289,7 @@
 
     <div style="text-align: center;">
 {*        <div><span id="logo1"><img src="client_logo.jpg" alt="Client Logo" border="0"></span></div> *}
-        <div><span style="float: right;margin-right: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit.gif}" alt="Direct Debit Logo" border="0"></span></div>
+        <div><span style="float: right;margin: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit.gif}" alt="Direct Debit Logo" border="0"></span></div>
         <div style="clear: both;"></div>
     </div>
 
