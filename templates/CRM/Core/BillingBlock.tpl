@@ -54,7 +54,7 @@
           <div><span style="float: right;margin: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit.gif}" alt="Direct Debit Logo" border="0"></span></div>
           <div style="clear: both;"></div>
           {ts}<p>All the normal Direct Debit safeguards and guarantees apply.
-No changes in the amount, date or frequency to be debited can be made without notifying you at least 10 working days in advance of your account being debited.
+No changes in the amount, date or frequency to be debited can be made without notifying you at least {$notifydays} working days in advance of your account being debited.
 In the event of any error, you are entitled to an immediate refund from your bank or building society.
 You have the right to cancel a Direct Debit Instruction at any time simply by writing to your bank or building society, with a copy to us.</p>
 <p>In order to set up your Direct Debit Instruction on-line you will need to provide the following information through the setting up procedure (your cheque book contains all the bank details that you require):</p>
@@ -67,7 +67,7 @@ You have the right to cancel a Direct Debit Instruction at any time simply by wr
 
 <p>Alternatively you can print off your on-screen Direct Debit Instruction and post it to us: <b>{$company_address.company_name}</b>, {if ($company_address.address1 != '')} {$company_address.address1}, {/if}{if ($company_address.address2 != '')} {$company_address.address2}, {/if}{if ($company_address.address3 != '')} {$company_address.address3}, {/if}{if ($company_address.address4 != '')} {$company_address.address4}, {/if}{if ($company_address.town != '')} {$company_address.town}, {/if}{if ($company_address.county != '')} {$company_address.county}, {/if}{if ($company_address.postcode != '')} {$company_address.postcode}{/if}. If you are unable to print please contact us on {$telephoneNumber} (tel no) and we will post you a paper Direct Debit Instruction.
 If you do not wish to proceed any further please <a href="/">click here</a> to end.</p>
-<p>The details of your Direct Debit Instruction will be sent to you within 3 working days or no later than 10 working days before the first collection.</p>{/ts}
+<p>The details of your Direct Debit Instruction will be sent to you within 3 working days or no later than {$notifydays} working days before the first collection.</p>{/ts}
 {/if}   
 <!-- MV: end custom changes    -->
       <div class="crm-section billing_mode-section {$paymentTypeName}_info-section">

@@ -119,6 +119,10 @@ function uk_direct_debit_civicrm_install( ) {
           'UK Direct Debit',
           'financial_type'
         );
+  CRM_Core_BAO_Setting::setItem('5',
+          'UK Direct Debit',
+          'notify_days'
+        );
 
   // Create an Direct Debit Activity Type
   require_once 'api/api.php';

@@ -177,6 +177,10 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
   static function getAutoRenewMembership() {
     return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'auto_renew_membership' );
   }
+  
+  static function getNotifyDays() {
+    return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'notify_days' );
+  }
 
   function getCountry( $country_id ) {
     $country = null;
@@ -312,6 +316,9 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
 
     $companyName = self::getCompanyName();
     $form->assign( 'companyName', $companyName );
+    // set notify days in the template
+    $notifyDays = self::getNotifyDays();
+    $form->assign( 'notifydays', $notifyDays );
   }
 
   /**
