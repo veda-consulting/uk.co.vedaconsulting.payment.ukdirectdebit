@@ -128,7 +128,8 @@ class CRM_DirectDebit_Form_DirectDebitList extends CRM_Core_Form {
         'payment_instrument_id',
         'service_user_number',
         'telephone_number',
-        'transaction_prefix');
+        'transaction_prefix',
+        'notify_days');
       
       return $settingNames;
     }
