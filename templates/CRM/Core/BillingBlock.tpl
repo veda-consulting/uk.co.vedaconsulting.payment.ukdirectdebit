@@ -268,10 +268,11 @@ If you do not wish to proceed any further please <a href="/">click here</a> to e
 {/if}
 
 <!-- MV:custom Js, append old version custom changes into civi46 -->
+{literal}
   <style type="text/css">
     #multiple_block > input {
       border: 1px solid;
-      min-width: 1%;
+      min-width: inherit !important;
       width: 43px;
     }
   </style>
@@ -347,6 +348,7 @@ If you do not wish to proceed any further please <a href="/">click here</a> to e
       }
 
   </script>
+{/literal}
 
 {if $suppressSubmitButton}
 {literal}
