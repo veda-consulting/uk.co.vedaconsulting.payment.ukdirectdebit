@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.1                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2011                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -29,21 +29,17 @@
 
 {include file="CRM/common/TrackingFields.tpl"}
 
-<div class="crm-block crm-contribution-confirm-form-block">
-    <div id="help">
+<div class="crm-contribution-page-id-{$contributionPageID} crm-block crm-contribution-confirm-form-block">
+    <div class="help">
         <p>{ts}Please verify the information below carefully. Click <strong>Go Back</strong> if you need to make changes.{/ts}
             {if $contributeMode EQ 'notify' and ! $is_pay_later}
-                {if $paymentProcessor.payment_processor_type EQ 'Google_Checkout'} 
-                    {ts}Click the <strong>Google Checkout</strong> button to checkout to Google, where you will select your payment method and complete the contribution.{/ts}
-                {else} 
-                    {ts 1=$paymentProcessor.processorName 2=$button}Click the <strong>%2</strong> button to go to %1, where you will select your payment method and complete the contribution.{/ts}
-                {/if} 
+                {ts 1=$paymentProcessor.name 2=$button}Click the <strong>%2</strong> button to go to %1, where you will select your payment method and complete the contribution.{/ts}
             {elseif ! $is_monetary or $amount LE 0.0 or $is_pay_later}
                 {ts 1=$button}To complete this transaction, click the <strong>%1</strong> button below.{/ts}
             {else}
                 {ts 1=$button}To complete your contribution, click the <strong>%1</strong> button below.{/ts}
             {/if}
-        </p> 
+        </p>
     </div>
     <div id="crm-submit-buttons" class="crm-submit-buttons">
         {include file="CRM/common/formButtons.tpl" location="top"}
@@ -51,23 +47,23 @@
     {if $is_pay_later}
         <div class="bold pay_later_receipt-section">{$pay_later_receipt}</div>
     {/if}
-    
+
     {include file="CRM/Contribute/Form/Contribution/MembershipBlock.tpl" context="confirmContribution"}
 
-    {if $amount GT 0 OR $minimum_fee GT 0 OR ( $priceSetID and $lineItem ) }
+    {if $amount GTE 0 OR $minimum_fee GTE 0 OR ( $priceSetID and $lineItem ) }
     <div class="crm-group amount_display-group">
-        {if !$useForMember}
+       {if !$useForMember}
         <div class="header-dark">
             {if !$membershipBlock AND $amount OR ( $priceSetID and $lineItem ) }{ts}Contribution Amount{/ts}{else}{ts}Membership Fee{/ts} {/if}
         </div>
-        {/if}
+  {/if}
         <div class="display-block">
             {if !$useForMember}
-            {if $lineItem and $priceSetID}
-            {if !$amount}{assign var="amount" value=0}{/if}
-            {assign var="totalAmount" value=$amount}
+              {if $lineItem and $priceSetID}
+                {if !$amount}{assign var="amount" value=0}{/if}
+                {assign var="totalAmount" value=$amount}
                 {include file="CRM/Price/Page/LineItem.tpl" context="Contribution"}
-            {elseif $is_separate_payment }
+              {elseif $is_separate_payment }
                 {if $amount AND $minimum_fee}
                     {$membership_name} {ts}Membership{/ts}: <strong>{$minimum_fee|crmMoney}</strong><br />
                     {ts}Additional Contribution{/ts}: <strong>{$amount|crmMoney}</strong><br />
@@ -78,39 +74,49 @@
                 {else}
                     {$membership_name} {ts}Membership{/ts}: <strong>{$minimum_fee|crmMoney}</strong>
                 {/if}
-            {else}
-                {if $amount }
-                    {if $is_recur}
-                        {ts}Installment Amount{/ts}: <strong>{$amount|crmMoney} {if $amount_level } - {$amount_level} {/if}</strong>
-                    {else}
-                        {ts}Total Amount{/ts}: <strong>{$amount|crmMoney} {if $amount_level } - {$amount_level} {/if}</strong>
-                    {/if}
+              {else}
+                {if $totalTaxAmount }
+                     {ts}Total Tax Amount{/ts}: <strong>{$totalTaxAmount|crmMoney} </strong><br />
+                {/if}
+		{if $amount}
+                    {if $installments}{ts}Installment Amount{/ts}{else}{ts}Total Amount{/ts}{/if} : <strong>{$amount|crmMoney} {if $amount_level } - {$amount_level} {/if}</strong>
                 {else}
                     {$membership_name} {ts}Membership{/ts}: <strong>{$minimum_fee|crmMoney}</strong>
                 {/if}
-            {/if}
-            {/if}
+              {/if}
+                {/if}
 
             {if $is_recur}
-                {if $membershipBlock} {* Auto-renew membership confirmation *}
+                {if !empty($auto_renew)} {* Auto-renew membership confirmation *}
+{crmRegion name="contribution-confirm-recur-membership"}
                     <br />
                     <strong>{ts 1=$frequency_interval 2=$frequency_unit}I want this membership to be renewed automatically every %1 %2(s).{/ts}</strong></p>
-                    <div class="description crm-auto-renew-cancel-info">({ts}Your initial membership fee will be processed once you complete the confirmation step. You will be able to modify or cancel the auto-renwal option by visiting the web page link that will be included in your receipt.{/ts})</div>
+                    <div class="description crm-auto-renew-cancel-info">({ts}Your initial membership fee will be processed once you complete the confirmation step. You will be able to cancel the auto-renewal option by visiting the web page link that will be included in your receipt.{/ts})</div>
+{/crmRegion}
                 {else}
+{crmRegion name="contribution-confirm-recur"}
                     {if $installments}
-                        <p><strong>{ts 1=$frequency_interval 2=$frequency_unit 3=$installments}I want to contribute this amount every %1 %2(s) for %3 installments.{/ts}</strong></p>
-                    {else}
-                        <p><strong>{ts 1=$frequency_interval 2=$frequency_unit}I want to contribute this amount every %1 %2(s).{/ts}</strong></p>
-                    {/if}
                     {if $paymentProcessor.payment_type & 2}
                         <p><strong>{ts 1=$direct_debit_details.formatted_preferred_collection_day 2=$frequency_unit 3=$direct_debit_details.first_collection_date|crmDate}Your preferred collection day is the %1 of every %2 and your first collection will be on or after the %3.{/ts}</strong></p>
                         <p><strong>{ts 1=$direct_debit_details.confirmation_method}Your confirmation will be sent by %1.{/ts}</strong></p>
                         <p><strong>{ts 1=$direct_debit_details.company_name}The company name which will appear on your bank statement against the Direct Debit will be "%1".{/ts}</strong></p>
+                      {if $frequency_interval > 1}
+                        <p><strong>{ts 1=$frequency_interval 2=$frequency_unit 3=$installments}I want to contribute this amount every %1 %2s for %3 installments.{/ts}</strong></p>
+                      {else}
+                        <p><strong>{ts 1=$frequency_unit 2=$installments}I want to contribute this amount every %1 for %2 installments.{/ts}</strong></p>
+                      {/if}
                     {else}
-                        <p>{ts}Your initial contribution will be processed once you complete the confirmation step. You will be able to modify or cancel future contributions at any time by logging in to your account.{/ts}</p>
+                      {if $frequency_interval > 1}
+                        <p><strong>{ts 1=$frequency_interval 2=$frequency_unit}I want to contribute this amount every %1 %2s.{/ts}</strong></p>
+                      {else}
+                        <p><strong>{ts 1=$frequency_unit }I want to contribute this amount every %1.{/ts}</strong></p>
+                      {/if}
                     {/if}
+                    <p>{ts}Your initial contribution will be processed once you complete the confirmation step. You will be able to cancel the recurring contribution by visiting the web page link that will be included in your receipt.{/ts}</p>
+{/crmRegion}
                 {/if}
             {/if}
+
             {if $is_pledge }
                 {if $pledge_frequency_interval GT 1}
                     <p><strong>{ts 1=$pledge_frequency_interval 2=$pledge_frequency_unit 3=$pledge_installments}I pledge to contribute this amount every %1 %2s for %3 installments.{/ts}</strong></p>
@@ -126,8 +132,14 @@
         </div>
     </div>
     {/if}
-        
-    {if $honor_block_is_active}
+
+    {if $onbehalfProfile|@count}
+      <div class="crm-group onBehalf_display-group label-left crm-profile-view">
+         {include file="CRM/UF/Form/Block.tpl" fields=$onbehalfProfile prefix='onbehalf'}
+      </div>
+    {/if}
+
+    {if $honoreeProfileFields|@count}
         <div class="crm-group honor_block-group">
             <div class="header-dark">
                 {$soft_credit_type}
@@ -135,18 +147,18 @@
             <div class="display-block">
                 <div class="label-left crm-section honoree_profile-section">
                     <strong>{$honorName}</strong></br>
-                    {include file="CRM/UF/Form/Block.tpl" fields=$honoreeProfileFields prefix='honor'}
+                    {include file="CRM/UF/Form/Block.tpl" fields=$honoreeProfileFields mode=8 prefix='honor'}
                 </div>
             </div>
          </div>
     {/if}
 
     {if $customPre}
-            <fieldset class="label-left">
-                {include file="CRM/UF/Form/Block.tpl" fields=$customPre}
-            </fieldset>
+      <fieldset class="label-left crm-profile-view">
+        {include file="CRM/UF/Form/Block.tpl" fields=$customPre}
+      </fieldset>
     {/if}
-    
+
     {if $pcpBlock}
     <div class="crm-group pcp_display-group">
         <div class="header-dark">
@@ -158,7 +170,7 @@
                 {if $pcp_is_anonymous}
                     <strong>{ts}anonymously{/ts}.</strong>
                 {else}
-            {ts}under the name{/ts}: <strong>{$pcp_roll_nickname}</strong><br/>
+        {ts}under the name{/ts}: <strong>{$pcp_roll_nickname}</strong><br/>
                     {if $pcp_personal_note}
                         {ts}With the personal note{/ts}: <strong>{$pcp_personal_note}</strong>
                     {else}
@@ -172,33 +184,24 @@
         </div>
     </div>
     {/if}
-    
-    {if $onbehalfProfile}
-      <div class="crm-group onBehalf_display-group label-left crm-profile-view">
-         {include file="CRM/UF/Form/Block.tpl" fields=$onbehalfProfile prefix='onbehalf'}
-         <div class="crm-section organization_email-section">
-            <div class="label">{ts}Organization Email{/ts}</div>
-            <div class="content">{$onBehalfEmail}</div>
-            <div class="clear"></div>
-         </div>
-      </div>
-    {/if}
-    
-    {if ( $contributeMode ne 'notify' and ! $is_pay_later and $is_monetary and ( $amount GT 0 OR $minimum_fee GT 0 ) ) or $email }
-        {if $contributeMode ne 'notify' and ! $is_pay_later and $is_monetary and ( $amount GT 0 OR $minimum_fee GT 0 ) }
+
+    {if ( $contributeMode ne 'notify' and (!$is_pay_later or $isBillingAddressRequiredForPayLater) and $is_monetary and ( $amount GT 0 OR $minimum_fee GT 0 ) ) or $email }
+        {if $contributeMode ne 'notify' and (!$is_pay_later or $isBillingAddressRequiredForPayLater) and $is_monetary and ( $amount GT 0 OR $minimum_fee GT 0 ) }
+          {if $billingName or $address}
             <div class="crm-group billing_name_address-group">
                 <div class="header-dark">
                     {ts}Billing Name and Address{/ts}
                 </div>
-                <div class="crm-section no-label billing_name-section">
-                    <div class="content">{$billingName}</div>
-                    <div class="clear"></div>
-                </div>
-                <div class="crm-section no-label billing_address-section">
-                    <div class="content">{$address|nl2br}</div>
-                    <div class="clear"></div>
-                </div>
-            </div>
+              <div class="crm-section no-label billing_name-section">
+                <div class="content">{$billingName}</div>
+                <div class="clear"></div>
+              </div>
+              <div class="crm-section no-label billing_address-section">
+                <div class="content">{$address|nl2br}</div>
+                <div class="clear"></div>
+              </div>
+             </div>
+          {/if}
         {/if}
         {if $email}
             <div class="crm-group contributor_email-group">
@@ -206,14 +209,17 @@
                     {ts}Your Email{/ts}
                 </div>
                 <div class="crm-section no-label contributor_email-section">
-                    <div class="content">{$email}</div>
-                    <div class="clear"></div>
+                  <div class="content">{$email}</div>
+                  <div class="clear"></div>
                 </div>
             </div>
         {/if}
     {/if}
-    
-    {if $contributeMode eq 'direct' and ! $is_pay_later and $is_monetary and ( $amount GT 0 OR $minimum_fee GT 0 ) }
+
+    {* Show credit or debit card section for 'direct' mode, except for PayPal Express (detected because credit card number is empty) *}
+    {if $contributeMode eq 'direct' and ! $is_pay_later and $is_monetary and ( $amount GT 0 OR $minimum_fee GT 0 )}
+{crmRegion name="contribution-confirm-billing-block"}
+       {if ($credit_card_number or $bank_account_number)}
         <div class="crm-group credit_card-group">
             <div class="header-dark">
             {if $paymentProcessor.payment_type & 2}
@@ -225,45 +231,34 @@
             {if $paymentProcessor.payment_type & 2}
                 <div class="display-block">
                     <div><span style="float: right;margin: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit.gif}" alt="Direct Debit Logo" border="0"></span></div>
-                    <div style="clear: both;"></div>
-                    <table>
-                    <tr><td>{ts}Account Holder{/ts}:</td><td>{$account_holder}</td></tr>
-                    <tr><td>{ts}Bank Account Number{/ts}:</td><td>{$bank_account_number}</td></tr>
-                    <tr><td>{ts}Bank Identification Number{/ts}:</td><td>{$bank_identification_number}</td></tr>
-                    <tr><td>{ts}Bank Name{/ts}:</td><td>{$direct_debit_details.bank_name}</td></tr>
-                    {if ((isset($direct_debit_details.branch)) && ($direct_debit_details.branch != ''))} 
-                        <tr><td>{ts}Branch{/ts}:</td><td>{$direct_debit_details.branch}</td></tr>                  
-                        <tr><td>{ts}Address{/ts}:</td><td>
-                        {if ($direct_debit_details.address1 != '')} {$direct_debit_details.address1}<br/> {/if}                   
-                        {if ($direct_debit_details.address2 != '')} {$direct_debit_details.address2}<br/> {/if}
-                        {if ($direct_debit_details.address3 != '')} {$direct_debit_details.address3}<br/> {/if}
-                        {if ($direct_debit_details.address4 != '')} {$direct_debit_details.address4}<br/> {/if}
-                        {if ($direct_debit_details.town != '')    } {$direct_debit_details.town    }<br/> {/if}
-                        {if ($direct_debit_details.county != '')  } {$direct_debit_details.county  }<br/> {/if}
-                        {if ($direct_debit_details.postcode != '')} {$direct_debit_details.postcode}      {/if}
-                    {/if}
-                    </td></tr>
-                    </table>
+                    <div class="clear"></div>
                 </div>
+                {if $contributeMode eq 'direct'}
+                  <div class="crm-group debit_agreement-group">
+                      <div class="header-dark">
+                          {ts}Agreement{/ts}
+                      </div>
+                      <div class="display-block">
+                          {ts}Your account data will be used to charge your bank account via direct debit. While submitting this form you agree to the charging of your bank account via direct debit.{/ts}
+                      </div>
+                  </div>
+                {/if}
             {else}
                 <div class="crm-section no-label credit_card_details-section">
-                    <div class="content">{$credit_card_type}</div>
-                    <div class="content">{$credit_card_number}</div>
-                    <div class="content">{ts}Expires{/ts}: {$credit_card_exp_date|truncate:7:''|crmDate}</div>
-                    <div class="clear"></div>
+                  <div class="content">{$credit_card_type}</div>
+                  <div class="content">{$credit_card_number}</div>
+                  <div class="content">{ts}Expires{/ts}: {$credit_card_exp_date|truncate:7:''|crmDate}</div>
+                  <div class="clear"></div>
                 </div>
             {/if}
         </div>
+      {/if}
+{/crmRegion}
     {/if}
-    
+
     {include file="CRM/Contribute/Form/Contribution/PremiumBlock.tpl" context="confirmContribution"}
-    
+
     {if $customPost}
-            <fieldset class="label-left">
-                {include file="CRM/UF/Form/Block.tpl" fields=$customPost}
-            </fieldset>
-    {/if}
-  
     {if $contributeMode eq 'direct' and $paymentProcessor.payment_type & 2}
     <div class="crm-group debit_agreement-group">
         <div class="header-dark">
@@ -273,6 +268,9 @@
             {ts}Your account data will be used to charge your bank account via direct debit. While submitting this form you agree to the charging of your bank account via direct debit.{/ts}
         </div>
     </div>
+      <fieldset class="label-left crm-profile-view">
+        {include file="CRM/UF/Form/Block.tpl" fields=$customPost}
+      </fieldset>
     {/if}
 
     {if $contributeMode NEQ 'notify' and $is_monetary and ( $amount GT 0 OR $minimum_fee GT 0 ) } {* In 'notify mode, contributor is taken to processor payment forms next *}
@@ -285,19 +283,6 @@
         {/if}
         </p>
     </div>
-    {/if}
-    
-    {if $paymentProcessor.payment_processor_type EQ 'Google_Checkout' and $is_monetary and ( $amount GT 0 OR $minimum_fee GT 0 ) and ! $is_pay_later}
-        <fieldset class="crm-group google_checkout-group"><legend>{ts}Checkout with Google{/ts}</legend>
-        <table class="form-layout-compressed">
-            <tr>
-                <td class="description">{ts}Click the Google Checkout button to continue.{/ts}</td>
-            </tr>
-            <tr>
-                <td>{$form._qf_Confirm_next_checkout.html} <span style="font-size:11px; font-family: Arial, Verdana;">Checkout securely.  Pay without sharing your financial information. </span></td>
-            </tr>
-        </table>
-        </fieldset>    
     {/if}
 
     <div id="crm-submit-buttons" class="crm-submit-buttons">

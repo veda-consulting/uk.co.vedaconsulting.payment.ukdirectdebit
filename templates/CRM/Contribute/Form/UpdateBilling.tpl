@@ -1,9 +1,9 @@
 <!-- Customised Civi File .tpl file invoked: ukdirectdebit/templates/CRM/Contribute/Form/UpdateBilling.tpl. Call via form.tpl if we have a form in the page. -->
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -24,8 +24,7 @@
  | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
  +--------------------------------------------------------------------+
 *}
-
-<div id="help">
+<div class="help">
   <div class="icon inform-icon"></div>&nbsp;
   {if $mode eq 'auto_renew'}
       {ts}Use this form to update the credit card and billing name and address used with the auto-renewal option for your {$membershipType} membership.{/ts}
@@ -100,7 +99,7 @@
     </fieldset>
   </div>
 {else}  
-  {include file="CRM/Core/BillingBlock.tpl"}
+  {include file="CRM/Core/BillibgBlockWrapper.tpl"}
 {/if}
 
 <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="bottom"}</div>

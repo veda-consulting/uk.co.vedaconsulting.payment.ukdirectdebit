@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -41,14 +41,11 @@
   </div>
 {/if}
 <div id="payment_information">
-  {if $paymentFields|@count && (!$form.$expressButtonName || $paymentProcessor.payment_processor_type EQ 'PayPal')}
+  {if $paymentFields|@count}
     <fieldset class="billing_mode-group {$paymentTypeName}_info-group">
       <legend>
         {$paymentTypeLabel}
       </legend>
-      {if $form.$expressButtonName}
-        {include file= "CRM/Core/paypalexpress.tpl"}
-      {/if}
       <!-- MV: Custom changes from older version,  -->
           {if $paymentProcessor.payment_type & 2}
           <div><span style="float: right;margin: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit.gif}" alt="Direct Debit Logo" border="0"></span></div>
@@ -70,6 +67,8 @@ If you do not wish to proceed any further please <a href="/">click here</a> to e
 <p>The details of your Direct Debit Instruction will be sent to you within 3 working days or no later than 10 working days before the first collection.</p>{/ts}
 {/if}   
 <!-- MV: end custom changes    -->
+      {crmRegion name="billing-block-pre"}
+      {/crmRegion}
       <div class="crm-section billing_mode-section {$paymentTypeName}_info-section">
         {foreach from=$paymentFields item=paymentField}
           {assign var='name' value=$form.$paymentField.name}
@@ -112,8 +111,9 @@ If you do not wish to proceed any further please <a href="/">click here</a> to e
         <!-- MV: end custom changes -->
       </div>
     </fieldset>
-  {if $billingDetailsFields|@count}
-    {if $profileAddressFields}
+  {/if}
+  {if $billingDetailsFields|@count && $paymentProcessor.payment_processor_type neq 'PayPal_Express'}
+    {if $profileAddressFields && !$ccid}
       <input type="checkbox" id="billingcheckbox" value="0">
       <label for="billingcheckbox">{ts}My billing address is the same as above{/ts}</label>
     {/if}
@@ -137,7 +137,6 @@ If you do not wish to proceed any further please <a href="/">click here</a> to e
       </div>
     </fieldset>
   {/if}
-{/if}
 </div>
 {if $profileAddressFields}
   <script type="text/javascript">
@@ -197,7 +196,7 @@ If you do not wish to proceed any further please <a href="/">click here</a> to e
         }
       }
       if (checked) {
-        $('#billingcheckbox').prop('checked', true);
+        $('#billingcheckbox').prop('checked', true).data('crm-initial-value', true);
         if (!CRM.billing || CRM.billing.billingProfileIsHideable) {
           $('.billing_name_address-group').hide();
         }
@@ -263,11 +262,13 @@ If you do not wish to proceed any further please <a href="/">click here</a> to e
         $('#credit_card_number').val(cc);
       });
     });
-    {/literal}
+
   </script>
+  {/literal}
 {/if}
 
 <!-- MV:custom Js, append old version custom changes into civi46 -->
+{if $suppressSubmitButton}
 {literal}
 <style type="text/css">
   #multiple_block > input {
@@ -347,6 +348,16 @@ if(cj('tr').attr('id') !== "multiple_block") {
 }
 
 </script>
+  <script type="text/javascript">
+    CRM.$(function($) {
+      $('.crm-submit-buttons', $('#billing-payment-block').closest('form')).hide();
+    });
+  </script>
 {/literal}
-<!-- MV: end custom js  -->
+{/if}
 {/crmRegion}
+{crmRegion name="billing-block-post"}
+  {* Payment processors sometimes need to append something to the end of the billing block. We create a region for
+     clarity  - the plan is to move to assigning this through the payment processor to this region *}
+{/crmRegion}
+
