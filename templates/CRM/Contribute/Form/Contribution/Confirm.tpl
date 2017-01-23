@@ -96,10 +96,6 @@
                 {else}
 {crmRegion name="contribution-confirm-recur"}
                     {if $installments}
-                    {if $paymentProcessor.payment_type & 2}
-                        <p><strong>{ts 1=$direct_debit_details.formatted_preferred_collection_day 2=$frequency_unit 3=$direct_debit_details.first_collection_date|crmDate}Your preferred collection day is the %1 of every %2 and your first collection will be on or after the %3.{/ts}</strong></p>
-                        <p><strong>{ts 1=$direct_debit_details.confirmation_method}Your confirmation will be sent by %1.{/ts}</strong></p>
-                        <p><strong>{ts 1=$direct_debit_details.company_name}The company name which will appear on your bank statement against the Direct Debit will be "%1".{/ts}</strong></p>
                       {if $frequency_interval > 1}
                         <p><strong>{ts 1=$frequency_interval 2=$frequency_unit 3=$installments}I want to contribute this amount every %1 %2s for %3 installments.{/ts}</strong></p>
                       {else}
@@ -112,7 +108,14 @@
                         <p><strong>{ts 1=$frequency_unit }I want to contribute this amount every %1.{/ts}</strong></p>
                       {/if}
                     {/if}
-                    <p>{ts}Your initial contribution will be processed once you complete the confirmation step. You will be able to cancel the recurring contribution by visiting the web page link that will be included in your receipt.{/ts}</p>
+
+                    {if $paymentProcessor.payment_type & 2}
+                      <p><strong>{ts 1=$direct_debit_details.formatted_preferred_collection_day 2=$frequency_unit 3=$direct_debit_details.first_collection_date|crmDate}Your preferred collection day is the %1 of every %2 and your first collection will be on or after the %3.{/ts}</strong></p>
+                      <p><strong>{ts 1=$direct_debit_details.confirmation_method}Your confirmation will be sent by %1.{/ts}</strong></p>
+                      <p><strong>{ts 1=$direct_debit_details.company_name}The company name which will appear on your bank statement against the Direct Debit will be "%1".{/ts}</strong></p>
+                    {else}
+                      <p>{ts}Your initial contribution will be processed once you complete the confirmation step. You will be able to cancel the recurring contribution by visiting the web page link that will be included in your receipt.{/ts}</p>
+                    {/if}
 {/crmRegion}
                 {/if}
             {/if}
@@ -232,6 +235,24 @@
                 <div class="display-block">
                     <div><span style="float: right;margin: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit.gif}" alt="Direct Debit Logo" border="0"></span></div>
                     <div class="clear"></div>
+                    <table>
+                        <tr><td>{ts}Account Holder{/ts}:</td><td>{$account_holder}</td></tr>
+                        <tr><td>{ts}Bank Account Number{/ts}:</td><td>{$bank_account_number}</td></tr>
+                        <tr><td>{ts}Bank Identification Number{/ts}:</td><td>{$bank_identification_number}</td></tr>
+                        <tr><td>{ts}Bank Name{/ts}:</td><td>{$direct_debit_details.bank_name}</td></tr>
+                        {if ((isset($direct_debit_details.branch)) && ($direct_debit_details.branch != ''))}
+                        <tr><td>{ts}Branch{/ts}:</td><td>{$direct_debit_details.branch}</td></tr>
+                        <tr><td>{ts}Address{/ts}:</td><td>
+                                {if ($direct_debit_details.address1 != '')} {$direct_debit_details.address1}<br/> {/if}
+                                {if ($direct_debit_details.address2 != '')} {$direct_debit_details.address2}<br/> {/if}
+                                {if ($direct_debit_details.address3 != '')} {$direct_debit_details.address3}<br/> {/if}
+                                {if ($direct_debit_details.address4 != '')} {$direct_debit_details.address4}<br/> {/if}
+                                {if ($direct_debit_details.town != '')    } {$direct_debit_details.town    }<br/> {/if}
+                                {if ($direct_debit_details.county != '')  } {$direct_debit_details.county  }<br/> {/if}
+                                {if ($direct_debit_details.postcode != '')} {$direct_debit_details.postcode}      {/if}
+                                {/if}
+                            </td></tr>
+                    </table>
                 </div>
                 {if $contributeMode eq 'direct'}
                   <div class="crm-group debit_agreement-group">
@@ -243,6 +264,7 @@
                       </div>
                   </div>
                 {/if}
+
             {else}
                 <div class="crm-section no-label credit_card_details-section">
                   <div class="content">{$credit_card_type}</div>
@@ -259,15 +281,6 @@
     {include file="CRM/Contribute/Form/Contribution/PremiumBlock.tpl" context="confirmContribution"}
 
     {if $customPost}
-    {if $contributeMode eq 'direct' and $paymentProcessor.payment_type & 2}
-    <div class="crm-group debit_agreement-group">
-        <div class="header-dark">
-            {ts}Agreement{/ts}
-        </div>
-        <div class="display-block">
-            {ts}Your account data will be used to charge your bank account via direct debit. While submitting this form you agree to the charging of your bank account via direct debit.{/ts}
-        </div>
-    </div>
       <fieldset class="label-left crm-profile-view">
         {include file="CRM/UF/Form/Block.tpl" fields=$customPost}
       </fieldset>
