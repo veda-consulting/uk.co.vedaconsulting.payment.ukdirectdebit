@@ -62,20 +62,22 @@ class CRM_DirectDebit_Form_Auddisactivity extends CRM_Core_Form {
      );
 
      $this->assign('groupCount', count($auddisDates));
-     $this->addButtons(array(
-               array(
-                 'type' => 'submit',
-                 'name' => ts('Process'),
-                 'isDefault' => TRUE,
-                 ),
-               array(
-                 'type' => 'cancel',
-                 'name' => ts('Cancel'),
-               )
-             )
+     $buttons = array();
+     if (count($auddisDates) > 0) {
+         $buttons[] = array(
+             'type' => 'submit',
+             'name' => ts('Process'),
+             'isDefault' => TRUE,
+         );
+     }
+     $buttons[] = array(
+         'type' => 'cancel',
+         'name' => ts('Cancel'),
      );
-    }
-    parent::buildQuickForm();
+     }
+     $this->addButtons($buttons);
+
+     parent::buildQuickForm();
   }
     
   function postProcess() {

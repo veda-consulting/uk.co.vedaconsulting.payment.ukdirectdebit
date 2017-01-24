@@ -167,7 +167,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
   #MV : added new function to get collections by date
   static function getSmartDebitPayments( $dateOfCollection ) { 
     if( empty($dateOfCollection)){
-      CRM_Core_Session::setStatus(ts('Please select the collection date'), 'Smart Debit', 'error');
+      CRM_Core_Session::setStatus(ts('Please select the collection date'), ts('Smart Debit'), 'error');
       return false;
     }
      
@@ -190,7 +190,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
 	    else if (isset($response['error'])) { $error_msg = $response['error']; }
 	    else { $error_msg = 'No Collections to report'; }
 	    CRM_Core_Session::singleton()->pushUserContext($url);
-	    CRM_Core_Session::setStatus($error_msg, 'Smart Debit', 'info');
+	    CRM_Core_Session::setStatus($error_msg, ts('Smart Debit'), 'info');
 	    return FALSE;
 	  }
 
@@ -215,7 +215,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
 	  $msg .= "</li>";
 	  $msg .= "</ul>";
       CRM_Core_Session::singleton()->pushUserContext($url);
-      CRM_Core_Session::setStatus($response['error'], 'Smart Debit', 'error');
+      CRM_Core_Session::setStatus($response['error'], ts('Smart Debit'), 'error');
 	  return FALSE;
 
 	default:
@@ -231,7 +231,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     $domainID               = CRM_Core_Config::domainID();
 
     if(empty($paymentProcessorTypeId)) {
-      CRM_Core_Session::setStatus(ts('Make sure Payment Processor Type (Smart Debit) is set in Payment Processor setting'), Error, 'error');
+      CRM_Core_Session::setStatus(ts('Make sure Payment Processor Type (Smart Debit) is set in Payment Processor setting'), ts('Smart Debit'), 'error');
       return FALSE;
     }
 
@@ -251,7 +251,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     $result = array();
     if ($dao->fetch()) {
       if(empty($dao->user_name) || empty($dao->password) || empty($dao->signature)) {
-        CRM_Core_Session::setStatus(ts('Smart Debit API User Details Missing, Please check the Smart Debit Payment Processor is configured Properly'), Error, 'error');
+        CRM_Core_Session::setStatus(ts('Smart Debit API User Details Missing, Please check the Smart Debit Payment Processor is configured Properly'), ts('Smart Debit'), 'error');
         return FALSE;
       }
       $result   = array(
