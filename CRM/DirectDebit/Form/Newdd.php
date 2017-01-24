@@ -96,6 +96,9 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
     
     require_once self::getSmartDebitPaymentPath();      
     $smartDebitResponse	  = uk_co_vedaconsulting_payment_smartdebitdd:: doDirectPayment($params);
+    if ($smartDebitResponse === false) {
+        return;
+    }
     $start_date		  = date('Y-m-d', strtotime($smartDebitResponse['start_date']));
     $trxn_id		  = $smartDebitResponse['trxn_id'];
     $contributionDetails  = self::getContactDetails($this->_id);

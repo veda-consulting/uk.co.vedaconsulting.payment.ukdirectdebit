@@ -90,7 +90,10 @@ class CRM_DirectDebit_Form_Newdonation extends CRM_Core_Form {
     $params['contactID']  = $this->_contactID;
     
     require_once self::getSmartDebitPaymentPath();      
-    $smartDebitResponse	  = uk_co_vedaconsulting_payment_smartdebitdd:: doDirectPayment($params);    
+    $smartDebitResponse	  = uk_co_vedaconsulting_payment_smartdebitdd:: doDirectPayment($params);
+    if ($smartDebitResponse === false) {
+        return;
+    }
     $start_date		  = date('Y-m-d', strtotime($smartDebitResponse['start_date']));
     $trxn_id		  = $smartDebitResponse['trxn_id'];
     list($y, $m, $d)	  = explode('-', $smartDebitResponse['start_date']);
