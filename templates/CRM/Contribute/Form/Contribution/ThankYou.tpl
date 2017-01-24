@@ -48,9 +48,10 @@
       <a href="{$linkTextUrl}" title="{$linkText}" class="button"><span>&raquo; {$linkText}</span></a>
     </div><br /><br />
   {/if}
-    {if $paymentProcessor.payment_type & 2}
-      <div style="font-size:1.3em; text-align: center; margin: 0% 25% 20px 25%; border: 1px solid #000000; width: 50%; "><em><strong>Important : Confirmation of the set up of your Direct Debit Instruction including future payment schedule</strong></em></div>
-    {/if}
+
+  {if $paymentProcessor.payment_type & 2}
+    <div style="font-size:1.3em; text-align: center; margin: 0% 25% 20px 25%; border: 1px solid #000000; width: 50%; "><em><strong>Important : Confirmation of the set up of your Direct Debit Instruction including future payment schedule</strong></em></div>
+  {/if}
 
   <div class="help">
     {* PayPal_Standard sets contribution_mode to 'notify'. We don't know if transaction is successful until we receive the IPN (payment notification) *}
@@ -64,7 +65,17 @@
             {ts 1=$email}An email confirmation with these payment instructions has been sent to %1.{/ts}
           {/if}
         </div>
-            {/if}
+      {/if}
+    {elseif $contributeMode EQ 'notify' OR ($contributeMode EQ 'direct' && $is_recur) }
+      {if $paymentProcessor.payment_type & 2}
+        <div>{ts}That completes the setting up of your Direct Debit Instruction and the confirmation of the Instruction will be sent to you within 3 working days or be received by you no later than 10 working days before the first collection. The company name that will appear on your bank statement against the Direct Debit will be "{$company_address.company_name}". Please print this page for your records.{/ts}</div>
+      {else}
+        <div>{ts 1=$paymentProcessor.name}Your contribution has been submitted to %1 for processing. Please print this page for your records.{/ts}</div>
+      {/if}
+        {if $is_email_receipt}
+      <div>
+        {if $onBehalfEmail AND ($onBehalfEmail neq $email)}
+          {ts 1=$email 2=$onBehalfEmail}An email receipt will be sent to %1 and to %2 once the transaction is processed successfully.{/ts}
         {else}
           {ts 1=$email}An email receipt will be sent to %1 once the transaction is processed successfully.{/ts}
         {/if}
@@ -109,19 +120,6 @@
                 {ts}Additional Contribution{/ts}: <strong>{$amount|crmMoney}</strong><br />
               {/if}
             {/if}
-        {/if}
-            {if $receive_date}
-            {ts}Date{/ts}: <strong>{$receive_date|crmDate}</strong><br />
-            {/if}
-            {if $contributeMode ne 'notify' and $is_monetary and ! $is_pay_later and $trxn_id}
-                {if $paymentProcessor.payment_type & 2}
-                    {ts}Direct Debit Reference{/ts}: {$trxn_id}<br />
-                {else}
-                    {ts}Transaction #{/ts}: {$trxn_id}<br />
-                {/if}
-            {/if}
-            {if $membership_trx_id}
-            {ts}Membership Transaction #{/ts}: {$membership_trx_id}
             <strong> -------------------------------------------</strong><br />
             {ts}Total{/ts}: <strong>{$amount+$membership_amount|crmMoney}</strong><br />
           {else}
@@ -135,7 +133,11 @@
           {ts}Date{/ts}: <strong>{$receive_date|crmDate}</strong><br />
         {/if}
         {if $contributeMode ne 'notify' and $is_monetary and ! $is_pay_later and $trxn_id}
-          {ts}Transaction #{/ts}: {$trxn_id}<br />
+          {if $paymentProcessor.payment_type & 2}
+            {ts}Direct Debit Reference{/ts}: {$trxn_id}<br />
+          {else}
+            {ts}Transaction #{/ts}: {$trxn_id}<br />
+          {/if}
         {/if}
         {if $membership_trx_id}
           {ts}Membership Transaction #{/ts}: {$membership_trx_id}
@@ -287,7 +289,6 @@
         <div class="header-dark">
           {if $paymentProcessor.payment_type & 2}
             {ts}Direct Debit Information{/ts}
-            </div>
             <div>{ts}Thank you very much for your Direct Debit Instruction details. Below is the Direct Debit Guarantee for your information.{/ts}</div>
             <div>Please <a href="javascript:window.print()" title="Print this page.">PRINT THIS PAGE</a> for you records</div>
           {else}
@@ -296,12 +297,35 @@
         </div>
         {if $paymentProcessor.payment_type & 2}
           <div class="display-block">
-            <div><span style="float: right;margin: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit.gif}" alt="Direct Debit Logo" border="0"></span></div>
-            <div class="clear"></div>
-            {ts}Account Holder{/ts}: {$account_holder}<br />
-            {ts}Bank Identification Number{/ts}: {$bank_identification_number}<br />
-            {ts}Bank Name{/ts}: {$bank_name}<br />
-            {ts}Bank Account Number{/ts}: {$bank_account_number}<br />
+{* Start of DDI *}
+<div style="float: left;border: 1px solid #000000;background-color: #ffffff;width: 100%;">
+
+    <div style="text-align: center;">
+{*        <div><span id="logo1"><img src="client_logo.jpg" alt="Client Logo" border="0"></span></div> *}
+        <div><span style="float: right;margin: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit.gif}" alt="Direct Debit Logo" border="0"></span></div>
+        <div style="clear: both;"></div>
+    </div>
+
+    <div style="float: left;margin-left: 5px;margin-right: 10px;width: 305px;">
+
+        <p>
+          <div style="background-color: #ffffff;border: 1px solid #999999;padding: 0px 5px;">
+            <b>{$company_address.company_name}</b><br>
+            {if ($company_address.address1 != '')} {$company_address.address1}<br/> {/if}
+            {if ($company_address.address2 != '')} {$company_address.address2}<br/> {/if}
+            {if ($company_address.address3 != '')} {$company_address.address3}<br/> {/if}
+            {if ($company_address.address4 != '')} {$company_address.address4}<br/> {/if}
+            {if ($company_address.town != '')    } {$company_address.town}<br/>     {/if}
+            {if ($company_address.county != '')  } {$company_address.county}<br/>   {/if}
+            {if ($company_address.postcode != '')} {$company_address.postcode}      {/if}
+          </div>
+        </p>
+
+        <h2 style="font-size: 1em;margin-bottom: -5px; margin-top: 15px;text-align: left;font-weight: bold;">Name(s) of Account Holder(s)</h2>
+
+        <p>
+          <div style="background-color: #ffffff;border: 1px solid #999999;padding: 0px 5px;">
+            {$account_holder}<br />
           </div>
         </p>
 
@@ -427,17 +451,17 @@
     </TR>
    </TABLE>
                 </div>
-
-         {else}
-             <div class="crm-section no-label credit_card_details-section">
-                 <div class="content">{$credit_card_type}</div>
-                <div class="content">{$credit_card_number}</div>
-                <div class="content">{ts}Expires{/ts}: {$credit_card_exp_date|truncate:7:''|crmDate}</div>
-                <div class="clear"></div>
-             </div>
-         {/if}
-    </div>
-    {/if}
+        {else}
+          <div class="crm-section no-label credit_card_details-section">
+            <div class="content">{$credit_card_type}</div>
+            <div class="content">{$credit_card_number}</div>
+            <div class="content">{ts}Expires{/ts}: {$credit_card_exp_date|truncate:7:''|crmDate}</div>
+            <div class="clear"></div>
+          </div>
+        {/if}
+      </div>
+    {/crmRegion}
+  {/if}
 
   {include file="CRM/Contribute/Form/Contribution/PremiumBlock.tpl" context="thankContribution"}
 

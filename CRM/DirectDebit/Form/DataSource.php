@@ -180,7 +180,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
         case 'OK':
 	  if (!isset($response['Successes']) || !isset($response['Rejects'])) {
 	    $url = CRM_Utils_System::url('civicrm/directdebit/syncsd/import');
-	    CRM_Core_Session::setStatus($response['Summary'], ts('Sorry'), 'error');
+	    CRM_Core_Session::setStatus($response['Summary'], ts('No Collections'), 'error');
 	    CRM_Utils_System::redirect($url); 
 	    return FALSE;
 	  }
@@ -206,7 +206,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
 	  $msg .= "</li>";
 	  $msg .= "</ul>";
 	  $url = CRM_Utils_System::url('civicrm/directdebit/syncsd/import');
-	  CRM_Core_Session::setStatus($msg, ts('Sorry'), 'error');
+	  CRM_Core_Session::setStatus($response['Summary'], ts('Response: Invalid'), 'error');
 	  CRM_Utils_System::redirect($url);  
 	  return FALSE;
             
