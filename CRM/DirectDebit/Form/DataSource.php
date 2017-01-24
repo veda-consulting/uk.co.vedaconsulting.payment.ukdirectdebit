@@ -145,9 +145,8 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
               ";   
       CRM_Core_DAO::executeQuery($sql);
     }
-    $redirectUrlForward      = CRM_Utils_System::url('civicrm/directdebit/syncsd', 'reset=1');
-    CRM_Utils_System::redirect($redirectUrlForward);
-    
+    $url = CRM_Utils_System::url('civicrm/directdebit/syncsd', 'reset=1');
+    CRM_Core_Session::singleton()->pushUserContext($url);
   }
   /**
    * Return a descriptive name for the page, used in wizard header
@@ -173,15 +172,19 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
   
     $collections = array();
     $url         = "https://secure.ddprocessing.co.uk/api/get_collection_report?query[service_user][pslid]=$pslid&query[debit_date]=$dateOfCollection";
-    $response    = CRM_DirectDebit_Form_SyncSd::requestPost( $url, $username, $password );   
+    $response    = CRM_DirectDebit_Form_SyncSd::requestPost( $url, $username, $password );
+
+    $url = CRM_Utils_System::url('civicrm/directdebit/syncsd/import');
 
     // Take action based upon the response status
     switch ( strtoupper( $response["Status"] ) ) {
         case 'OK':
 	  if (!isset($response['Successes']) || !isset($response['Rejects'])) {
-	    $url = CRM_Utils_System::url('civicrm/directdebit/syncsd/import');
-	    CRM_Core_Session::setStatus($response['Summary'], ts('No Collections'), 'error');
-	    CRM_Utils_System::redirect($url); 
+	    if (isset($response['Summary'])) { $error_msg = $response['Summary']; }
+	    else if (isset($response['error'])) { $error_msg = $response['error']; }
+	    else { $error_msg = 'No Collections to report'; }
+	    CRM_Core_Session::singleton()->pushUserContext($url);
+	    CRM_Core_Session::setStatus($error_msg, 'Smart Debit', 'info');
 	    return FALSE;
 	  }
 
@@ -205,13 +208,12 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
 	  $msg .= $response['body']['div']['p'];
 	  $msg .= "</li>";
 	  $msg .= "</ul>";
-	  $url = CRM_Utils_System::url('civicrm/directdebit/syncsd/import');
-	  CRM_Core_Session::setStatus($response['Summary'], ts('Response: Invalid'), 'error');
-	  CRM_Utils_System::redirect($url);  
+      CRM_Core_Session::singleton()->pushUserContext($url);
+      CRM_Core_Session::setStatus($response['error'], 'Smart Debit', 'error');
 	  return FALSE;
-            
-        default:
-            return false;
+
+	default:
+      return false;
     }//end switch
    
   }
