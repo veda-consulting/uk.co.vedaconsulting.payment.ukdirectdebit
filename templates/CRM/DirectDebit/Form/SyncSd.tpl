@@ -56,7 +56,7 @@
     {literal}
     <script type="text/javascript">
     cj(function() {
-       cj().crmAccordions();
+       cj().crmAccordionToggle();
     });
     </script>
     {/literal}
