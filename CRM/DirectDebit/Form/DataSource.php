@@ -84,7 +84,13 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     $dateOfCollection = $exportValues['collection_date'];
     
     $aCollectionDate  = array();
-    if(!empty($dateOfCollection)){
+    if(empty($dateOfCollection)){
+      CRM_Core_Session::setStatus(ts('Please select the collection date'), ts('Smart Debit'), 'error');
+      $url = CRM_Utils_System::url('civicrm/directdebit/syncsd/import', 'reset=1');
+      CRM_Core_Session::singleton()->pushUserContext($url);
+      return false;
+    }
+    else {
       $dateOfCollection = date('Y-m-d', strtotime($dateOfCollection));
       $aCollectionDate  = self::getSmartDebitPayments( $dateOfCollection );
       $session = CRM_Core_Session::singleton();
@@ -161,7 +167,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
   #MV : added new function to get collections by date
   static function getSmartDebitPayments( $dateOfCollection ) { 
     if( empty($dateOfCollection)){
-      CRM_Core_Session::setStatus(ts('Please Select the Date of Collection'), Error, 'error');
+      CRM_Core_Session::setStatus(ts('Please select the collection date'), 'Smart Debit', 'error');
       return false;
     }
      
