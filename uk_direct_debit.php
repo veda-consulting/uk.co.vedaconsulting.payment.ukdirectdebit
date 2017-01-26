@@ -753,6 +753,40 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
             $dao = CRM_Core_DAO::executeQuery($query, $sql_params);
   }
 
+  if ($formName == 'CRM_Contribute_Form_Contribution_ThankYou') {
+      CRM_Core_Region::instance('contribution-thankyou-billing-block')->update('default', array(
+          'disabled' => TRUE,
+      ));
+      CRM_Core_Region::instance('contribution-thankyou-billing-block')->add(array(
+          'template' => 'CRM/Contribute/Form/Contribution/DirectDebitMandate.tpl',
+      ));
+  }
+
+  if ($formName == 'CRM_Contribute_Form_Contribution_Confirm') {
+      CRM_Core_Region::instance('contribution-confirm-recur')->update('default', array(
+          'disabled' => TRUE,
+      ));
+      CRM_Core_Region::instance('contribution-confirm-recur')->add(array(
+          'template' => 'CRM/Contribute/Form/Contribution/DirectDebitRecur.tpl',
+      ));
+
+      CRM_Core_Region::instance('contribution-confirm-billing-block')->update('default', array(
+          'disabled' => TRUE,
+      ));
+      CRM_Core_Region::instance('contribution-confirm-billing-block')->add(array(
+          'template' => 'CRM/Contribute/Form/Contribution/DirectDebitAgreement.tpl',
+      ));
+  }
+
+  if ($formName == 'CRM_Financial_Form_Payment') {
+      CRM_Core_Region::instance('billing-block-pre')->add(array(
+          'template' => 'CRM/Core/BillingBlockPre.tpl',
+      ));
+      CRM_Core_Region::instance('billing-block-post')->add(array(
+          'template' => 'CRM/Core/BillingBlockPost.tpl',
+      ));
+  }
+
   /***** Handle Gocardless return values - END ****/
   
     require_once 'CRM/Core/Payment.php';
@@ -966,14 +1000,12 @@ function call_CiviCRM_IPN($url){
 function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
   // Check the form being submitted is a contribution form
   if ( is_a( $form, 'CRM_Contribute_Form_Contribution_Confirm' ) ) {
-    CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess #1');
-    CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess form='.print_r($form, TRUE));
-
-    CRM_Core_Error::debug_log_message('CRM_Contribute_Form_Contribution_Confirm #1');
+    //CRM_Core_Error::debug_log_message('CRM_Contribute_Form_Contribution_Confirm #1');
+    //CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess form='.print_r($form, TRUE));
 
     require_once 'UK_Direct_Debit/Form/Main.php';
 
-    CRM_Core_Error:: debug_log_message( 'Firing IPN code');
+    //CRM_Core_Error:: debug_log_message( 'Firing IPN code');
 
     $paymentType = urlencode( $form->_paymentProcessor['payment_type'] );
     $isRecur     = urlencode( $form->_values['is_recur'] );
@@ -999,7 +1031,7 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
       $start_date     = urlencode( $form->_params['start_date'] );
 
       if ( $isRecur == 1 ) {
-        CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess #2');
+        //CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess #2');
 
         $paymentProcessorType = urlencode( $form->_paymentProcessor['payment_processor_type'] );
         //$membershipID         = urlencode( $form->_values['membership_id'] );
@@ -1026,11 +1058,11 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
 
         $query = "processor_name=".$paymentProcessorType."&module=contribute&contactID=".$contactID."&contributionID=".$contributionID."&membershipID=".$membershipID."&invoice=".$invoiceID."&mc_gross=".$amount."&payment_status=Completed&txn_type=recurring_payment&contributionRecurID=$contributionRecurID&txn_id=$trxn_id&first_collection_date=$start_date&collection_day=$collection_day";
 
-        CRM_Core_Error:: debug_log_message( 'uk_direct_debit_civicrm_postProcess query = '.$query);
+        //CRM_Core_Error:: debug_log_message( 'uk_direct_debit_civicrm_postProcess query = '.$query);
 
         // Get the recur ID for the contribution
         $url = CRM_Utils_System::url('civicrm/payment/ipn', $query,  TRUE, NULL, FALSE, TRUE);
-        CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess url='.$url);
+        //CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess url='.$url);
         call_CiviCRM_IPN($url);
 
   //dpm($membershipID, "Before renew_membership - membershipID");

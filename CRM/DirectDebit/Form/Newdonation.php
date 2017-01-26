@@ -88,18 +88,18 @@ class CRM_DirectDebit_Form_Newdonation extends CRM_Core_Form {
   function postProcess() {
     $params		  = $this->controller->exportValues($this->_name);
     $params['contactID']  = $this->_contactID;
-    
     require_once self::getSmartDebitPaymentPath();      
     $smartDebitResponse	  = uk_co_vedaconsulting_payment_smartdebitdd:: doDirectPayment($params);
-    if ($smartDebitResponse === false) {
+    if ($smartDebitResponse['is_error'] == 1) {
+        CRM_Core_Session::singleton()->pushUserContext($params['entryURL']);
         return;
     }
     $start_date		  = date('Y-m-d', strtotime($smartDebitResponse['start_date']));
     $trxn_id		  = $smartDebitResponse['trxn_id'];
     list($y, $m, $d)	  = explode('-', $smartDebitResponse['start_date']);
     
-      // Build recur params
-      $recurParams = array(
+    // Build recur params
+    $recurParams = array(
 	'contact_id'		=>  $this->_contactID,
 	'create_date'		=>  date('YmdHis'),
 	'modified_date'		=>  date('YmdHis'),
@@ -116,10 +116,12 @@ class CRM_DirectDebit_Form_Newdonation extends CRM_Core_Form {
 	'currency'		=> 'GBP',//Smart Debit supports UK currency
 	'processor_id'          => $trxn_id,
 	'payment_instrument_id' => UK_Direct_Debit_Form_Main::getDDPaymentInstrumentID(),
-      );
+    );
+    $recurring		 = CRM_Contribute_BAO_ContributionRecur::add($recurParams);
 
-      $recurring		 = CRM_Contribute_BAO_ContributionRecur::add($recurParams);
-      
+    CRM_Core_Session::setStatus(ts('Created Direct Debit with reference: '). $recurParams['trxn_id'], ts('Direct Debit'), 'success');
+    $url = CRM_Utils_System::url('civicrm/contact/view/contributionrecur', 'reset=1&id='.$recurring->id.'&cid='.$recurring->contact_id.'&context=contribution');
+    CRM_Core_Session::singleton()->pushUserContext($url);
   }
   
 

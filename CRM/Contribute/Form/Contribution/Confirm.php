@@ -325,7 +325,8 @@ class CRM_Contribute_Form_Contribution_Confirm extends CRM_Contribute_Form_Contr
     if (!empty($this->_membershipBlock)) {
       $this->_params['selectMembership'] = $this->get('selectMembership');
     }
-    if (!empty($this->_paymentProcessor) &&  $this->_paymentProcessor['object']->supports('preApproval')) {
+    //KJ object check for payment processor. Actual error msg is on top of this file
+    if (!empty($this->_paymentProcessor) && is_object($this->_paymentProcessor['object']) && $this->_paymentProcessor['object']->supports('preApproval')) {
       $preApprovalParams = $this->_paymentProcessor['object']->getPreApprovalDetails($this->get('pre_approval_parameters'));
       $this->_params = array_merge($this->_params, $preApprovalParams);
 
