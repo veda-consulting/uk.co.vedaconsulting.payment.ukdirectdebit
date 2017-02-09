@@ -187,7 +187,6 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     $username    = CRM_Utils_Array::value('username', $userDetails);
     $password    = CRM_Utils_Array::value('password', $userDetails);
     $pslid       = CRM_Utils_Array::value('pslid', $userDetails);
-  
 
     if($uri) {
       $urlAuddis          = $uri."?query[service_user][pslid]=$pslid";
@@ -238,34 +237,13 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
 
   }
   
-   static function getSmartDebitArudd($uri = NULL) {
+  static function getSmartDebitArudd($uri = NULL) {
     $session = CRM_Core_Session::singleton();
     $dateOfCollection = $session->get('collection_date');
-    $paymentProcessorType = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
-    $paymentProcessorTypeId = CRM_Utils_Array::key('Smart Debit', $paymentProcessorType);
-    $domainID = CRM_Core_Config::domainID();
-
-    $sql  = " SELECT user_name ";
-    $sql .= " ,      password ";
-    $sql .= " ,      signature ";
-    $sql .= " FROM civicrm_payment_processor ";
-    $sql .= " WHERE payment_processor_type_id = %1 ";
-    $sql .= " AND is_test= %2 AND domain_id = %3";
-
-    $params = array( 1 => array( $paymentProcessorTypeId, 'Integer' )
-                   , 2 => array( '0', 'Int' )
-                   , 3 => array( $domainID, 'Int' )
-                   );
-
-    $dao = CRM_Core_DAO::executeQuery( $sql, $params);
-
-    if ($dao->fetch()) {
-
-        $username = $dao->user_name;
-        $password = $dao->password;
-        $pslid    = $dao->signature;
-
-    }
+    $userDetails = CRM_DirectDebit_Form_DataSource::getSmartDebitUserDetails();
+    $username    = CRM_Utils_Array::value('username', $userDetails);
+    $password    = CRM_Utils_Array::value('password', $userDetails);
+    $pslid       = CRM_Utils_Array::value('pslid', $userDetails);
 
     if($uri) {
       $urlArudd         = $uri."?query[service_user][pslid]=$pslid";
@@ -273,7 +251,6 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
       $scrambled          = str_replace(" ","+",$responseArudd['file']);
       $outputafterencode  = base64_decode($scrambled);
       $aruddArray        = json_decode(json_encode((array) simplexml_load_string($outputafterencode)),1);
-      
 
       $result = array();
 
