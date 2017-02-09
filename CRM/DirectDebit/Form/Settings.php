@@ -125,11 +125,6 @@ class CRM_DirectDebit_Form_Settings extends CRM_Core_Form {
           $appendedValues[self::getSettingsPrefix().$key] = $value;
         }
         $values = array_intersect_key($appendedValues, $settings['values']);
-        var_dump($values);
-        $values = array(CRM_DirectDebit_Form_Settings::getSettingName('activity_type',true) => (string)21);
-        var_dump($values);
-        civicrm_api3('setting', 'create', $values);
-        die();
         civicrm_api3('setting', 'create', $values);
     }
 
