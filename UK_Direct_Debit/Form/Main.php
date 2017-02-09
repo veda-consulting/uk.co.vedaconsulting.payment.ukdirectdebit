@@ -398,7 +398,7 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
   /*
    * Function will return the Payment instrument to be used by DD payment processor
    */
-  function getDDPaymentInstrumentID() {
+  static function getDDPaymentInstrumentID() {
     return uk_direct_debit_civicrm_getSetting('payment_instrument_id');
   }
 

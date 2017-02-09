@@ -31,9 +31,9 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
   
   public function postProcess() {
     $financialType = uk_direct_debit_civicrm_getSetting('financial_type');
-    $financialTypeID  = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialType', $financialType, 'id', 'name');
+    $financialTypeID  = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialType', $financialType, 'name', 'id');
     if(empty($financialTypeID)) {
-      CRM_Core_Session::setStatus(ts('Make sure financial Type is set in the setting'), 'Error', 'error');
+      CRM_Core_Session::setStatus(ts('Make sure financial Type is set in the setting'), 'UK Direct Debit', 'error');
       return FALSE;
     }
     $runner = self::getRunner();
