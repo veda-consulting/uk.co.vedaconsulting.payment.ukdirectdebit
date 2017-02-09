@@ -215,20 +215,11 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
   // Send payment POST to the target URL
       $previousDateBackMonth = date('Y-m-d', strtotime($dateOfCollection.'-1 month'));
       $urlAuddis = "https://secure.ddprocessing.co.uk/api/auddis/list?query[service_user][pslid]=$pslid&query[from_date]=$previousDateBackMonth&query[till_date]=$dateOfCollection";
-
       $responseAuddis = CRM_DirectDebit_Form_Sync::requestPost( $urlAuddis, $username, $password );
-
       // Take action based upon the response status
-      switch ( strtoupper( $responseAuddis["Status"] ) ) {
+      switch ( strtoupper( $responseAuddis['Status'] ) ) {
           case 'OK':
-
-              $auddisArray = array();
-
-              // Cater for a single response
-              if (isset($responseAuddis['auddis'])) {
-                $auddisArray = $responseAuddis['auddis'];
-              }
-              return $auddisArray;
+              return $responseAuddis;
 
           default:
               return false;

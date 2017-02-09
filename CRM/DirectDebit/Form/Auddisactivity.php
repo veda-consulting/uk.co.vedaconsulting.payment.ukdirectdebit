@@ -9,13 +9,14 @@ class CRM_DirectDebit_Form_Auddisactivity extends CRM_Core_Form {
 
     // Get all auddis files from the API
     $auddisArray      = CRM_DirectDebit_Form_SyncSd::getSmartDebitAuddis();
-
     // Get the auddis Dates from the Auddis Files
     if($auddisArray) {
-      foreach ($auddisArray as $key => $auddis) {
+      foreach ($auddisArray as $auddis) {
+        if (array_key_exists('auddis_id', $auddis)) {
           $auddisDetails['auddis_id']              = $auddis['auddis_id'];
           $auddisDetails['report_generation_date'] = substr($auddis['report_generation_date'], 0, 10);
           $auddisDates[]                           = substr($auddis['report_generation_date'], 0, 10);
+        }
       }
     }
     $processedAuddisDates = array();
