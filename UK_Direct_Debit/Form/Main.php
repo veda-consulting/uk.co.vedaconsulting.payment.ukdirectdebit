@@ -39,13 +39,9 @@
  *
  */
 require_once 'CRM/Core/Form.php';
-require_once 'CRM/Core/BAO/Setting.php';
 
 class UK_Direct_Debit_Form_Main extends CRM_Core_Form
 {
-  CONST SETTING_GROUP_UK_DD_NAME     = 'UK Direct Debit';
-  CONST DD_SIGN_UP_ACITIVITY_TYPE_ID = 46; /* TODO get this from DB based on civicrm setting?. Also needs creating on Install */
-
   function rand_str( $len )
   {
     // The alphabet the random string consists of
@@ -151,31 +147,31 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
   }
 
   static function getActivityType() {
-    return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'activity_type' );
+    return uk_direct_debit_civicrm_getSetting('activity_type');
   }
 
   static function getActivityTypeLetter() {
-    return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'activity_type_letter' );
+    return uk_direct_debit_civicrm_getSetting('activity_type_letter');
   }
 
   static function getTelephoneNumber() {
-    return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'telephone_number' );
+    return uk_direct_debit_civicrm_getSetting('telephone_number');
   }
 
   function getEmailAddress() {
-    return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'email_address' );
+    return uk_direct_debit_civicrm_getSetting('email_address');
   }
 
   static function getDomainName() {
-    return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'domain_name' );
+    return uk_direct_debit_civicrm_getSetting('domain_name');
   }
 
   static function getTransactionPrefix() {
-    return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'transaction_prefix' );
+    return uk_direct_debit_civicrm_getSetting('transaction_prefix');
   }
 
   static function getAutoRenewMembership() {
-    return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'auto_renew_membership' );
+    return uk_direct_debit_civicrm_getSetting('auto_renew_membership');
   }
 
   function getCountry( $country_id ) {
@@ -396,14 +392,14 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
    * Function will return the SUN number broken down into individual characters passed as an array
    */
   static function getSUN() {
-    return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'service_user_number' );
+    return uk_direct_debit_civicrm_getSetting('service_user_number');
   }
 
   /*
    * Function will return the Payment instrument to be used by DD payment processor
    */
   function getDDPaymentInstrumentID() {
-    return CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'payment_instrument_id' );
+    return uk_direct_debit_civicrm_getSetting('payment_instrument_id');
   }
 
     /*
@@ -411,12 +407,12 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
    */
   function getCollectionDaysOptions() {
     $intervalDate = new DateTime();
-    $interval     = CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME,'collection_interval' );
+    $interval     = uk_direct_debit_civicrm_getSetting('collection_interval');
 
     $intervalDate->modify( "+$interval day" );
     $intervalDay = $intervalDate->format( 'd' );
 
-    $collectionDays = CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME,'collection_days' );
+    $collectionDays = uk_direct_debit_civicrm_getSetting('collection_days');
 
     // Split the array
     $tempCollectionDaysArray  = explode( ',', $collectionDays );
@@ -456,10 +452,10 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     CRM_Core_Error::debug_log_message( 'UK_Direct_Debit_Form_Main.completeDirectDebitSetup $params=' . print_r( $objects, true ) );
 
     require_once 'api/api.php';
-    
+
     $params['contactID'] = $objects['contact']->id;
     $params['trxn_id'] = $objects['contributionRecur']->trxn_id;
-    
+
     // Get the prefered communication method
     $sql = <<<EOF
     SELECT confirmation_method
@@ -467,8 +463,8 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     WHERE  ddi_reference = %0
 EOF;
 
-    $params['confirmation_method'] = CRM_Core_DAO::singleValueQuery( $sql, array( array( $params['trxn_id'], 'String' ) ) );    
-    
+    $params['confirmation_method'] = CRM_Core_DAO::singleValueQuery( $sql, array( array( $params['trxn_id'], 'String' ) ) );
+
     // Create an activity to indicate Direct Debit Sign up
     $activityID = self::createDDSignUpActivity( $params );
 
@@ -535,7 +531,7 @@ EOF;
     $collectionDateNextMonth  = new DateTime();
     $collectionDateMonthAfter = new DateTime();
 
-    $interval = CRM_Core_BAO_Setting::getItem( self::SETTING_GROUP_UK_DD_NAME, 'collection_interval' );
+    $interval = uk_direct_debit_civicrm_getSetting('collection_interval');
 
     // If we are not starting from today, then reset today's date and interval date
     if ( !empty( $startDate ) ) {

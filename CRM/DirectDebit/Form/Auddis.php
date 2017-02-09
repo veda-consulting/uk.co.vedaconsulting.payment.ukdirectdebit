@@ -184,12 +184,8 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
 
       }
       //MV: temp store the matched contribution in settings table.
-      if(!empty($matchTrxnIds)){
-          $query1 = "UPDATE civicrm_setting SET value = NULL WHERE name = 'result_ids'";
-          CRM_Core_DAO::executeQuery($query1);
-          CRM_Core_BAO_Setting::setItem($matchTrxnIds,
-            CRM_DirectDebit_Form_Confirm::SD_SETTING_GROUP, 'result_ids'
-          );
+      if(!empty($matchTrxnIds)) {
+          uk_direct_debit_civicrm_saveSetting('result_ids', $matchTrxnIds);
       }
     }
 

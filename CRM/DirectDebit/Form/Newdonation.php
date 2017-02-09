@@ -186,9 +186,13 @@ class CRM_DirectDebit_Form_Newdonation extends CRM_Core_Form {
   static function getSmartDebitPaymentPath() {
     $config   = CRM_Core_Config::singleton();
     $extenDr  = $config->extensionsDir;
-    return $extenDr . DIRECTORY_SEPARATOR .'uk.co.vedaconsulting.payment.smartdebitdd' .DIRECTORY_SEPARATOR.'smart_debit_dd.php';
+    $path = $extenDr . DIRECTORY_SEPARATOR .'uk.co.vedaconsulting.payment.smartdebitdd' .DIRECTORY_SEPARATOR.'smart_debit_dd.php';
+    if (!file_exists($path)) {
+      CRM_Core_Error::debug_log_message('ukdirectdebit - you need to install smartdebit extension (file not found '.$path.')');
+      CRM_Core_Session::setStatus('Please install smartdebit extension', 'UK Direct Debit', 'alert');
+    }
+    return $path;
   }
-  
 }
 
 

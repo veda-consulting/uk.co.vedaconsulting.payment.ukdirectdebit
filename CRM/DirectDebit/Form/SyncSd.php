@@ -191,7 +191,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
 
     if($uri) {
       $urlAuddis          = $uri."?query[service_user][pslid]=$pslid";
-      $responseAuddis     = self::requestPost( $urlAuddis, $username, $password );
+      $responseAuddis     = CRM_DirectDebit_Form_Sync::requestPost( $urlAuddis, $username, $password );
       $scrambled          = str_replace(" ","+",$responseAuddis['file']);
       $outputafterencode  = base64_decode($scrambled);
       $auddisArray        = json_decode(json_encode((array) simplexml_load_string($outputafterencode)),1);
@@ -217,7 +217,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
       $previousDateBackMonth = date('Y-m-d', strtotime($dateOfCollection.'-1 month'));
       $urlAuddis = "https://secure.ddprocessing.co.uk/api/auddis/list?query[service_user][pslid]=$pslid&query[from_date]=$previousDateBackMonth&query[till_date]=$dateOfCollection";
 
-      $responseAuddis = self::requestPost( $urlAuddis, $username, $password );
+      $responseAuddis = CRM_DirectDebit_Form_Sync::requestPost( $urlAuddis, $username, $password );
 
       // Take action based upon the response status
       switch ( strtoupper( $responseAuddis["Status"] ) ) {
@@ -269,7 +269,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
 
     if($uri) {
       $urlArudd         = $uri."?query[service_user][pslid]=$pslid";
-      $responseArudd     = self::requestPost( $urlArudd, $username, $password );
+      $responseArudd     = CRM_DirectDebit_Form_Sync::requestPost( $urlArudd, $username, $password );
       $scrambled          = str_replace(" ","+",$responseArudd['file']);
       $outputafterencode  = base64_decode($scrambled);
       $aruddArray        = json_decode(json_encode((array) simplexml_load_string($outputafterencode)),1);
@@ -296,7 +296,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
   // Send payment POST to the target URL
       $urlArudd = "https://secure.ddprocessing.co.uk/api/arudd/list?query[service_user][pslid]=$pslid&query[from_date]=$previousDateBackMonth&query[till_date]=$dateOfCollection";
 
-      $responseArudd = self::requestPost( $urlArudd, $username, $password );
+      $responseArudd = CRM_DirectDebit_Form_Sync::requestPost( $urlArudd, $username, $password );
 
       // Take action based upon the response status
       switch ( strtoupper( $responseArudd["Status"] ) ) {
@@ -313,101 +313,6 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
           default:
               return false;
       }
-    }
-
-  }
-  
-
-  static function requestPost($url, $username, $password){
-        // Set a one-minute timeout for this script
-        set_time_limit(160);
-
-        // Initialise output variable
-        $output = array();
-
-        $options = array(
-                        CURLOPT_RETURNTRANSFER => true, // return web page
-                        CURLOPT_HEADER => false, // don't return headers
-                        CURLOPT_POST => true,
-                        CURLOPT_USERPWD => $username . ':' . $password,
-                        CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
-                        CURLOPT_HTTPHEADER => array("Accept: application/xml"),
-                        CURLOPT_USERAGENT => "XYZ Co's PHP iDD Client", // Let Webservice see who we are
-                        CURLOPT_SSL_VERIFYHOST => false,
-                        CURLOPT_SSL_VERIFYPEER => false,
-                      );
-
-        $session = curl_init( $url );
-
-        curl_setopt_array( $session, $options );
-
-        // Tell curl that this is the body of the POST
-        curl_setopt ($session, CURLOPT_POSTFIELDS, null );
-
-        // $output contains the output string
-        $output = curl_exec($session);
-        $header = curl_getinfo( $session );
-        //Store the raw response for later as it's useful to see for integration and understanding
-        $_SESSION["rawresponse"] = $output;
-
-        if(curl_errno($session)) {
-          $resultsArray["Status"] = "FAIL";
-          $resultsArray['StatusDetail'] = curl_error($session);
-        }
-        else {
-          // Results are XML so turn this into a PHP Array
-          $resultsArray = json_decode(json_encode((array) simplexml_load_string($output)),1);
-
-          // Determine if the call failed or not
-          switch ($header["http_code"]) {
-            case 200:
-              $resultsArray["Status"] = "OK";
-              break;
-            default:
-              $resultsArray["Status"] = "INVALID";
-          }
-        }
-
-        // Return the output
-        return $resultsArray;
-
-    } // END function requestPost()
-
-
-    static function getSmartDebitPayments($referenceNumber = NULL) {
-      
-    $userDetails = CRM_DirectDebit_Form_DataSource::getSmartDebitUserDetails();
-    $username    = CRM_Utils_Array::value('username', $userDetails);
-    $password    = CRM_Utils_Array::value('password', $userDetails);
-    $pslid       = CRM_Utils_Array::value('pslid', $userDetails);
-
-    // Send payment POST to the target URL
-    $url = "https://secure.ddprocessing.co.uk/api/data/dump?query[service_user][pslid]=$pslid&query[report_format]=XML";
-    // Restrict to a single payer if we have a reference
-    if ($referenceNumber) {
-      $url .= "&query[reference_number]=".rawurlencode($referenceNumber);
-    }
-
-    $response = self::requestPost( $url, $username, $password );
-
-    // Take action based upon the response status
-    switch ( strtoupper( $response["Status"] ) ) {
-        case 'OK':
-
-            $smartDebitArray = array();
-
-					  // Cater for a single response
-					  if (isset($response['Data']['PayerDetails']['@attributes'])) {
-							$smartDebitArray[] = $response['Data']['PayerDetails']['@attributes'];
-						} else {
-							foreach ($response['Data']['PayerDetails'] as $key => $value) {
-							  $smartDebitArray[] = $value['@attributes'];
-							}
-						}
-            return $smartDebitArray;
-
-        default:
-            return false;
     }
 
   }

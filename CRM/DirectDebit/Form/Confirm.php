@@ -45,9 +45,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     if ($state == 'done') {
       $status = 1;
 
-      // $ids  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Confirm::SD_SETTING_GROUP, 'result_ids');
-
-      $rejectedids  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Confirm::SD_SETTING_GROUP, 'rejected_ids');
+      $rejectedids  = uk_direct_debit_civicrm_getSetting('rejected_ids');
       $this->assign('rejectedids', $rejectedids);
       $getSQL = "SELECT * FROM veda_civicrm_smartdebit_import_success_contributions";
       $getDAO = CRM_Core_DAO::executeQuery($getSQL);
@@ -105,16 +103,6 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     $params     = $this->controller->exportValues();
     $auddisDates = unserialize($params['auddisDate']);
     $aruddDates = unserialize($params['aruddDate']);
-    //$financialTypeID    = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
-
-    // Check financialType is set in the civicrm_setting table
-    /* KJ Commenting taking financial type from recurring 
-    if(empty($financialTypeID)) {
-      CRM_Core_Session::setStatus(ts('Make sure Financial Type is set in UK Direct Debit setting'), Error, 'error');
-      return FALSE;
-    }
-     * 
-     */
 
     $runner = self::getRunner($auddisDates, $aruddDates);
     if ($runner) {
@@ -178,7 +166,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
 
     $selectQuery = "SELECT `transaction_id` as trxn_id, `receive_date` as receive_date FROM `veda_civicrm_smartdebit_import`";
 	//MV: TO process only the matched Ids 
-    $aMatchedids  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Confirm::SD_SETTING_GROUP, 'result_ids');
+    $aMatchedids  = uk_direct_debit_civicrm_getSetting('result_ids');
     if(!empty($aMatchedids)){
       $selectQuery .= " WHERE transaction_id IN (".implode(', ', $aMatchedids)." )";
     }
@@ -221,11 +209,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       ));
 
       // Reset the counter when sync starts
-      //$query1 = "UPDATE civicrm_setting SET value = NULL WHERE name = 'result_ids'";
-      $query2 = "UPDATE civicrm_setting SET value = NULL WHERE name = 'rejected_ids'";
-
-      //CRM_Core_DAO::executeQuery($query1);
-      CRM_Core_DAO::executeQuery($query2);
+      uk_direct_debit_civicrm_saveSetting('rejected_ids', NULL);
 
       // Add contributions for rejected payments with the status of 'failed'
       $ids = array();
@@ -240,11 +224,6 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
 
           $params = array( 1 => array( $value['reference'], 'String' ) );
           $dao = CRM_Core_DAO::executeQuery( $sql, $params);
-          
-
-         // $financialTypeID    = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
-          // RS: Commenting below line, as we save the financial type ID in civicrm_setting table
-          // $financialTypeID  = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialType', $financialType, 'id', 'name');
 
           if ($dao->fetch()) {
             $contributeParams =
@@ -278,7 +257,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
                                             , 'display_name' => $contactResult['display_name']
                                             , 'total_amount' => CRM_Utils_Money::format($contributeResult['values'][$contributionID]['total_amount'])
                                             , 'trxn_id'      => $value['reference']
-                                            , 'status'       => $statusResult['label']
+                                            , 'status'       => $contributeResult['label']
                                             );
 
               // Allow auddis rejected contribution to be handled by hook
@@ -314,11 +293,6 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
 
           $params = array( 1 => array( $value['ref'], 'String' ) );
           $dao = CRM_Core_DAO::executeQuery( $sql, $params);
-          
-
-         // $financialTypeID    = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
-          // RS: Commenting below line, as we save the financial type ID in civicrm_setting table
-          // $financialTypeID  = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialType', $financialType, 'id', 'name');
 
           if ($dao->fetch()) {
             $contributeParams =
@@ -352,7 +326,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
                                             , 'display_name' => $contactResult['display_name']
                                             , 'total_amount' => CRM_Utils_Money::format($contributeResult['values'][$contributionID]['total_amount'])
                                             , 'trxn_id'      => $value['ref']
-                                            , 'status'       => $statusResult['label']
+                                            , 'status'       => $contributeResult['label']
                                             );
 
               // Allow auddis rejected contribution to be handled by hook
@@ -362,9 +336,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
         }
       }
 
-      CRM_Core_BAO_Setting::setItem($ids,
-        CRM_DirectDebit_Form_Confirm::SD_SETTING_GROUP, 'rejected_ids'
-      );
+      uk_direct_debit_civicrm_saveSetting('rejected_ids', $ids);
       return $runner;
     }
     return FALSE;
@@ -392,10 +364,6 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       $selectQuery  = "SELECT `receive_date` as receive_date, `amount` as amount FROM `veda_civicrm_smartdebit_import` WHERE `transaction_id` = '{$smartDebitRecord}'";
       $daoSelect    = CRM_Core_DAO::executeQuery($selectQuery);
       $daoSelect->fetch();
-
-      //$financialTypeID    = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
-      // RS: Commenting below line, as we save the financial type ID in civicrm_setting table
-      //$financialTypeID  = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialType', $financialType, 'id', 'name');
 
       // Smart debit charge file has dates in UK format
       // UK dates (eg. 27/05/1990) won't work with strotime, even with timezone properly set.
@@ -567,23 +535,6 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       
       
     }
-
-    // MV : valid contributions details store in custom table
-    // commenting, Not anymore using to store contribution result_ids in setting table
-    // $prevResults      = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Confirm::SD_SETTING_GROUP, 'result_ids');
-
-    // if($prevResults) {
-    //   $compositeResults = array_merge($prevResults, $ids);
-    //   CRM_Core_BAO_Setting::setItem($compositeResults,
-    //     CRM_DirectDebit_Form_Confirm::SD_SETTING_GROUP, 'result_ids'
-    //   );
-    // }
-    // else {
-    //   CRM_Core_BAO_Setting::setItem($ids,
-    //     CRM_DirectDebit_Form_Confirm::SD_SETTING_GROUP, 'result_ids'
-    //   );
-    // }
-
 
     return CRM_Queue_Task::TASK_SUCCESS;
   }

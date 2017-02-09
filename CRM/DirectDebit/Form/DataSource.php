@@ -37,26 +37,6 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     // $dateOfCollection = '2014-01-01';
     $this->addDate('collection_date', ts('Collection Date'), FALSE, array('formatType' => 'custom'));
 
-
-    #end
-
-    // //Setting Upload File Size
-    // $config = CRM_Core_Config::singleton();
-    // if ($config->maxImportFileSize >= 8388608) {
-    //   $uploadFileSize = 8388608;
-    // }
-    // else {
-    //   $uploadFileSize = $config->maxImportFileSize;
-    // }
-    // $uploadSize = round(($uploadFileSize / (1024 * 1024)), 2);
-
-    // $this->assign('uploadSize', $uploadSize);
-
-    // $this->add('file', 'uploadFile', ts('Import Data File'), 'size=30 maxlength=255', TRUE);
-
-    // $this->setMaxFileSize($uploadFileSize);
-
-
     $this->addButtons(array(
         array(
           'type' => 'next',
@@ -154,15 +134,6 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     $url = CRM_Utils_System::url('civicrm/directdebit/syncsd', 'reset=1');
     CRM_Core_Session::singleton()->pushUserContext($url);
   }
-  /**
-   * Return a descriptive name for the page, used in wizard header
-   *
-   * @return string
-   * @access public
-   */
-  public function getTitle() {
-    return ts('Upload Data');
-  }
 
   #MV : added new function to get collections by date
   static function getSmartDebitPayments( $dateOfCollection ) { 
@@ -178,50 +149,40 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
   
     $collections = array();
     $url         = "https://secure.ddprocessing.co.uk/api/get_collection_report?query[service_user][pslid]=$pslid&query[debit_date]=$dateOfCollection";
-    $response    = CRM_DirectDebit_Form_SyncSd::requestPost( $url, $username, $password );
 
-    $url = CRM_Utils_System::url('civicrm/directdebit/syncsd/import');
+    $response    = CRM_DirectDebit_Form_Sync::requestPost( $url, $username, $password );
 
     // Take action based upon the response status
     switch ( strtoupper( $response["Status"] ) ) {
-        case 'OK':
-	  if (!isset($response['Successes']) || !isset($response['Rejects'])) {
-	    if (isset($response['Summary'])) { $error_msg = $response['Summary']; }
-	    else if (isset($response['error'])) { $error_msg = $response['error']; }
-	    else { $error_msg = 'No Collections to report'; }
-	    CRM_Core_Session::singleton()->pushUserContext($url);
-	    CRM_Core_Session::setStatus($error_msg, ts('Smart Debit'), 'info');
-	    return FALSE;
-	  }
+      case 'OK':
+        if (!isset($response['Successes']) || !isset($response['Rejects'])) {
+          $url = CRM_Utils_System::url('civicrm/directdebit/syncsd/import');
+          CRM_Core_Session::setStatus($response['Summary'], ts('Sorry'), 'error');
+          CRM_Utils_System::redirect($url);
+          return FALSE;
+        }
 
-            $collections = array();
+        $collections = array();
 
-            // Cater for a single response
-            if (isset($response['Successes']['Success']['@attributes'])) {
-              $collections[] = $response['Successes']['Success']['@attributes'];
-            } else {
-              foreach ($response['Successes']['Success'] as $key => $value) {
-                $collections[] = $value['@attributes'];
-              }         
-            }         
-            return $collections;
-	case 'INVALID':
-	  $msg = "<ul>";
-	  $msg .= "<li>";
-	  $msg .= $response['body']['div']['h1'];
-	  $msg .= "</li>";
-	  $msg .= "<li>";
-	  $msg .= $response['body']['div']['p'];
-	  $msg .= "</li>";
-	  $msg .= "</ul>";
-      CRM_Core_Session::singleton()->pushUserContext($url);
-      CRM_Core_Session::setStatus($response['error'], ts('Smart Debit'), 'error');
-	  return FALSE;
+        // Cater for a single response
+        if (isset($response['Successes']['Success']['@attributes'])) {
+          $collections[] = $response['Successes']['Success']['@attributes'];
+        } else {
+          foreach ($response['Successes']['Success'] as $key => $value) {
+            $collections[] = $value['@attributes'];
+          }
+        }
+        return $collections;
 
-	default:
-      return false;
+      case 'INVALID':
+        $url = CRM_Utils_System::url('civicrm/directdebit/syncsd/import');
+        CRM_Core_Session::setStatus($response['error'], ts('UK Direct Debit'), 'error');
+        CRM_Utils_System::redirect($url);
+        return FALSE;
+            
+      default:
+        return false;
     }//end switch
-   
   }
 
   static function getSmartDebitUserDetails(){
@@ -231,7 +192,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     $domainID               = CRM_Core_Config::domainID();
 
     if(empty($paymentProcessorTypeId)) {
-      CRM_Core_Session::setStatus(ts('Make sure Payment Processor Type (Smart Debit) is set in Payment Processor setting'), ts('Smart Debit'), 'error');
+      CRM_Core_Session::setStatus(ts('Make sure Payment Processor Type (Smart Debit) is set in Payment Processor setting'), ts('UK Direct Debit'), 'error');
       return FALSE;
     }
 
@@ -251,7 +212,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
     $result = array();
     if ($dao->fetch()) {
       if(empty($dao->user_name) || empty($dao->password) || empty($dao->signature)) {
-        CRM_Core_Session::setStatus(ts('Smart Debit API User Details Missing, Please check the Smart Debit Payment Processor is configured Properly'), ts('Smart Debit'), 'error');
+        CRM_Core_Session::setStatus(ts('Smart Debit API User Details Missing, Please check the Smart Debit Payment Processor is configured Properly'), ts('UK Direct Debit'), 'error');
         return FALSE;
       }
       $result   = array(

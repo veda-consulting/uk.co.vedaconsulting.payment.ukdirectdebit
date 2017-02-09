@@ -16,9 +16,9 @@
     <url desc="Licensing"></url>
   </urls>
   <license>AGPL</license>
-  <releaseDate>2016-08-22</releaseDate>
-  <version>2.3.9</version>
-  <develStage>stable</develStage>
+  <releaseDate>2017-02-08</releaseDate>
+  <version>2.4.0</version>
+  <develStage>testing</develStage>
   <compatibility><ver>4.7</ver></compatibility>
   <comments></comments>
 </extension>

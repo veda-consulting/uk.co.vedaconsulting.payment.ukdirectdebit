@@ -5,14 +5,13 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
   const END_URL    = 'civicrm/directdebit/sync';
   const END_PARAMS = 'state=done';
   const BATCH_COUNT = 10;
-  const SD_SETTING_GROUP = 'SmartDebit Preferences';
-  
+
   function preProcess() {
     $state = CRM_Utils_Request::retrieve('state', 'String', CRM_Core_DAO::$_nullObject, FALSE, 'tmp', 'GET');
     if ($state == 'done') {
       $stats  = array();
-      $stats = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats');
-      $total  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'total');
+      $stats = uk_direct_debit_civicrm_getSetting('sd_stats');
+      $total  = uk_direct_debit_civicrm_getSetting('total');
       $stats['Total'] = $total;
       $this->assign('stats', $stats);
     }
@@ -31,7 +30,7 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
   }
   
   public function postProcess() {
-    $financialType    = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
+    $financialType = uk_direct_debit_civicrm_getSetting('financial_type');
     $financialTypeID  = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialType', $financialType, 'id', 'name');
     if(empty($financialTypeID)) {
       CRM_Core_Session::setStatus(ts('Make sure financial Type is set in the setting'), 'Error', 'error');
@@ -57,12 +56,9 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
     $transactionIdList = "'dummyId'";  //Initialised so have at least one entry in list
     $smartDebitArray = self::getSmartDebitPayments();
     $count  = count($smartDebitArray);
-    
-    CRM_Core_BAO_Setting::setItem($count,
-        CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP,
-        'total'
-      );
-    
+
+    uk_direct_debit_civicrm_saveSetting('total', $count);
+
     // Set the Number of Rounds
     $rounds = ceil($count/self::BATCH_COUNT);
     // Setup a Task in the Queue
@@ -90,9 +86,8 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
         'errorMode'=> CRM_Queue_Runner::ERROR_ABORT,
         'onEndUrl' => CRM_Utils_System::url(self::END_URL, self::END_PARAMS, TRUE, NULL, FALSE),
       ));
-      
-      $query = "UPDATE civicrm_setting SET value = NULL WHERE name = 'sd_stats'"; 
-      CRM_Core_DAO::executeQuery($query);
+
+      uk_direct_debit_civicrm_saveSetting('sd_stats', NULL);
       return $runner;
     }
     return FALSE;
@@ -117,9 +112,9 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
         $frequency_unit   = CRM_Utils_Array::value($frequencyUnit, $frequencyUnits);
         $start_date       = CRM_Utils_Date::processDate($smartDebitRecord['start_date']);
         
-        $api_contact_key              = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'api_contact_key');
-        $api_contact_val_regex        = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'api_contact_val_regex');
-        $api_contact_val_regex_index  = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'api_contact_val_regex_index');
+        $api_contact_key = uk_direct_debit_civicrm_getSetting('api_contact_key');
+        $api_contact_val_regex = uk_direct_debit_civicrm_getSetting('api_contact_val_regex');
+        $api_contact_val_regex_index = uk_direct_debit_civicrm_getSetting('api_contact_val_regex_index');
         
         $contact          = new CRM_Contact_BAO_Contact();
         if(!$api_contact_val_regex) {
@@ -202,10 +197,16 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
         }
         else {
           CRM_Core_Error::debug_log_message( 'syncSmartDebitRecords: Contact not found in CiviCRM ID=  '. print_r($contact->id, true), $out = false );
-          $setting  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats');
-          CRM_Core_BAO_Setting::setItem(array('Added' => $setting['Added'], 'New' => $setting['New'], 'Canceled' => $setting['Canceled'], 'Failed' => $setting['Failed'], 'Not_Handled' => (1+ $setting['Not_Handled']), 'Live' => $setting['Live']),
-            CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats'
-          );
+          $setting = uk_direct_debit_civicrm_getSetting('sd_stats');
+          uk_direct_debit_civicrm_saveSetting('sd_stats',
+            array(
+              'Added' => $setting['Added'],
+              'New' => $setting['New'],
+              'Canceled' => $setting['Canceled'],
+              'Failed' => $setting['Failed'],
+              'Not_Handled' => (1+ $setting['Not_Handled']),
+              'Live' => $setting['Live'])
+            );
         }
       }
     }
@@ -223,29 +224,11 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
    }
    
   static function getSmartDebitPayments($referenceNumber = NULL) {
-    $paymentProcessorType = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
-    $paymentProcessorTypeId = CRM_Utils_Array::key('Smart Debit', $paymentProcessorType);
-  
-      $sql  = " SELECT user_name ";
-      $sql .= " ,      password ";
-      $sql .= " ,      signature "; 
-      $sql .= " FROM civicrm_payment_processor "; 
-      $sql .= " WHERE payment_processor_type_id = %1 "; 
-      $sql .= " AND is_test= %2 ";
 
-      $params = array( 1 => array( $paymentProcessorTypeId, 'Integer' )
-                     , 2 => array( '0', 'Int' )    
-                     );
-
-      $dao = CRM_Core_DAO::executeQuery( $sql, $params);
-
-      if ($dao->fetch()) {
-
-          $username = $dao->user_name;
-          $password = $dao->password;
-          $pslid    = $dao->signature;
-
-      }
+    $userDetails = CRM_DirectDebit_Form_DataSource::getSmartDebitUserDetails();
+    $username    = CRM_Utils_Array::value('username', $userDetails);
+    $password    = CRM_Utils_Array::value('password', $userDetails);
+    $pslid       = CRM_Utils_Array::value('pslid', $userDetails);
     
     // Send payment POST to the target URL
     $url = "https://secure.ddprocessing.co.uk/api/data/dump?query[service_user][pslid]=$pslid&query[report_format]=XML";
@@ -370,7 +353,7 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
     }
   
     if($recurID && !$contributionID){
-      $financialType  = CRM_Core_BAO_Setting::getItem('UK Direct Debit', 'financial_type');
+      $financialType = uk_direct_debit_civicrm_getSetting('financial_type');
       $invoiceID        = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $recurID, 'invoice_id', 'id');
       $contactID        = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $recurID, 'contact_id', 'id');
       $financialTypeID  = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialType', $financialType, 'id', 'name');
@@ -472,9 +455,16 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
         break;
 
     }
-    $setting  = CRM_Core_BAO_Setting::getItem(CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats');
-    CRM_Core_BAO_Setting::setItem(array('Added' => ($added + $setting['Added']), 'New' => ($new + $setting['New']), 'Canceled' => ($canceled + $setting['Canceled']), 'Failed' => ($failed + $setting['Failed']), 'Not_Handled' => $setting['Not_Handled'], 'Live' => ($live + $setting['Live'])),
-      CRM_DirectDebit_Form_Sync::SD_SETTING_GROUP, 'sd_stats'
+    $setting = uk_direct_debit_civicrm_getSetting('sd_stats');
+    uk_direct_debit_civicrm_saveSetting('sd_stats',
+      array(
+        'Added' => ($added + $setting['Added']),
+        'New' => ($new + $setting['New']),
+        'Canceled' => ($canceled + $setting['Canceled']),
+        'Failed' => ($failed + $setting['Failed']),
+        'Not_Handled' => $setting['Not_Handled'],
+        'Live' => ($live + $setting['Live'])
+      )
     );
   }
 }
