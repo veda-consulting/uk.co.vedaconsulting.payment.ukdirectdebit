@@ -17,7 +17,7 @@ class CRM_DirectDebit_Form_Settings extends CRM_Core_Form {
     function buildQuickForm() {
       parent::buildQuickForm();
 
-      CRM_Utils_System::setTitle(ts('UK Direct Debit - Settings', array('domain' => 'ukdirectdebit')));
+      CRM_Utils_System::setTitle(ts('UK Direct Debit - Settings'));
 
       $settings = $this->getFormSettings();
 
