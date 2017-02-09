@@ -230,7 +230,7 @@ function uk_direct_debit_civicrm_navigationMenu( &$params ) {
         'attributes' => array (
             'label'      => 'UK Direct Debit Settings',
             'name'       => 'UK Direct Debit Settings',
-            'url'        => 'civicrm/directdebit/settings',
+            'url'        => 'civicrm/directdebit/settings?reset=1',
             'permission' => 'administer CiviCRM',
             'operator'   => "NULL",
             'separator'  => 1,

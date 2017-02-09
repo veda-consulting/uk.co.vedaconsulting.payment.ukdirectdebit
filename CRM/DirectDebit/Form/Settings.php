@@ -106,9 +106,7 @@ class CRM_DirectDebit_Form_Settings extends CRM_Core_Form {
      * @return array
      */
     function getFormSettings() {
-        if (empty($this->_settings)) {
-            $settings = civicrm_api3('setting', 'getfields', array('filters' => $this->_settingFilter));
-        }
+        $settings = civicrm_api3('setting', 'getfields', array('filters' => $this->_settingFilter));
         return $settings;
     }
 
