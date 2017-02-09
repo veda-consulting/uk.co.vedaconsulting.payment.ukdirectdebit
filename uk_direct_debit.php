@@ -13,8 +13,8 @@ function uk_direct_debit_civicrm_saveSetting($name, $value) {
  * Read setting that has prefix in database and return single value
  */
 function uk_direct_debit_civicrm_getSetting($name) {
-  $values = civicrm_api3('setting', 'get', array('return' => CRM_DirectDebit_Form_settings::getSettingName($name,true)));
-  return $values[CRM_DirectDebit_Form_settings::getSettingName($name,true)];
+  $values = civicrm_api3('setting', 'get', array('return' => CRM_DirectDebit_Form_Settings::getSettingName($name,true)));
+  return $values[CRM_DirectDebit_Form_Settings::getSettingName($name,true)];
 }
 
 /**
