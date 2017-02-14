@@ -735,7 +735,8 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
       ));
   }
 
-  if ($formName == 'CRM_Financial_Form_Payment') {
+  if (($formName == 'CRM_Financial_Form_Payment')
+      || $formName == 'CRM_Contribute_Form_Contribution_Main') {
       CRM_Core_Region::instance('billing-block-pre')->add(array(
           'template' => 'CRM/Core/BillingBlockPre.tpl',
       ));
