@@ -106,30 +106,6 @@ function uk_direct_debit_civicrm_install() {
     'is_active'     => 0,
   );
   $result = civicrm_api3('job', 'create', $params);
-
-  $parentId = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Navigation', 'Contributions', 'id', 'name');
-  $weight   = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Navigation', 'Import Contributions', 'weight', 'name');
-
-  if ($parentId) {
-    $smartdebitMenu =
-      array(
-        array(
-          'label' => ts('Import Smart Debit Contributions'),
-          'name'  => 'Import Smart Debit Contributions',
-          'url'   => 'civicrm/directdebit/syncsd/import?reset=1',
-        ),
-      );
-
-    foreach ($smartdebitMenu as $key => $menuItems) {
-      $menuItems['is_active'] = 1;
-      $menuItems['parent_id'] = $parentId;
-      $menuItems['weight']    = ++$weight;
-      $menuItems['permission'] = 'administer CiviCRM';
-      CRM_Core_BAO_Navigation::add($menuItems);
-    }
-    CRM_Core_BAO_Navigation::resetNavigation();
-  }
-
 }
 
 /**
@@ -188,57 +164,39 @@ function uk_direct_debit_civicrm_xmlMenu( &$files ) {
  */
 function uk_direct_debit_civicrm_navigationMenu( &$params ) {
 
-    #Get the maximum key of $params
-    $navId = max(array_keys($params));
-
-    #set settings navigation Id
-    $directDebitId = $navId+1;
-
-    // Get the id of System Settings Menu
-    $administerMenuId = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Navigation', 'Administer', 'id', 'name');
-    $parentId = !empty($administerMenuId) ? $administerMenuId : NULL;
-    $navId++;
-    $params[$parentId]['child'][$directDebitId]= array(
-        'attributes' => array (
-            'label'      => 'UK Direct Debit',
+  $item[] =  array (
             'name'       => 'UK Direct Debit',
             'url'        => null,
             'permission' => 'administer CiviCRM',
             'operator'   => null,
             'separator'  => null,
-            'parentID'   => $parentId,
-            'navID'      => $navId,
-            'active'     => 1
-        )
-    );
-    $navId++;
-    $params[$parentId]['child'][$directDebitId]['child'][$navId]= array(
-        'attributes' => array (
-            'label'      => 'Mark Auddis',
+  );
+  _uk_direct_debit_civix_insert_navigation_menu($params, 'Administer', $item[0]);
+  $item[] = array (
             'name'       => 'Mark Auddis',
             'url'        => 'civicrm/directdebit/syncsd/activity?reset=1',
             'permission' => 'administer CiviCRM',
             'operator'   => null,
             'separator'  => null,
-            'parentID'   => $directDebitId,
-            'navID'      => $navId,
-            'active'     => 1
-        )
-    );
-    $navId++;
-    $params[$parentId]['child'][$directDebitId]['child'][$navId]= array(
-        'attributes' => array (
-            'label'      => 'UK Direct Debit Settings',
+  );
+  $item[] = array (
             'name'       => 'UK Direct Debit Settings',
             'url'        => 'civicrm/directdebit/settings?reset=1',
             'permission' => 'administer CiviCRM',
             'operator'   => "NULL",
             'separator'  => 1,
-            'parentID'   => $directDebitId,
-            'navID'      => $navId,
-            'active'     => 1
-        )
-    );
+  );
+  _uk_direct_debit_civix_insert_navigation_menu($params, 'Administer/UK Direct Debit', $item[1]);
+  _uk_direct_debit_civix_insert_navigation_menu($params, 'Administer/UK Direct Debit', $item[2]);
+
+  $item[] = array(
+          'label' => ts('Import Smart Debit Contributions'),
+          'name'  => 'Import Smart Debit Contributions',
+          'url'   => 'civicrm/directdebit/syncsd/import?reset=1',
+          'permission' => 'administer CiviCRM',
+  );
+
+  _uk_direct_debit_civix_insert_navigation_menu($params, 'Contributions', $item[3]);
 }
 
 

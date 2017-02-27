@@ -293,7 +293,7 @@ function _uk_direct_debit_civix_insert_navigation_menu(&$menu, $path, $item) {
     $first = array_shift($path);
     foreach ($menu as $key => &$entry) {
       if ($entry['attributes']['name'] == $first) {
-        if (!$entry['child']) {
+        if (!isset($entry['child'])) {
           $entry['child'] = array();
         }
         $found = _uk_direct_debit_civix_insert_navigation_menu($entry['child'], implode('/', $path), $item, $key);
