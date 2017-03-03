@@ -90,8 +90,7 @@ class CRM_Member_Form_Task_RenewMembership extends CRM_Member_Form_Task {
         $i = 0;
         
         $submittedValues = $this->_submitValues;
-        
-//        $contributionSource = "Bulk Renewal (offline) : ".date("F j, Y, g:i a");
+
         $contributionSource = $submittedValues['description'];
         $activityDate      = $submittedValues['activity_date'];
         
@@ -105,9 +104,7 @@ class CRM_Member_Form_Task_RenewMembership extends CRM_Member_Form_Task {
                                                 )
                                         );
 
-        $paymentInstrumentId = $paymentInstrument['values'][0]['value'];                                        
-
-        $autoRenewMembership = UK_Direct_Debit_Form_Main::getAutoRenewMembership();
+        $paymentInstrumentId = $paymentInstrument['values'][0]['value'];
 
         // Get all the membership types we 
         foreach ($this->_memberIds as $memberId) {
@@ -144,45 +141,6 @@ class CRM_Member_Form_Task_RenewMembership extends CRM_Member_Form_Task {
                 $memParams['end_date'] = CRM_Utils_Array::value('end_date', $dates);
                 $memParams['reminder_date'] = CRM_Utils_Array::value('reminder_date', $dates);
 
-                //set the log start date.
-    //            $memParams['log_start_date'] = CRM_Utils_Date::customFormat($dates['log_start_date'], $format);
-
-//                $membershipType = civicrm_api("MembershipType","get", array ('version' => '3','id' => $membershipTypeID));
-
-/*
-                if ($autoRenewMembership = 'Y') {
-                
-                    // Get the Contribution ID
-                    $getMembershipPayment = civicrm_api("MembershipPayment"
-                                                       ,"get"
-                                                       , array ('version'       => '3'
-                                                               ,'membership_id' => $memberId
-                                                               )
-                                                       );
-                                                                           
-                    $contributionID = $getMembershipPayment['values'][$getMembershipPayment['id']]['contribution_id']; 
-
-                    // Get the contribution
-                    $contribution = civicrm_api("Contribution"
-                                               ,"get"
-                                               ,array ('version'         => '3'
-                                                      ,'contribution_id' => $contributionID
-                                                      )
-                                               );
-                                               
-                    $contributionReceiveDate = $contribution['values'][$contributionID]['receive_date'];                                              
-                    $contributionReceiveDate = date("Ymd", strtotime($contributionReceiveDate));
-                       
-                    $membershipEndDateString = date("Ymd", strtotime($membershipEndDate));
-                    
-                    if ($contributionReceiveDate > $membershipEndDateString) {
-                        $memParams['end_date'] = date("Y-m-d",strtotime(date("Y-m-d", strtotime($membershipEndDate)) . " +1 month"));
-
-                    }
-
-                }
-*/                
-
                 $updatedMember = civicrm_api("Membership"
                                             ,"create"
                                             , array ('version'       => '3',
@@ -191,19 +149,9 @@ class CRM_Member_Form_Task_RenewMembership extends CRM_Member_Form_Task {
                                                      'end_date'      => $memParams['end_date'],
                                                      'reminder_date' => $memParams['reminder_date'],
                                                     )
-                                            );            
-
-//                $membershipFee = $membershipType['values'][$membershipTypeID]['minimum_fee'];
-
-    //            $contributionReceiveDate = date('YmdHis', mktime(0, 0, 0, $submittedValues['membership_contribution_date']['m'] , $submittedValues['membership_contribution_date']['d'], $submittedValues['membership_contribution_date']['Y']));
-//date("F j, Y, g:i a")
-
+                                            );
             }
             
-
-//            if ($autoRenewMembership != 'Y') {
-            
-            $contributionReceiveDate = date('YmdHis');
             $contributionReceiveDate = date('YmdHis', strtotime($activityDate));
 
             // Create the contribution
@@ -218,10 +166,6 @@ class CRM_Member_Form_Task_RenewMembership extends CRM_Member_Form_Task {
                                          , 'receive_date'           => $contributionReceiveDate
                                          , 'contribution_status_id' => '1'));
 
-//            }                                         
-
-            // If recurring membership need to update the membership end_date to the next frequency as have just paid for it to renew again.  
-//            if (($contributionRecurID) && ($autoRenewMembership != 'Y')) {    
             if ($contributionRecurID) {    
       
                 $contributionRecurring = civicrm_api("ContributionRecur"
@@ -289,8 +233,6 @@ class CRM_Member_Form_Task_RenewMembership extends CRM_Member_Form_Task {
         
         CRM_Core_Session::setStatus($status);
     }
-
-
 }
 
 

@@ -267,7 +267,6 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
                                                                'title'       => ts( 'Preferred Collection Day' ),
                                                                'cc_field'    => TRUE,
                                                                'attributes'  => $collectionDaysArray, // array('1' => '1st', '8' => '8th', '21' => '21st'),
-                                                         //      'attributes' => array('1' => '1st', '8' => '8th', '21' => '21st'),
                                                                'is_required' => TRUE
                                                              );
 
@@ -361,7 +360,7 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     $form->setDefaults($defaults);
   }
 
-  static function formatPrefferedCollectionDay( $collectionDay ) {
+  static function formatPreferredCollectionDay( $collectionDay ) {
     $ends = array( 'th'
                  , 'st'
                  , 'nd'
@@ -434,7 +433,7 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
 
     // Loop through and format each label
     foreach( $allCollectionDays as $key => $value ){
-      $collectionDaysArray[$value] = self::formatPrefferedCollectionDay( $value );
+      $collectionDaysArray[$value] = self::formatPreferredCollectionDay( $value );
     }
 
     return $collectionDaysArray;
@@ -456,7 +455,7 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     $params['contactID'] = $objects['contact']->id;
     $params['trxn_id'] = $objects['contributionRecur']->trxn_id;
 
-    // Get the prefered communication method
+    // Get the preferred communication method
     $sql = <<<EOF
     SELECT confirmation_method
     FROM   civicrm_direct_debit

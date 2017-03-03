@@ -15,7 +15,6 @@ return array(
     'is_contact' => 0,
     'description' => 'Direct Debit Payment Method',
     'html_attributes' => array(),
-    'help_text' => '',
   ),
 
 //financial_type
@@ -31,7 +30,6 @@ return array(
     'is_contact' => 0,
     'description' => 'Direct Debit Financial Type',
     'html_attributes' => array(),
-    'help_text' => '',
   ),
 
 //activity_type
@@ -47,7 +45,6 @@ return array(
     'is_contact' => 0,
     'description' => 'Direct Debit Activity Type (Sign Up)',
     'html_attributes' => array(),
-    'help_text' => '',
   ),
 
 //activity_type_letter
@@ -63,7 +60,6 @@ return array(
     'is_contact' => 0,
     'description' => 'Direct Debit Activity Type (Letter)',
     'html_attributes' => array(),
-    'help_text' => '',
   ),
 
 //collection_interval
@@ -78,12 +74,10 @@ return array(
     'is_domain' => 1,
     'is_contact' => 0,
     'description' => 'Direct Debit Collection Interval',
-    'help_text' => 'eg. 15',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
     ),
-
   ),
 
 //collection_days
@@ -97,7 +91,6 @@ return array(
     'is_contact' => 0,
     'default' => '1,8,22',
     'description' => 'Direct Debit Collection Days',
-    'help_text' => 'eg. 1,8,22',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -116,27 +109,6 @@ return array(
     'is_domain' => 1,
     'is_contact' => 0,
     'description' => 'Direct Debit Service User Number (SUN)',
-    'help_text' => 'eg. Assigned by your bank/direct debit provider',
-    'html_type' => 'Text',
-    'html_attributes' => array(
-      'size' => 50,
-    ),
-  ),
-
-//auto_renew_membership
-  'ukdirectdebit_auto_renew_membership' => array(
-    'group_name' => 'UK Direct Debit Settings',
-    'group' => 'ukdirectdebit',
-    'name' => 'ukdirectdebit_auto_renew_membership',
-    'type' => 'Boolean',
-    'quick_form_type' => 'YesNo',
-    'html_type' => 'checkbox',
-    'default' => 1,
-    'add' => '4.7',
-    'is_domain' => 1,
-    'is_contact' => 0,
-    'description' => 'Auto Renew Membership',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -154,7 +126,6 @@ return array(
     'is_contact' => 0,
     'default' => '',
     'description' => 'Company Name',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -171,7 +142,6 @@ return array(
     'is_contact' => 0,
     'default' => '',
     'description' => 'Direct Debit Telephone Number',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -189,7 +159,6 @@ return array(
     'is_contact' => 0,
     'default' => '',
     'description' => 'Direct Debit Email Address',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -207,7 +176,6 @@ return array(
     'is_contact' => 0,
     'default' => '',
     'description' => 'Direct Debit Domain Name',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -225,7 +193,6 @@ return array(
     'is_contact' => 0,
     'default' => '',
     'description' => 'Direct Debit Company Address (Line 1)',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -244,7 +211,6 @@ return array(
     'is_contact' => 0,
     'default' => '',
     'description' => 'Direct Debit Company Address (Line 2)',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -263,7 +229,6 @@ return array(
     'is_contact' => 0,
     'default' => '',
     'description' => 'Direct Debit Company Address (Line 3)',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -282,7 +247,6 @@ return array(
     'is_contact' => 0,
     'default' => '',
     'description' => 'Direct Debit Company Address (Line 4)',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -301,7 +265,6 @@ return array(
     'is_contact' => 0,
     'default' => '',
     'description' => 'Direct Debit Company Town',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -320,7 +283,6 @@ return array(
     'is_contact' => 0,
     'default' => '',
     'description' => 'Direct Debit Company County',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -339,7 +301,6 @@ return array(
     'is_contact' => 0,
     'default' => '',
     'description' => 'Direct Debit Company Postcode',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -357,7 +318,6 @@ return array(
     'is_contact' => 0,
     'default' => '',
     'description' => 'Direct Debit Transaction Prefix',
-    'help_text' => 'eg. WEB',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -375,7 +335,6 @@ return array(
     'is_contact' => 0,
     'default' => 'payerReference',
     'description' => 'Direct Debit API Contact Key',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -393,7 +352,6 @@ return array(
     'is_domain' => 1,
     'is_contact' => 0,
     'description' => 'Direct Debit API Contact Val Regex',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,
@@ -411,7 +369,6 @@ return array(
     'is_domain' => 1,
     'is_contact' => 0,
     'description' => 'Direct Debit API Contact Val Regex Index',
-    'help_text' => '',
     'html_type' => 'Text',
     'html_attributes' => array(
       'size' => 50,

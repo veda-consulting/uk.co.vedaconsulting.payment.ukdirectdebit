@@ -915,10 +915,6 @@ function call_CiviCRM_IPN($url){
  */
 function renew_membership_by_one_period($membershipID) {
 
-    $autoRenewMembership = UK_Direct_Debit_Form_Main::getAutoRenewMembership();
-
-    if ($autoRenewMembership = 'Y') {
-
         // Check if Membership End Date has been updated
         $getMembership = civicrm_api("Membership"
                                     ,"get"
@@ -978,9 +974,6 @@ function renew_membership_by_one_period($membershipID) {
                                              'end_date'      => $membershipEndDateString,
                                             )
                                     );
-
-    }
-
 }
 
 /**
@@ -1122,7 +1115,6 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
                 CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess #2');
 
                 $paymentProcessorType = urlencode( $form->_paymentProcessor['payment_processor_type'] );
-                //$membershipID         = urlencode( $form->_values['membership_id'] );
                 $membershipID         = urlencode( $form->_params['membershipID'] );
                 $contactID            = urlencode( $form->getVar( '_contactID' ) );
                 $invoiceID            = urlencode( $form->_params['invoiceID'] );
@@ -1153,7 +1145,6 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
                 CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess url='.$url);
                 call_CiviCRM_IPN($url);
 
-                //dpm($membershipID, "Before renew_membership - membershipID");
                 renew_membership_by_one_period($membershipID);
 
                 return;
