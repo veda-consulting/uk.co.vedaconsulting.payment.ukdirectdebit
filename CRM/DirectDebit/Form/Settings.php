@@ -38,6 +38,7 @@ class CRM_DirectDebit_Form_Settings extends CRM_Core_Form {
 
       $this->addElement('select', 'activity_type', ts('Activity Type (Sign Up)'), array('' => ts('- select -')) + CRM_Core_OptionGroup::values('activity_type'));
       $this->addElement('select', 'activity_type_letter', ts('Activity Type (Letter)'), array('' => ts('- select -')) + CRM_Core_OptionGroup::values('activity_type'));
+      $this->addElement('select', 'collection_frequency', ts('Collection Frequency'), array(0 => "Yearly", 1 => "Quarterly", 2 => "Monthly"));
 
       foreach ($settings['values'] as $name => $setting) {
             if (isset($setting['type'])) {

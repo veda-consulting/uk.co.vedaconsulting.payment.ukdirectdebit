@@ -734,7 +734,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
 
             if ($dao->fetch()) {
 
-                $uk_direct_debit['formatted_preferred_collection_day'] = UK_Direct_Debit_Form_Main::formatPrefferedCollectionDay($dao->preferred_collection_day);
+                $uk_direct_debit['formatted_preferred_collection_day'] = UK_Direct_Debit_Form_Main::formatPreferredCollectionDay($dao->preferred_collection_day);
                 $uk_direct_debit['company_name']             = UK_Direct_Debit_Form_Main::getCompanyName();
                 $uk_direct_debit['bank_name']                = $dao->bank_name;
                 $uk_direct_debit['branch']                   = $dao->branch;
@@ -748,7 +748,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
                 $uk_direct_debit['first_collection_date']    = $dao->first_collection_date;
                 $uk_direct_debit['preferred_collection_day'] = $dao->preferred_collection_day;
                 $uk_direct_debit['confirmation_method']      = $dao->confirmation_method;
-                $uk_direct_debit['formatted_preferred_collection_day'] = UK_Direct_Debit_Form_Main::formatPrefferedCollectionDay($dao->preferred_collection_day);
+                $uk_direct_debit['formatted_preferred_collection_day'] = UK_Direct_Debit_Form_Main::formatPreferredCollectionDay($dao->preferred_collection_day);
                 $uk_direct_debit['company_name']             = UK_Direct_Debit_Form_Main::getCompanyName();
 
                 /** TO DO Unset the unused fields **/
@@ -760,7 +760,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
 
         }
         else if ($form->_paymentProcessor['payment_processor_type'] == 'Gocardless') {
-          $uk_direct_debit['formatted_preferred_collection_day'] 	= UK_Direct_Debit_Form_Main::formatPrefferedCollectionDay($form->_params['preferred_collection_day']);
+          $uk_direct_debit['formatted_preferred_collection_day'] 	= UK_Direct_Debit_Form_Main::formatPreferredCollectionDay($form->_params['preferred_collection_day']);
           $collectionDate                                         = UK_Direct_Debit_Form_Main::firstCollectionDate($form->_params['preferred_collection_day'], null); 			
           $uk_direct_debit['first_collection_date']               = $collectionDate->format("Y-m-d");
           $uk_direct_debit['confirmation_method']                 = 'EMAIL'; //KJ fixme as we don't give options to choose
