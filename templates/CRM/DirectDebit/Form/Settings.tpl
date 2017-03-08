@@ -8,8 +8,8 @@
 {* FIELD EXAMPLE: OPTION 1 (AUTOMATIC LAYOUT) *}
   {foreach from=$elementNames item=elementName}
     <div class="crm-section">
-      <div class="label">{$form.$elementName.label}</div>
-      <div class="content">{$form.$elementName.html} {help id=$elementName title=$form.$elementName.label}</div>
+      <div class="label">{$form.$elementName.label} {help id=$elementName title=$form.$elementName.label}</div>
+      <div class="content">{$form.$elementName.html}</div>
       <div class="clear"></div>
     </div>
   {/foreach}
