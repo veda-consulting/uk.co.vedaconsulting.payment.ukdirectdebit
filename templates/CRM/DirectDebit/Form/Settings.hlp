@@ -27,7 +27,8 @@
 {ts}Select the payment method to record for direct debit payments (usually "Direct Debit"){/ts}
 {/htxt}
 {htxt id='financial_type'}
-{ts}Select the financial type to record for direct debit payments (For example if you use Direct Debit for your membership fees select "Member Dues"){/ts}
+{ts}Select the financial type to record for direct debit payment. Normally this will already be set by the contribution page - it will only be used when syncing from SmartDebit.
+ (For example if you use Direct Debit for your membership fees select "Member Dues"){/ts}
 {/htxt}
 {htxt id='activity_type'}
 {ts}Select the activity type to record each time a contact signs up for a new Direct Debit{/ts}
