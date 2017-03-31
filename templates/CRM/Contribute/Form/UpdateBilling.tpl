@@ -33,14 +33,14 @@
     {if $installments}
       {ts 1=$installments}for %1 installments{/ts}.
     {/if}</strong>
-    {if $paymentProcessor.payment_processor_type eq 'Smart Debit'}
+    {if $paymentProcessor.payment_processor_type eq 'Smart_Debit'}
       <div class="content">{ts}Use this form to update the direct debit billing name and address used for this recurring contribution.{/ts}</div>
     {else}
       <div class="content">{ts}Use this form to update the credit card and billing name and address used for this recurring contribution.{/ts}</div>
     {/if}
   {/if}
 </div>
-{if $paymentProcessor.payment_processor_type eq 'Smart Debit'}
+{if $paymentProcessor.payment_processor_type eq 'Smart_Debit'}
   <div class="crm-block crm-form-block crm-contribution-form-block">
     <fieldset class="billing_name_address-group">
     <legend>{ts}Billing Name and Address{/ts}</legend>

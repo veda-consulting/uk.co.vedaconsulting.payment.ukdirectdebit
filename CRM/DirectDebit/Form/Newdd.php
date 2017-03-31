@@ -167,7 +167,7 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
       
     }
     
-    $paymentProcessorType = urlencode( 'Smart Debit' );
+    $paymentProcessorType = urlencode( 'Smart_Debit' );
     $paymentType	  = urlencode( $this->_paymentProcessor['payment_type']);
     $membershipID         = urlencode( $this->_id );
     $contactID            = urlencode( $this->_contactID );
@@ -214,7 +214,7 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
     
   static function getSmartDebitDetails(){
     $paymentProcessorType   = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
-    $paymentProcessorTypeId = CRM_Utils_Array::key('Smart Debit', $paymentProcessorType);
+    $paymentProcessorTypeId = CRM_Utils_Array::key('Smart_Debit', $paymentProcessorType);
     $domainID               = CRM_Core_Config::domainID();
 
     if(empty($paymentProcessorTypeId)) {

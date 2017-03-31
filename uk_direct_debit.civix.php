@@ -128,14 +128,14 @@ function _uk_direct_debit_civix_civicrm_upgrade($op, CRM_Queue_Queue $queue = NU
 }
 
 /**
- * @return CRM_uk_direct_debit_Upgrader
+ * @return _Upgrader
  */
 function _uk_direct_debit_civix_upgrader() {
-  if (!file_exists(__DIR__ . '/CRM/Testing/Upgrader.php')) {
+  if (!file_exists(__DIR__ . '//Upgrader.php')) {
     return NULL;
   }
   else {
-    return CRM_uk_direct_debit_Upgrader_Base::instance();
+    return _Upgrader_Base::instance();
   }
 }
 
@@ -190,9 +190,12 @@ function _uk_direct_debit_civix_civicrm_managed(&$entities) {
     $es = include $file;
     foreach ($es as $e) {
       if (empty($e['module'])) {
-        $e['module'] = 'uk.co.mjwconsult.testing';
+        $e['module'] = 'uk.co.vedaconsulting.payment.ukdirectdebit';
       }
       $entities[] = $e;
+      if (empty($e['params']['version'])) {
+        $e['params']['version'] = '3';
+      }
     }
   }
 }
@@ -219,7 +222,7 @@ function _uk_direct_debit_civix_civicrm_caseTypes(&$caseTypes) {
       // throw new CRM_Core_Exception($errorMessage);
     }
     $caseTypes[$name] = array(
-      'module' => 'uk.co.mjwconsult.testing',
+      'module' => 'uk.co.vedaconsulting.payment.ukdirectdebit',
       'name' => $name,
       'file' => $file,
     );
@@ -245,7 +248,7 @@ function _uk_direct_debit_civix_civicrm_angularModules(&$angularModules) {
     $name = preg_replace(':\.ang\.php$:', '', basename($file));
     $module = include $file;
     if (empty($module['ext'])) {
-      $module['ext'] = 'uk.co.mjwconsult.testing';
+      $module['ext'] = 'uk.co.vedaconsulting.payment.ukdirectdebit';
     }
     $angularModules[$name] = $module;
   }
@@ -346,7 +349,11 @@ function _uk_direct_debit_civix_fixNavigationMenuItems(&$nodes, &$maxNavID, $par
   }
 }
 
-
+/**
+ * (Delegated) Implements hook_civicrm_alterSettingsFolders().
+ *
+ * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_alterSettingsFolders
+ */
 function _uk_direct_debit_civix_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
   static $configured = FALSE;
   if ($configured) {

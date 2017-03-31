@@ -130,7 +130,7 @@ class CRM_DirectDebit_Form_Sync extends CRM_Core_Form {
         if($contact->id && $contact->find()) { // check for contact id is present in civi
           
           $paymentProcessorType   = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
-          $paymentProcessorTypeId = CRM_Utils_Array::key('Smart Debit', $paymentProcessorType); //15
+          $paymentProcessorTypeId = CRM_Utils_Array::key('Smart_Debit', $paymentProcessorType); //15
 
           if(!empty($paymentProcessorTypeId)) { //smart debit processor type
             

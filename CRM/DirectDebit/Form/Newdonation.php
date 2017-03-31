@@ -137,7 +137,7 @@ class CRM_DirectDebit_Form_Newdonation extends CRM_Core_Form {
     
   static function getSmartDebitDetails(){
     $paymentProcessorType   = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
-    $paymentProcessorTypeId = CRM_Utils_Array::key('Smart Debit', $paymentProcessorType);
+    $paymentProcessorTypeId = CRM_Utils_Array::key('Smart_Debit', $paymentProcessorType);
     $domainID               = CRM_Core_Config::domainID();
 
     if(empty($paymentProcessorTypeId)) {

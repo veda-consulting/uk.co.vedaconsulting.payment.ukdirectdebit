@@ -553,8 +553,8 @@ EOF;
     $collectionDateMonthAfter->setDate( $todaysYear, $monthAfter,  $collectionDay );
 
     // Determine which is the next collection date
-    if ( $todayPlusDateInterval > $collectionDateThisMonth ) {
-      if ( $todayPlusDateInterval > $collectionDateNextMonth ) {
+    if ( $todayPlusDateInterval >= $collectionDateThisMonth ) {
+      if ( $todayPlusDateInterval >= $collectionDateNextMonth ) {
         $returnDate = $collectionDateMonthAfter;
       }
       else {
