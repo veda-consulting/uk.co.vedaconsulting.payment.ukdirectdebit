@@ -204,9 +204,6 @@ class CRM_DirectDebit_Form_Main extends CRM_Core_Form
    * @access public
    */
   function setDirectDebitFields( &$form ) {
-
-    //   CRM_Core_Payment_Form::_setPaymentFields($form);
-
     $form->_paymentFields['account_holder'] = array(
       'htmlType'    => 'text',
       'name'        => 'account_holder',
@@ -521,25 +518,22 @@ EOF;
     return $activityID;
   }
 
-  static function firstCollectionDate( $collectionDay, $startDate ) {
+  /**
+   * Calculate the earliest possible collection date based on todays date plus the collection interval setting.
+   * @param $collectionDay
+   * @return DateTime
+   */
+  static function firstCollectionDate($collectionDay) {
     // Initialise date objects with today's date
     $today                    = new DateTime();
-    $todayPlusDateInterval    = new DateTime();
+    $earliestCollectionDate   = new DateTime();
     $collectionDateThisMonth  = new DateTime();
     $collectionDateNextMonth  = new DateTime();
     $collectionDateMonthAfter = new DateTime();
+    $collectionInterval = uk_direct_debit_civicrm_getSetting('collection_interval');
 
-    $interval = uk_direct_debit_civicrm_getSetting('collection_interval');
-
-    // If we are not starting from today, then reset today's date and interval date
-    if ( !empty( $startDate ) ) {
-      $today                 = DateTime::createFromFormat( 'Y-m-d', $startDate );
-      $todayPlusDateInterval = DateTime::createFromFormat( 'Y-m-d', $startDate );
-    }
-
-    // Add the day interval to create a date interval days from today's date
-    $dateInterval  = 'P' . $interval . 'D';
-    $todayPlusDateInterval->add( new DateInterval( $dateInterval ) );
+    // Calculate earliest possible collection date
+    $earliestCollectionDate->add(new DateInterval( 'P'.$collectionInterval.'D' ));
 
     // Get the current year, month and next month to create the 2 potential collection dates
     $todaysMonth = $today->format('m');
@@ -547,25 +541,23 @@ EOF;
     $monthAfter  = $today->format('m') + 2;
     $todaysYear  = $today->format('Y');
 
-    $collectionDateThisMonth->setDate(  $todaysYear, $todaysMonth, $collectionDay );
-    $collectionDateNextMonth->setDate(  $todaysYear, $nextMonth,   $collectionDay );
-    $collectionDateMonthAfter->setDate( $todaysYear, $monthAfter,  $collectionDay );
+    $collectionDateThisMonth->setDate($todaysYear, $todaysMonth, $collectionDay);
+    $collectionDateNextMonth->setDate($todaysYear, $nextMonth, $collectionDay);
+    $collectionDateMonthAfter->setDate($todaysYear, $monthAfter, $collectionDay);
 
-    // Determine which is the next collection date
-    if ( $todayPlusDateInterval >= $collectionDateThisMonth ) {
-      if ( $todayPlusDateInterval >= $collectionDateNextMonth ) {
-        $returnDate = $collectionDateMonthAfter;
-      }
-      else {
-        $returnDate = $collectionDateNextMonth;
-      }
+    // Calculate first collection date
+    if ($earliestCollectionDate > $collectionDateNextMonth) {
+      // Month after next
+      return $collectionDateMonthAfter;
+    }
+    elseif ($earliestCollectionDate > $collectionDateThisMonth) {
+      // Next Month
+      return $collectionDateNextMonth;
     }
     else {
-      $returnDate = $collectionDateThisMonth;
+      // This month
+      return $collectionDateThisMonth;
     }
-
-    return $returnDate;
-
   }
 
   function directDebitSignUpNofify( $type, $contactID, $pageID, $recur, $autoRenewMembership = FALSE ) {

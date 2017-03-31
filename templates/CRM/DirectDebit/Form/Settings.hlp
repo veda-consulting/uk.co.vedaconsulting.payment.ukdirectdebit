@@ -36,10 +36,6 @@
 {htxt id='activity_type_letter'}
 {ts}Select the activity type to record each time a Direct Debit confirmation letter is sent{/ts}
 {/htxt}
-{htxt id='collection_frequency'}
-{ts}This is the default collection frequency if it is not defined elsewhere (ie. recurring payments are not selected on the contribution page).
-The Direct Debit instruction will be setup to collect on this frequency{/ts}
-{/htxt}
 {htxt id='collection_interval'}
 {ts}This is the interval between setup of a Direct Debit and when payment will actually be taken.  It will use the days specified in 'Collection Days' to pre-select
 the next available collection date. It is also used to calculate when the first payment will be taken which may be this month or next month.  The default value is 15, and a minimum would be 7 working days

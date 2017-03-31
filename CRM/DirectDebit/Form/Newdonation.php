@@ -58,7 +58,7 @@ class CRM_DirectDebit_Form_Newdonation extends CRM_Core_Form {
 
     $ddForm = new CRM_DirectDebit_Form_Main();
     $ddForm->buildOfflineDirectDebit( $this );
-    $defaults['ddi_reference'] = $ddForm::getDDIReference();
+    $defaults['ddi_reference'] = $ddForm->getDDIReference();
     $this->setDefaults($defaults);
     $this->assign('bltID', $this->_bltID);
 

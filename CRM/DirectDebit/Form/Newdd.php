@@ -55,7 +55,7 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
     $ddForm = new CRM_DirectDebit_Form_Main();
     $ddForm->buildOfflineDirectDebit( $this );
     // Required for validation
-    $defaults['ddi_reference'] = $ddForm::getDDIReference();
+    $defaults['ddi_reference'] = $ddForm->getDDIReference();
     $this->setDefaults($defaults);
     // Required for billing blocks to be displayed
     $this->assign('bltID', $this->_bltID);

@@ -97,21 +97,6 @@ return array(
     ),
   ),
 
-// default collection frequency
-  'ukdirectdebit_collection_frequency' => array(
-    'group_name' => 'UK Direct Debit Settings',
-    'group' => 'ukdirectdebit',
-    'name' => 'ukdirectdebit_collection_frequency',
-    'type' => 'Integer',
-    'html_type' => 'Select',
-    'default' => 0,
-    'add' => '4.7',
-    'is_domain' => 1,
-    'is_contact' => 0,
-    'description' => 'Direct Debit Collection Frequency',
-    'html_attributes' => array(),
-  ),
-
 //service_user_number
   'ukdirectdebit_service_user_number' => array(
     'group_name' => 'UK Direct Debit Settings',

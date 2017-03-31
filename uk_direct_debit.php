@@ -863,7 +863,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
     else if ($form->_paymentProcessor['payment_processor_type'] == 'Gocardless') {
       // Gocardless
       $uk_direct_debit['formatted_preferred_collection_day'] 	= CRM_DirectDebit_Form_Main::formatPreferredCollectionDay($form->_params['preferred_collection_day']);
-      $collectionDate                                         = CRM_DirectDebit_Form_Main::firstCollectionDate($form->_params['preferred_collection_day'], null);
+      $collectionDate                                         = CRM_DirectDebit_Form_Main::firstCollectionDate($form->_params['preferred_collection_day']);
       $uk_direct_debit['first_collection_date']               = $collectionDate->format("Y-m-d");
       $uk_direct_debit['confirmation_method']                 = 'EMAIL'; //KJ fixme as we don't give options to choose
       $uk_direct_debit['company_name']                        = CRM_DirectDebit_Form_Main::getCompanyName();;
