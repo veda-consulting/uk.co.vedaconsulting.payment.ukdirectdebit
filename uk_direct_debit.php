@@ -372,9 +372,6 @@ function uk_direct_debit_message_template() {
 }
 
 function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
-  require_once 'CRM/Core/Payment.php';
-  require_once 'UK_Direct_Debit/Form/Main.php';
-
   // Contribution completed (thankyou page)
   if ($formName == 'CRM_Contribute_Form_Contribution_ThankYou') {
     // Gocardless
@@ -789,8 +786,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
     $paymentProcessor = $form->_paymentProcessor;
     if($paymentProcessor['payment_processor_type'] == 'Smart_Debit') {
       //Build billing details block
-      require_once 'UK_Direct_Debit/Form/Main.php';
-      $ddForm = new UK_Direct_Debit_Form_Main();
+      $ddForm = new CRM_DirectDebit_Form_Main();
       $ddForm->buildOfflineDirectDebit($form);
     }
   }
@@ -829,7 +825,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
         $dao = CRM_Core_DAO::executeQuery($query, $params);
 
         if ($dao->fetch()) {
-          $uk_direct_debit['company_name'] = UK_Direct_Debit_Form_Main::getCompanyName();
+          $uk_direct_debit['company_name'] = CRM_DirectDebit_Form_Main::getCompanyName();
           $uk_direct_debit['bank_name'] = $dao->bank_name;
           $uk_direct_debit['branch'] = $dao->branch;
           $uk_direct_debit['address1'] = $dao->address1;
@@ -842,13 +838,13 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
           $uk_direct_debit['first_collection_date'] = $dao->first_collection_date;
           $uk_direct_debit['preferred_collection_day'] = $dao->preferred_collection_day;
           $uk_direct_debit['confirmation_method'] = $dao->confirmation_method;
-          $uk_direct_debit['formatted_preferred_collection_day'] = UK_Direct_Debit_Form_Main::formatPreferredCollectionDay($dao->preferred_collection_day);
+          $uk_direct_debit['formatted_preferred_collection_day'] = CRM_DirectDebit_Form_Main::formatPreferredCollectionDay($dao->preferred_collection_day);
         }
       }
       else {
         // Set defaults
         $uk_direct_debit['formatted_preferred_collection_day'] = '';
-        $uk_direct_debit['company_name']             = UK_Direct_Debit_Form_Main::getCompanyName();
+        $uk_direct_debit['company_name']             = CRM_DirectDebit_Form_Main::getCompanyName();
         $uk_direct_debit['bank_name']                = '';
         $uk_direct_debit['branch']                   = '';
         $uk_direct_debit['address1']                 = '';
@@ -866,16 +862,16 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
     }
     else if ($form->_paymentProcessor['payment_processor_type'] == 'Gocardless') {
       // Gocardless
-      $uk_direct_debit['formatted_preferred_collection_day'] 	= UK_Direct_Debit_Form_Main::formatPreferredCollectionDay($form->_params['preferred_collection_day']);
-      $collectionDate                                         = UK_Direct_Debit_Form_Main::firstCollectionDate($form->_params['preferred_collection_day'], null);
+      $uk_direct_debit['formatted_preferred_collection_day'] 	= CRM_DirectDebit_Form_Main::formatPreferredCollectionDay($form->_params['preferred_collection_day']);
+      $collectionDate                                         = CRM_DirectDebit_Form_Main::firstCollectionDate($form->_params['preferred_collection_day'], null);
       $uk_direct_debit['first_collection_date']               = $collectionDate->format("Y-m-d");
       $uk_direct_debit['confirmation_method']                 = 'EMAIL'; //KJ fixme as we don't give options to choose
-      $uk_direct_debit['company_name']                        = UK_Direct_Debit_Form_Main::getCompanyName();;
+      $uk_direct_debit['company_name']                        = CRM_DirectDebit_Form_Main::getCompanyName();;
     }
 
     $form->assign( 'direct_debit_details', $uk_direct_debit );
-    $form->assign( 'service_user_number', UK_Direct_Debit_Form_Main::getSUNParts());
-    $form->assign( 'company_address', UK_Direct_Debit_Form_Main::getCompanyAddress());
+    $form->assign( 'service_user_number', CRM_DirectDebit_Form_Main::getSUNParts());
+    $form->assign( 'company_address', CRM_DirectDebit_Form_Main::getCompanyAddress());
     $form->assign( 'directDebitDate', date('Ymd'));
   }
 }
@@ -1093,15 +1089,6 @@ function uk_direct_debit_civicrm_validateForm($name, &$fields, &$files, &$form, 
 function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
   // Check the form being submitted is a contribution form
   if ( is_a( $form, 'CRM_Contribute_Form_Contribution_Confirm' ) ) {
-    CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess #1');
-    CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess form='.print_r($form, TRUE));
-
-    CRM_Core_Error::debug_log_message('CRM_Contribute_Form_Contribution_Confirm #1');
-
-    require_once 'UK_Direct_Debit/Form/Main.php';
-
-    CRM_Core_Error:: debug_log_message( 'Firing IPN code');
-
     $paymentType = urlencode( $form->_paymentProcessor['payment_type'] );
     $isRecur     = urlencode( $form->_values['is_recur'] );
     $paymentProcessorType     = urlencode( $form->_paymentProcessor['payment_processor_type']);
@@ -1126,8 +1113,6 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
       $start_date     = urlencode( $form->_params['start_date'] );
 
       if ( $isRecur == 1 ) {
-        CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess #2');
-
         $paymentProcessorType = urlencode( $form->_paymentProcessor['payment_processor_type'] );
         $membershipID         = urlencode( $form->_params['membershipID'] );
         $contactID            = urlencode( $form->getVar( '_contactID' ) );
@@ -1136,23 +1121,7 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
         $trxn_id              = urlencode( $form->_params['trxn_id'] );
         $collection_day       = urlencode( $form->_params['preferred_collection_day'] );
 
-        CRM_Core_Error::debug_log_message( 'paymentProcessorType='.$paymentProcessorType);
-        CRM_Core_Error::debug_log_message( 'paymentType='.$paymentType);
-        CRM_Core_Error::debug_log_message( 'membershipID='.$membershipID);
-        CRM_Core_Error::debug_log_message( 'contributionID='.$contributionID);
-        CRM_Core_Error::debug_log_message( 'contactID='.$contactID);
-        CRM_Core_Error::debug_log_message( 'invoiceID='.$invoiceID);
-        CRM_Core_Error::debug_log_message( 'amount='.$amount);
-        CRM_Core_Error::debug_log_message( 'isRecur='.$isRecur);
-        CRM_Core_Error::debug_log_message( 'trxn_id='.$trxn_id);
-        CRM_Core_Error::debug_log_message( 'start_date='.$start_date);
-        CRM_Core_Error::debug_log_message( 'collection_day='.$collection_day);
-        CRM_Core_Error::debug_log_message( 'contributionRecurID:' .$contributionRecurID );
-        CRM_Core_Error::debug_log_message( 'CIVICRM_UF_BASEURL='.CIVICRM_UF_BASEURL);
-
         $query = "processor_name=".$paymentProcessorType."&module=contribute&contactID=".$contactID."&contributionID=".$contributionID."&membershipID=".$membershipID."&invoice=".$invoiceID."&mc_gross=".$amount."&payment_status=Completed&txn_type=recurring_payment&contributionRecurID=$contributionRecurID&txn_id=$trxn_id&first_collection_date=$start_date&collection_day=$collection_day";
-
-        CRM_Core_Error:: debug_log_message( 'uk_direct_debit_civicrm_postProcess query = '.$query);
 
         // Get the recur ID for the contribution
         $url = CRM_Utils_System::url('civicrm/payment/ipn', $query,  TRUE, NULL, FALSE, TRUE);

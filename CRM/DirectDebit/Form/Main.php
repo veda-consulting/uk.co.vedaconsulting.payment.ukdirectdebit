@@ -40,7 +40,7 @@
  */
 require_once 'CRM/Core/Form.php';
 
-class UK_Direct_Debit_Form_Main extends CRM_Core_Form
+class CRM_DirectDebit_Form_Main extends CRM_Core_Form
 {
   function rand_str( $len )
   {
@@ -81,7 +81,7 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     $directDebitId = $dao->id;
 
     // Replace the DDI Reference Number with our new unique sequenced version
-    $transactionPrefix = UK_Direct_Debit_Form_Main::getTransactionPrefix();
+    $transactionPrefix = CRM_DirectDebit_Form_Main::getTransactionPrefix();
     $DDIReference      = $transactionPrefix . sprintf( "%08s", $directDebitId );
 
     $updateSql  = " UPDATE civicrm_direct_debit cdd ";
@@ -89,8 +89,8 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     $updateSql .= " WHERE cdd.id = %1 ";
 
     $updateParams = array( array( (string) $DDIReference , 'String' ),
-                           array( (int)    $directDebitId, 'Int'    ),
-                    );
+      array( (int)    $directDebitId, 'Int'    ),
+    );
 
     CRM_Core_DAO::executeQuery( $updateSql, $updateParams );
 
@@ -107,9 +107,9 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     $dao           = CRM_Core_DAO::executeQuery( $selectSql, $selectParams );
 
     if ( $dao->fetch() ) {
-        if ( $dao->complete_flag == 1 ) {
-            $isComplete = true;
-        }
+      if ( $dao->complete_flag == 1 ) {
+        $isComplete = true;
+      }
     }
 
     return $isComplete;
@@ -130,17 +130,17 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     if (!empty($domainLoc['address'])) {
       $companyAddress['address1']     = $domainLoc['address'][1]['street_address'];
       if (array_key_exists('supplemental_address_1', $domainLoc['address'][1])) {
-	$companyAddress['address2']     = $domainLoc['address'][1]['supplemental_address_1'];
+        $companyAddress['address2']     = $domainLoc['address'][1]['supplemental_address_1'];
       }
       if (array_key_exists('supplemental_address_2', $domainLoc['address'][1])) {
-	$companyAddress['address3']     = $domainLoc['address'][1]['supplemental_address_2'];
+        $companyAddress['address3']     = $domainLoc['address'][1]['supplemental_address_2'];
       }
       $companyAddress['town']         = $domainLoc['address'][1]['city'];
       $companyAddress['postcode']     = $domainLoc['address'][1]['postal_code'];
       if (array_key_exists('county_id', $domainLoc['address'][1])) {
-	$companyAddress['county']       = CRM_Core_PseudoConstant::county($domainLoc['address'][1]['county_id']);
+        $companyAddress['county']       = CRM_Core_PseudoConstant::county($domainLoc['address'][1]['county_id']);
       }
-      $companyAddress['country_id']   = CRM_Core_PseudoConstant::country($domainLoc['address'][1]['country_id']);	
+      $companyAddress['country_id']   = CRM_Core_PseudoConstant::country($domainLoc['address'][1]['country_id']);
     }
 
     return $companyAddress;
@@ -177,11 +177,11 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
   function getCountry( $country_id ) {
     $country = null;
     if ( !empty( $country_id ) ) {
-        $sql    = "SELECT name FROM civicrm_country WHERE id = %1";
-        $params = array( 1 => array( $country_id , 'Integer' ) );
-        $dao    = CRM_Core_DAO::executeQuery( $sql, $params );
-        $dao->fetch();
-        $country = $dao->name;
+      $sql    = "SELECT name FROM civicrm_country WHERE id = %1";
+      $params = array( 1 => array( $country_id , 'Integer' ) );
+      $dao    = CRM_Core_DAO::executeQuery( $sql, $params );
+      $dao->fetch();
+      $country = $dao->name;
     }
     return $country;
   }
@@ -189,11 +189,11 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
   function getStateProvince( $state_province_id ) {
     $stateProvince = null;
     if ( !empty( $state_province_id ) ) {
-        $sql    = "SELECT name FROM civicrm_state_province WHERE id = %1";
-        $params = array( 1 => array( $state_province_id , 'Integer' ) );
-        $dao    = CRM_Core_DAO::executeQuery( $sql, $params );
-        $dao->fetch();
-        $stateProvince = $dao->name;
+      $sql    = "SELECT name FROM civicrm_state_province WHERE id = %1";
+      $params = array( 1 => array( $state_province_id , 'Integer' ) );
+      $dao    = CRM_Core_DAO::executeQuery( $sql, $params );
+      $dao->fetch();
+      $stateProvince = $dao->name;
     }
     return $stateProvince;
   }
@@ -205,102 +205,101 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
    */
   function setDirectDebitFields( &$form ) {
 
- //   CRM_Core_Payment_Form::_setPaymentFields($form);
+    //   CRM_Core_Payment_Form::_setPaymentFields($form);
 
     $form->_paymentFields['account_holder'] = array(
-                                                     'htmlType'    => 'text',
-                                                     'name'        => 'account_holder',
-                                                     'title'       => ts( 'Account Holder' ),
-                                                     'cc_field'    => TRUE,
-                                                     'attributes'  => array( 'size'         => 20
-                                                                           , 'maxlength'    => 18
-                                                                           , 'autocomplete' => 'on'
-                                                                           ),
-                                                     'is_required' => TRUE
-                                                   );
+      'htmlType'    => 'text',
+      'name'        => 'account_holder',
+      'title'       => ts( 'Account Holder' ),
+      'cc_field'    => TRUE,
+      'attributes'  => array( 'size'         => 20
+      , 'maxlength'    => 18
+      , 'autocomplete' => 'on'
+      ),
+      'is_required' => TRUE
+    );
 
     //e.g. IBAN can have maxlength of 34 digits
     $form->_paymentFields['bank_account_number'] = array(
-                                                         'htmlType'    => 'text',
-                                                         'name'        => 'bank_account_number',
-                                                         'title'       => ts( 'Bank Account Number' ),
-                                                         'cc_field'    => TRUE,
-                                                         'attributes'  => array( 'size'         => 20
-                                                                               , 'maxlength'    => 34
-                                                                               , 'autocomplete' => 'off'
-                                                                               ),
-                                                         'is_required' => TRUE
-                                                        );
+      'htmlType'    => 'text',
+      'name'        => 'bank_account_number',
+      'title'       => ts( 'Bank Account Number' ),
+      'cc_field'    => TRUE,
+      'attributes'  => array( 'size'         => 20
+      , 'maxlength'    => 34
+      , 'autocomplete' => 'off'
+      ),
+      'is_required' => TRUE
+    );
 
     //e.g. SWIFT-BIC can have maxlength of 11 digits
     $form->_paymentFields['bank_identification_number'] = array(
-                                                                 'htmlType'    => 'text',
-                                                                 'name'        => 'bank_identification_number',
-                                                                 'title'       => ts( 'Sort Code' ),
-                                                                 'cc_field'    => TRUE,
-                                                                 'attributes'  => array( 'size'         => 20
-                                                                                       , 'maxlength'    => 11
-                                                                                       , 'autocomplete' => 'off'
-                                                                                       ),
-                                                                 'is_required' => TRUE
-                                                               );
+      'htmlType'    => 'text',
+      'name'        => 'bank_identification_number',
+      'title'       => ts( 'Sort Code' ),
+      'cc_field'    => TRUE,
+      'attributes'  => array( 'size'         => 20
+      , 'maxlength'    => 11
+      , 'autocomplete' => 'off'
+      ),
+      'is_required' => TRUE
+    );
 
     $form->_paymentFields['bank_name'] = array(
-                                               'htmlType'    => 'text',
-                                               'name'        => 'bank_name',
-                                               'title'       => ts( 'Bank Name' ),
-                                               'cc_field'    => TRUE,
-                                               'attributes'  => array( 'size'         => 20
-                                                                     , 'maxlength'    => 64
-                                                                     , 'autocomplete' => 'off'
-                                                                     ),
-                                               'is_required' => TRUE
-                                              );
+      'htmlType'    => 'text',
+      'name'        => 'bank_name',
+      'title'       => ts( 'Bank Name' ),
+      'cc_field'    => TRUE,
+      'attributes'  => array( 'size'         => 20
+      , 'maxlength'    => 64
+      , 'autocomplete' => 'off'
+      ),
+      'is_required' => TRUE
+    );
 
     // Get the collection days options
-    require_once 'UK_Direct_Debit/Form/Main.php';
-    $collectionDaysArray = UK_Direct_Debit_Form_Main::getCollectionDaysOptions();
+    $collectionDaysArray = CRM_DirectDebit_Form_Main::getCollectionDaysOptions();
 
     $form->_paymentFields['preferred_collection_day'] = array(
-                                                               'htmlType'    => 'select',
-                                                               'name'        => 'preferred_collection_day',
-                                                               'title'       => ts( 'Preferred Collection Day' ),
-                                                               'cc_field'    => TRUE,
-                                                               'attributes'  => $collectionDaysArray, // array('1' => '1st', '8' => '8th', '21' => '21st'),
-                                                               'is_required' => TRUE
-                                                             );
+      'htmlType'    => 'select',
+      'name'        => 'preferred_collection_day',
+      'title'       => ts( 'Preferred Collection Day' ),
+      'cc_field'    => TRUE,
+      'attributes'  => $collectionDaysArray, // array('1' => '1st', '8' => '8th', '21' => '21st'),
+      'is_required' => TRUE
+    );
 
     $form->_paymentFields['confirmation_method'] = array(
-                                                         'htmlType'    => 'select',
-                                                         'name'        => 'confirmation_method',
-                                                         'title'       => ts( 'Confirm By' ),
-                                                         'cc_field'    => TRUE,
-                                                         'attributes'  => array( 'EMAIL' => 'Email'
-                                                                               , 'POST' => 'Post'
-                                                                               ),
-                                                         'is_required' => TRUE
-                                                        );
+      'htmlType'    => 'select',
+      'name'        => 'confirmation_method',
+      'title'       => ts( 'Confirm By' ),
+      'cc_field'    => TRUE,
+      'attributes'  => array( 'EMAIL' => 'Email'
+      , 'POST' => 'Post'
+      ),
+      'is_required' => TRUE
+    );
 
     $form->_paymentFields['payer_confirmation'] = array(
-                                                        'htmlType'    => 'checkbox',
-                                                        'name'        => 'payer_confirmation',
-                                                        'title'       => ts( 'Please confirm that you are the account holder and only person required to authorise Direct Debits from this account' ),
-                                                        'cc_field'    => TRUE,
-                                                        'is_required' => TRUE
-                                                       );
+      'htmlType'    => 'checkbox',
+      'name'        => 'payer_confirmation',
+      'title'       => ts( 'Please confirm that you are the account holder and only person required to authorise Direct Debits from this account' ),
+      'cc_field'    => TRUE,
+      'is_required' => TRUE
+    );
 
     $form->_paymentFields['ddi_reference'] = array(
-                                                   'htmlType'    => 'hidden',
-                                                   'name'        => 'ddi_reference',
-                                                   'title'       => ts('DDI Reference'),
-                                                   'cc_field'    => TRUE,
-                                                   'attributes'  => array( 'size'         => 20
-                                                                         , 'maxlength'    => 64
-                                                                         , 'autocomplete' => 'off'
-                                                                         ),
-                                                   'is_required' => FALSE,
-                                                   'default'     => 'hello'
-                                                  );
+      'htmlType'    => 'hidden',
+      'name'        => 'ddi_reference',
+      'title'       => ts('DDI Reference'),
+      'cc_field'    => TRUE,
+      'attributes'  => array( 'size'         => 20
+      , 'maxlength'    => 64
+      , 'autocomplete' => 'off'
+      ),
+      'is_required' => FALSE,
+      'default'     => 'hello'
+    );
 
     $telephoneNumber = self::getTelephoneNumber();
     $form->assign( 'telephoneNumber', $telephoneNumber );
@@ -327,33 +326,33 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
           }
           else {
             $form->add( $field['htmlType'],
-                        $field['name'],
-                        $field['title'],
-                        CRM_Utils_Array::value('attributes', $field),
-                        $useRequired ? $field['is_required'] : FALSE
-                      );
+              $field['name'],
+              $field['title'],
+              CRM_Utils_Array::value('attributes', $field),
+              $useRequired ? $field['is_required'] : FALSE
+            );
           }
         }
       }
 
       $form->addRule( 'bank_identification_number',
-                      ts( 'Please enter a valid Bank Identification Number (value must not contain punctuation characters).' ),
-                      'nopunctuation'
-                    );
+        ts( 'Please enter a valid Bank Identification Number (value must not contain punctuation characters).' ),
+        'nopunctuation'
+      );
 
       $form->addRule( 'bank_account_number',
-                      ts( 'Please enter a valid Bank Account Number (value must not contain punctuation characters).' ),
-                      'nopunctuation'
-                    );
+        ts( 'Please enter a valid Bank Account Number (value must not contain punctuation characters).' ),
+        'nopunctuation'
+      );
     }
 
     if ( $form->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_BUTTON ) {
       $form->_expressButtonName = $form->getButtonName( $form->buttonType(), 'express' );
       $form->add( 'image',
-                  $form->_expressButtonName,
-                  $form->_paymentProcessor['url_button'],
-                  array( 'class' => 'form-submit' )
-                );
+        $form->_expressButtonName,
+        $form->_paymentProcessor['url_button'],
+        array( 'class' => 'form-submit' )
+      );
     }
 
     $defaults['ddi_reference'] = self::getDDIReference();
@@ -362,16 +361,16 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
 
   static function formatPreferredCollectionDay( $collectionDay ) {
     $ends = array( 'th'
-                 , 'st'
-                 , 'nd'
-                 , 'rd'
-                 , 'th'
-                 , 'th'
-                 , 'th'
-                 , 'th'
-                 , 'th'
-                 , 'th'
-                );
+    , 'st'
+    , 'nd'
+    , 'rd'
+    , 'th'
+    , 'th'
+    , 'th'
+    , 'th'
+    , 'th'
+    , 'th'
+    );
     if ( ( $collectionDay%100 ) >= 11 && ( $collectionDay%100 ) <= 13 )
       $abbreviation = $collectionDay . 'th';
     else
@@ -401,9 +400,9 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
     return uk_direct_debit_civicrm_getSetting('payment_instrument_id');
   }
 
-    /*
-   * Function will return the possible array of collection days with formatted label
-   */
+  /*
+ * Function will return the possible array of collection days with formatted label
+ */
   function getCollectionDaysOptions() {
     $intervalDate = new DateTime();
     $interval     = uk_direct_debit_civicrm_getSetting('collection_interval');
@@ -448,7 +447,7 @@ class UK_Direct_Debit_Form_Main extends CRM_Core_Form
   // function completeDirectDebitSetup( $response, &$params )  {
   function completeDirectDebitSetup( $objects )  {
 
-    CRM_Core_Error::debug_log_message( 'UK_Direct_Debit_Form_Main.completeDirectDebitSetup $params=' . print_r( $objects, true ) );
+    CRM_Core_Error::debug_log_message( 'CRM_DirectDebit_Form_Main.completeDirectDebitSetup $params=' . print_r( $objects, true ) );
 
     require_once 'api/api.php';
 
@@ -475,10 +474,10 @@ EOF;
 EOF;
 
     CRM_Core_DAO::executeQuery( $sql
-                               , array( array( (string) $params['trxn_id'],'String' ) )
-                               );
+      , array( array( (string) $params['trxn_id'],'String' ) )
+    );
 
-    CRM_Core_Error::debug_log_message('UK_Direct_Debit_Form_Main: Completed completeDirectDebitSetup Function.');
+    CRM_Core_Error::debug_log_message('CRM_DirectDebit_Form_Main: Completed completeDirectDebitSetup Function.');
   }
 
   function createDDSignUpActivity( &$params ) {
@@ -486,35 +485,35 @@ EOF;
     require_once 'api/api.php';
 
     if ( $params['confirmation_method'] == 'POST' ) {
-        $activityTypeLetterID = self::getActivityTypeLetter();
+      $activityTypeLetterID = self::getActivityTypeLetter();
 
-        $activityLetterParams = array(
-                                      'source_contact_id'  => $params['contactID'],
-                                      'target_contact_id'  => $params['contactID'],
-                                      'activity_type_id'   => $activityTypeLetterID,
-                                      'subject'            => sprintf("Direct Debit Sign Up, Mandate ID : %s", $params['trxn_id'] ),
-                                      'activity_date_time' => date( 'YmdHis' ),
-                                      'status_id'          => 1,
-                                      'version'            => 3
-                                     );
+      $activityLetterParams = array(
+        'source_contact_id'  => $params['contactID'],
+        'target_contact_id'  => $params['contactID'],
+        'activity_type_id'   => $activityTypeLetterID,
+        'subject'            => sprintf("Direct Debit Sign Up, Mandate ID : %s", $params['trxn_id'] ),
+        'activity_date_time' => date( 'YmdHis' ),
+        'status_id'          => 1,
+        'version'            => 3
+      );
 
-        $resultLetter = civicrm_api( 'activity'
-                                   , 'create'
-                                   , $activityLetterParams
-                                   );
+      $resultLetter = civicrm_api( 'activity'
+        , 'create'
+        , $activityLetterParams
+      );
     }
 
     $activityTypeID = self::getActivityType();
 
     $activityParams = array(
-                            'source_contact_id'  => $params['contactID'],
-                            'target_contact_id'  => $params['contactID'],
-                            'activity_type_id'   => $activityTypeID,
-                            'subject'            => sprintf("Direct Debit Sign Up, Mandate ID : %s", $params['trxn_id'] ) ,
-                            'activity_date_time' => date( 'YmdHis' ),
-                            'status_id'          => 2,
-                            'version'            => 3
-                           );
+      'source_contact_id'  => $params['contactID'],
+      'target_contact_id'  => $params['contactID'],
+      'activity_type_id'   => $activityTypeID,
+      'subject'            => sprintf("Direct Debit Sign Up, Mandate ID : %s", $params['trxn_id'] ) ,
+      'activity_date_time' => date( 'YmdHis' ),
+      'status_id'          => 2,
+      'version'            => 3
+    );
 
     $result     = civicrm_api( 'activity','create', $activityParams );
     $activityID = $result['id'];
@@ -534,8 +533,8 @@ EOF;
 
     // If we are not starting from today, then reset today's date and interval date
     if ( !empty( $startDate ) ) {
-        $today                 = DateTime::createFromFormat( 'Y-m-d', $startDate );
-        $todayPlusDateInterval = DateTime::createFromFormat( 'Y-m-d', $startDate );
+      $today                 = DateTime::createFromFormat( 'Y-m-d', $startDate );
+      $todayPlusDateInterval = DateTime::createFromFormat( 'Y-m-d', $startDate );
     }
 
     // Add the day interval to create a date interval days from today's date
@@ -562,7 +561,7 @@ EOF;
       }
     }
     else {
-        $returnDate = $collectionDateThisMonth;
+      $returnDate = $collectionDateThisMonth;
     }
 
     return $returnDate;
@@ -573,17 +572,17 @@ EOF;
     $value = array();
     if ( $pageID ) {
       CRM_Core_DAO::commonRetrieveAll( 'CRM_Contribute_DAO_ContributionPage'
-                                     , 'id'
-                                     , $pageID
-                                     , $value
-                                     , array( 'title'
-                                            , 'is_email_receipt'
-                                            , 'receipt_from_name'
-                                            , 'receipt_from_email'
-                                            , 'cc_receipt'
-                                            , 'bcc_receipt'
-                                            )
-                                     );
+        , 'id'
+        , $pageID
+        , $value
+        , array( 'title'
+        , 'is_email_receipt'
+        , 'receipt_from_name'
+        , 'receipt_from_email'
+        , 'cc_receipt'
+        , 'bcc_receipt'
+        )
+      );
     }
 
     $isEmailReceipt = CRM_Utils_Array::value( 'is_email_receipt', $value[$pageID] );
@@ -594,9 +593,9 @@ EOF;
     if ( $isEmailReceipt || $isOfflineRecur ) {
       if ( $pageID ) {
         $receiptFrom = sprintf('"%s" <%s>'
-                              , CRM_Utils_Array::value( 'receipt_from_name', $value[$pageID] )
-                              , $value[$pageID]['receipt_from_email']
-                              );
+          , CRM_Utils_Array::value( 'receipt_from_name', $value[$pageID] )
+          , $value[$pageID]['receipt_from_email']
+        );
 
         $receiptFromName  = $value[$pageID]['receipt_from_name'];
         $receiptFromEmail = $value[$pageID]['receipt_from_email'];
@@ -612,24 +611,24 @@ EOF;
       require_once 'CRM/Contact/BAO/Contact/Location.php';
       list( $displayName, $email ) = CRM_Contact_BAO_Contact_Location::getEmailDetails( $contactID, FALSE );
       $templatesParams = array( 'groupName' => 'msg_tpl_workflow_contribution',
-                                'valueName' => 'contribution_recurring_notify',
-                                'contactId' => $contactID,
-                                'tplParams' => array( 'recur_frequency_interval' => $recur->frequency_interval,
-                                                      'recur_frequency_unit'     => $recur->frequency_unit,
-                                                      'recur_installments'       => $recur->installments,
-                                                      'recur_start_date'         => $recur->start_date,
-                                                      'recur_end_date'           => $recur->end_date,
-                                                      'recur_amount'             => $recur->amount,
-                                                      'recur_txnType'            => $type,
-                                                      'displayName'              => $displayName,
-                                                      'receipt_from_name'        => $receiptFromName,
-                                                      'receipt_from_email'       => $receiptFromEmail,
-                                                      'auto_renew_membership'    => $autoRenewMembership,
-                                                    ),
-                                'from'      => $receiptFrom,
-                                'toName'    => $displayName,
-                                'toEmail'   => $email
-                              );
+        'valueName' => 'contribution_recurring_notify',
+        'contactId' => $contactID,
+        'tplParams' => array( 'recur_frequency_interval' => $recur->frequency_interval,
+          'recur_frequency_unit'     => $recur->frequency_unit,
+          'recur_installments'       => $recur->installments,
+          'recur_start_date'         => $recur->start_date,
+          'recur_end_date'           => $recur->end_date,
+          'recur_amount'             => $recur->amount,
+          'recur_txnType'            => $type,
+          'displayName'              => $displayName,
+          'receipt_from_name'        => $receiptFromName,
+          'receipt_from_email'       => $receiptFromEmail,
+          'auto_renew_membership'    => $autoRenewMembership,
+        ),
+        'from'      => $receiptFrom,
+        'toName'    => $displayName,
+        'toEmail'   => $email
+      );
 
       require_once 'CRM/Core/BAO/MessageTemplates.php';
       list( $sent, $subject, $message, $html ) = CRM_Core_BAO_MessageTemplates::sendTemplate( $templatesParams );
@@ -645,23 +644,23 @@ EOF;
 
   function insert_file_for_activity( $file_name , $activity_id ) {
 
-        $upload_date = date( 'Y-m-d H:i:s' );
+    $upload_date = date( 'Y-m-d H:i:s' );
 
-        $file_sql = <<<EOF
+    $file_sql = <<<EOF
                 INSERT INTO civicrm_file
                 SET         mime_type   = %1
                 ,           uri         = %2
                 ,           upload_date = %3
 EOF;
 
-        $file_params  = array(
-                              1 => array( "text/csv"     , 'String' ) ,
-                              2 => array( $file_name     , 'String' ) ,
-                              3 => array( $upload_date   , 'String' )
-                             );
-        $file_dao = CRM_Core_DAO::executeQuery( $file_sql, $file_params );
+    $file_params  = array(
+      1 => array( "text/csv"     , 'String' ) ,
+      2 => array( $file_name     , 'String' ) ,
+      3 => array( $upload_date   , 'String' )
+    );
+    $file_dao = CRM_Core_DAO::executeQuery( $file_sql, $file_params );
 
-        $select_sql = <<<EOF
+    $select_sql = <<<EOF
                 SELECT   id
                 FROM     civicrm_file
                 WHERE    mime_type   = %1
@@ -669,23 +668,23 @@ EOF;
                 AND      upload_date = %3
                 ORDER BY id DESC
 EOF;
-        $select_dao = CRM_Core_DAO::executeQuery( $select_sql, $file_params );
-        $select_dao->fetch();
-        $file_id = $select_dao->id;
+    $select_dao = CRM_Core_DAO::executeQuery( $select_sql, $file_params );
+    $select_dao->fetch();
+    $file_id = $select_dao->id;
 
-        $custom_sql = <<<EOF
+    $custom_sql = <<<EOF
                 INSERT INTO civicrm_entity_file
                 SET         entity_id    = %1
                 ,           entity_table = %2
                 ,           file_id = %3
 EOF;
-        $custom_params  = array(
-                              1 => array( $activity_id   , 'Integer' ) ,
-                              2 => array('civicrm_activity' , 'String') ,
-                              3 => array( $file_id   , 'Integer' )
-                             );
+    $custom_params  = array(
+      1 => array( $activity_id   , 'Integer' ) ,
+      2 => array('civicrm_activity' , 'String') ,
+      3 => array( $file_id   , 'Integer' )
+    );
 
-        $custom_dao = CRM_Core_DAO::executeQuery( $custom_sql, $custom_params );
+    $custom_dao = CRM_Core_DAO::executeQuery( $custom_sql, $custom_params );
   }
 
   function getDDConfirmationTemplate() {
@@ -704,38 +703,38 @@ EOF;
    */
   static function html2pdf( $text , $fileName = 'FiscalReceipts.pdf' , $calling = "internal" ) {
 
-      require_once 'packages/dompdf/dompdf_config.inc.php';
-      spl_autoload_register( 'DOMPDF_autoload' );
-      $dompdf = new DOMPDF();
+    require_once 'packages/dompdf/dompdf_config.inc.php';
+    spl_autoload_register( 'DOMPDF_autoload' );
+    $dompdf = new DOMPDF();
 
-      $values = array();
-      if ( !is_array( $text ) ) {
-          $values =  array( $text );
-      } else {
-          $values =& $text;
-      }
+    $values = array();
+    if ( !is_array( $text ) ) {
+      $values =  array( $text );
+    } else {
+      $values =& $text;
+    }
 
-      $html = '';
-      foreach ( $values as $value ) {
-          $html .= "{$value}\n";
-      }
+    $html = '';
+    foreach ( $values as $value ) {
+      $html .= "{$value}\n";
+    }
 
-      //echo $html;exit;
+    //echo $html;exit;
 
-      $html = mb_convert_encoding( $html, 'HTML-ENTITIES', 'UTF-8' );
+    $html = mb_convert_encoding( $html, 'HTML-ENTITIES', 'UTF-8' );
 
-      $dompdf->load_html( $html );
-      $dompdf->set_paper ('a4', 'portrait');
-      $dompdf->render();
+    $dompdf->load_html( $html );
+    $dompdf->set_paper ('a4', 'portrait');
+    $dompdf->render();
 
-      if( $calling == "external" ) { // like calling from cron job
-        $fileContent = $dompdf->output();
-        return $fileContent;
-      }
-      else{
-        $dompdf->stream( $fileName );
-      }
-      exit;
+    if( $calling == "external" ) { // like calling from cron job
+      $fileContent = $dompdf->output();
+      return $fileContent;
+    }
+    else{
+      $dompdf->stream( $fileName );
+    }
+    exit;
   }
 
   static function record_response( $direct_debit_response ) {
@@ -764,40 +763,40 @@ EOF;
 EOF;
 
     CRM_Core_DAO::executeQuery( $sql, array(
-                                             array( (string)  $direct_debit_response['data_type']               , 'String'  ),
-                                             array( (string)  $direct_debit_response['entity_type']             , 'String'  ),
-                                             array( (integer) $direct_debit_response['entity_id']               , 'Integer' ),
-                                             array( (string)  $direct_debit_response['bank_name']               , 'String'  ),
-                                             array( (string)  $direct_debit_response['branch']                  , 'String'  ),
-                                             array( (string)  $direct_debit_response['address1']                , 'String'  ),
-                                             array( (string)  $direct_debit_response['address2']                , 'String'  ),
-                                             array( (string)  $direct_debit_response['address3']                , 'String'  ),
-                                             array( (string)  $direct_debit_response['address4']                , 'String'  ),
-                                             array( (string)  $direct_debit_response['town']                    , 'String'  ),
-                                             array( (string)  $direct_debit_response['county']                  , 'String'  ),
-                                             array( (string)  $direct_debit_response['postcode']                , 'String'  ),
-                                             array( (string)  $direct_debit_response['first_collection_date']   , 'String'  ),
-                                             array( (string)  $direct_debit_response['preferred_collection_day'], 'String'  ),
-                                             array( (string)  $direct_debit_response['confirmation_method']     , 'String'  ),
-                                             array( (string)  $direct_debit_response['response_status']         , 'String'  ),
-                                             array( (string)  $direct_debit_response['response_raw']            , 'String'  ),
-                                             array( (string)  $direct_debit_response['ddi_reference']           , 'String'  )
-                                           )
-                              );
+        array( (string)  $direct_debit_response['data_type']               , 'String'  ),
+        array( (string)  $direct_debit_response['entity_type']             , 'String'  ),
+        array( (integer) $direct_debit_response['entity_id']               , 'Integer' ),
+        array( (string)  $direct_debit_response['bank_name']               , 'String'  ),
+        array( (string)  $direct_debit_response['branch']                  , 'String'  ),
+        array( (string)  $direct_debit_response['address1']                , 'String'  ),
+        array( (string)  $direct_debit_response['address2']                , 'String'  ),
+        array( (string)  $direct_debit_response['address3']                , 'String'  ),
+        array( (string)  $direct_debit_response['address4']                , 'String'  ),
+        array( (string)  $direct_debit_response['town']                    , 'String'  ),
+        array( (string)  $direct_debit_response['county']                  , 'String'  ),
+        array( (string)  $direct_debit_response['postcode']                , 'String'  ),
+        array( (string)  $direct_debit_response['first_collection_date']   , 'String'  ),
+        array( (string)  $direct_debit_response['preferred_collection_day'], 'String'  ),
+        array( (string)  $direct_debit_response['confirmation_method']     , 'String'  ),
+        array( (string)  $direct_debit_response['response_status']         , 'String'  ),
+        array( (string)  $direct_debit_response['response_raw']            , 'String'  ),
+        array( (string)  $direct_debit_response['ddi_reference']           , 'String'  )
+      )
+    );
   }
 
   /**
    * Change a price set field to be required for a specific event.
    */
   function UK_Direct_Debit_civicrm_buildForm( $formName, &$form ) {
-      if ($formName == 'CRM_Event_Form_Registration_Register') {
-        if ($form->_eventId == EVENT_ID) {
-          $form->addRule('price_3', ts('This field is required.'), 'required');
-        }
+    if ($formName == 'CRM_Event_Form_Registration_Register') {
+      if ($form->_eventId == EVENT_ID) {
+        $form->addRule('price_3', ts('This field is required.'), 'required');
       }
+    }
   }
-  
-  
+
+
   function buildOfflineDirectDebit(&$form, $useRequired = FALSE) {
     if ( $form->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_FORM ) {
       self::setDirectDebitFields( $form );
@@ -811,28 +810,28 @@ EOF;
           }
           else {
             $form->add( $field['htmlType'],
-                        $field['name'],
-                        $field['title'],
-                        CRM_Utils_Array::value('attributes', $field),
-                        $useRequired ? $field['is_required'] : FALSE
-                      );
+              $field['name'],
+              $field['title'],
+              CRM_Utils_Array::value('attributes', $field),
+              $useRequired ? $field['is_required'] : FALSE
+            );
           }
         }
       }
 
       $form->addRule( 'bank_identification_number',
-                      ts( 'Please enter a valid Bank Identification Number (value must not contain punctuation characters).' ),
-                      'nopunctuation'
-                    );
+        ts( 'Please enter a valid Bank Identification Number (value must not contain punctuation characters).' ),
+        'nopunctuation'
+      );
 
       $form->addRule( 'bank_account_number',
-                      ts( 'Please enter a valid Bank Account Number (value must not contain punctuation characters).' ),
-                      'nopunctuation'
-                    );
-    }  
-    
+        ts( 'Please enter a valid Bank Account Number (value must not contain punctuation characters).' ),
+        'nopunctuation'
+      );
+    }
+
   }
-  
+
   function setBillingDetailsFields(&$form) {
     $bltID =  $form->_bltID;
     $form->_paymentFields['billing_first_name'] = array(
@@ -885,10 +884,10 @@ EOF;
       'title' => ts('State/Province'),
       'name' => "billing_state_province_id-{$bltID}",
       'cc_field' => TRUE,
-	  'attributes' => array(
-        '' => ts('- select -'),
-      ) +
-      CRM_Core_PseudoConstant::stateProvince(),
+      'attributes' => array(
+          '' => ts('- select -'),
+        ) +
+        CRM_Core_PseudoConstant::stateProvince(),
       'is_required' => TRUE,
     );
 
@@ -907,12 +906,12 @@ EOF;
       'title' => ts('Country'),
       'cc_field' => TRUE,
       'attributes' => array(
-        '' => ts('- select -'),
-      ) +
-      CRM_Core_PseudoConstant::country(),
+          '' => ts('- select -'),
+        ) +
+        CRM_Core_PseudoConstant::country(),
       'is_required' => TRUE,
     );
-   
+
   }
 
 }

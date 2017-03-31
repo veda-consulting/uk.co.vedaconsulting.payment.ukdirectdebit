@@ -1,7 +1,7 @@
 <?php
-  require_once 'CRM/Core/Form.php';
-  require_once 'CRM/Core/Session.php';
-  require_once 'CRM/Core/PseudoConstant.php';
+require_once 'CRM/Core/Form.php';
+require_once 'CRM/Core/Session.php';
+require_once 'CRM/Core/PseudoConstant.php';
 
 class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
 
@@ -18,7 +18,6 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     // Get all auddis files from the API
     $auddisArray      = CRM_DirectDebit_Form_SyncSd::getSmartDebitAuddis();
     $aruddArray      = CRM_DirectDebit_Form_SyncSd::getSmartDebitArudd();
-    
 
     // Get the auddis Dates from the Auddis Files
     if($auddisArray) {
@@ -38,9 +37,8 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
         $auddisDetails['uri']                    = $auddisArray['@attributes']['uri'];
       }
     }
-    
-    
-     // Get the arudd Dates from the Arudd Files
+
+    // Get the arudd Dates from the Arudd Files
     if($aruddArray) {
       if (isset($aruddArray[0]['@attributes'])) {
         // Multiple results returned
@@ -59,7 +57,6 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
       }
     }
 
-    //echo '<pre>';print_r($aruddDates);echo '</pre>';
     // Get the already processed Auddis Dates
     $processedAuddisDates = array();
     if($auddisDates) {
@@ -70,7 +67,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
         }
       }
     }
-    
+
     $processedAruddDates = array();
     if($aruddDates) {
       foreach ($aruddDates as $aruddDate) {
@@ -80,7 +77,6 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
         }
       }
     }
-
 
     // Show only the valid auddis dates in the multi select box
     $auddisDates = array_diff($auddisDates, $processedAuddisDates);
@@ -100,7 +96,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     else {
       $groupSize = 10;
     }
-    
+
     if (count($aruddDates) <= 10) {
       // setting minimum height to 2 since widget looks strange when size (height) is 1
       $groupSizeArudd = max(count($aruddDates), 2);
@@ -118,7 +114,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
         'class' => 'advmultiselect',
       )
     );
-    
+
     $inGarudd = &$this->addElement('advmultiselect', 'includeAruddDate',
       ts('Include Arudd Date(s)') . ' ',
       $aruddDates,
@@ -144,16 +140,16 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     $this->addElement('select', 'arudd_date', ts('Arudd Date'), $aruddDatesArray);
     $this->addDate('sync_date', ts('Sync Date'), FALSE, array('formatType' => 'custom'));
     $this->addButtons(array(
-              array(
-                'type' => 'next',
-                'name' => ts('Continue'),
-                'isDefault' => TRUE,
-                ),
-              array(
-                'type' => 'back',
-                'name' => ts('Cancel'),
-              )
-            )
+        array(
+          'type' => 'next',
+          'name' => ts('Continue'),
+          'isDefault' => TRUE,
+        ),
+        array(
+          'type' => 'back',
+          'name' => ts('Cancel'),
+        )
+      )
     );
     parent::buildQuickForm();
   }
@@ -168,7 +164,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     foreach ($auddisDates as $value) {
       $queryDates .= "auddisDates[]=".$value."&";
     }
-    
+
     // Make the query string to send in the url for the next page
     $queryDatesArudd = '';
     foreach ($aruddDates as $value) {
@@ -176,7 +172,6 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     }
 
     CRM_Utils_System::redirect(CRM_Utils_System::url( 'civicrm/directdebit/auddis', ''.$queryDates.$queryDatesArudd. '&reset=1'));
-
     parent::postProcess();
   }
 
@@ -206,28 +201,25 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
 
         }
       }
-
       return $result;
     }
-
     else {
 
-  // Send payment POST to the target URL
+      // Send payment POST to the target URL
       $previousDateBackMonth = date('Y-m-d', strtotime($dateOfCollection.'-1 month'));
       $urlAuddis = "https://secure.ddprocessing.co.uk/api/auddis/list?query[service_user][pslid]=$pslid&query[from_date]=$previousDateBackMonth&query[till_date]=$dateOfCollection";
       $responseAuddis = CRM_DirectDebit_Form_Sync::requestPost( $urlAuddis, $username, $password );
       // Take action based upon the response status
       switch ( strtoupper( $responseAuddis['Status'] ) ) {
-          case 'OK':
-              return $responseAuddis;
-
-          default:
-              return false;
+        case 'OK':
+          return $responseAuddis;
+        default:
+          return false;
       }
     }
 
   }
-  
+
   static function getSmartDebitArudd($uri = NULL) {
     $session = CRM_Core_Session::singleton();
     $dateOfCollection = $session->get('collection_date');
@@ -242,7 +234,6 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
       $scrambled          = str_replace(" ","+",$responseArudd['file']);
       $outputafterencode  = base64_decode($scrambled);
       $aruddArray        = json_decode(json_encode((array) simplexml_load_string($outputafterencode)),1);
-
       $result = array();
 
       if($aruddArray['Data']['ARUDD']['Advice']['OriginatingAccountRecords']['OriginatingAccountRecord']['ReturnedDebitItem']['@attributes']) {
@@ -251,38 +242,30 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
       else {
         foreach ($aruddArray['Data']['ARUDD']['Advice']['OriginatingAccountRecords']['OriginatingAccountRecord']['ReturnedDebitItem'] as $key => $value) {
           $result[$key] = $value['@attributes'];
-
         }
       }
-     // CRM_Core_Error::debug_var('$result', $result);
       return $result;
     }
-
     else {
-       $previousDateBackMonth = date('Y-m-d', strtotime($dateOfCollection.'-1 month'));
+      $previousDateBackMonth = date('Y-m-d', strtotime($dateOfCollection.'-1 month'));
 
-  // Send payment POST to the target URL
+      // Send payment POST to the target URL
       $urlArudd = "https://secure.ddprocessing.co.uk/api/arudd/list?query[service_user][pslid]=$pslid&query[from_date]=$previousDateBackMonth&query[till_date]=$dateOfCollection";
 
       $responseArudd = CRM_DirectDebit_Form_Sync::requestPost( $urlArudd, $username, $password );
 
       // Take action based upon the response status
       switch ( strtoupper( $responseArudd["Status"] ) ) {
-          case 'OK':
-
-              $aruddArray = array();
-
-              // Cater for a single response
-              if (isset($responseArudd['arudd'])) {
-                $aruddArray = $responseArudd['arudd'];
-              }
-              return $aruddArray;
-
-          default:
-              return false;
+        case 'OK':
+          $aruddArray = array();
+          // Cater for a single response
+          if (isset($responseArudd['arudd'])) {
+            $aruddArray = $responseArudd['arudd'];
+          }
+          return $aruddArray;
+        default:
+          return false;
       }
     }
-
   }
-
 }

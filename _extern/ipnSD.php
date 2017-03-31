@@ -33,7 +33,7 @@
  *
  */
 
-session_start( );
+session_start();
 
 require_once '../civicrm.config.php';
 require_once 'CRM/Core/Config.php';
@@ -42,35 +42,33 @@ require_once 'CRM/Core/Config.php';
 $config = CRM_Core_Config::singleton();
 
 if ( empty( $_GET ) ) {
-    $rpInvoiceArray = array();
-    $rpInvoiceArray = explode( '&' , $_POST['rp_invoice_id'] );
-    foreach ( $rpInvoiceArray as $rpInvoiceValue ) {
-        $rpValueArray = explode ( '=' , $rpInvoiceValue );
-        if ( $rpValueArray[0] == 'm' ) {
-            $value = $rpValueArray[1];
-        }
+  $rpInvoiceArray = array();
+  $rpInvoiceArray = explode( '&' , $_POST['rp_invoice_id'] );
+  foreach ( $rpInvoiceArray as $rpInvoiceValue ) {
+    $rpValueArray = explode ( '=' , $rpInvoiceValue );
+    if ( $rpValueArray[0] == 'm' ) {
+      $value = $rpValueArray[1];
     }
-    require_once 'CRM/Core/Payment/SmartDebitIPN.php';
-    $SmartDebitIPN = new CRM_Core_Payment_SmartDebitIPN( );
+  }
+  require_once 'CRM/Core/Payment/SmartDebitIPN.php';
+  $SmartDebitIPN = new CRM_Core_Payment_SmartDebitIPN();
 } else {
-    require_once 'CRM/Utils/Array.php';
-    $value = CRM_Utils_Array::value( 'module', $_GET );
-    require_once 'CRM/Core/Payment/SmartDebitIPN.php';
-    $SmartDebitIPN = new CRM_Core_Payment_SmartDebitIPN( );
+  require_once 'CRM/Utils/Array.php';
+  $value = CRM_Utils_Array::value( 'module', $_GET );
+  require_once 'CRM/Core/Payment/SmartDebitIPN.php';
+  $SmartDebitIPN = new CRM_Core_Payment_SmartDebitIPN();
 }
 
 switch ( $value ) {
- case 'contribute':
-     $SmartDebitIPN->main( 'contribute' );
-     break;
- case 'event':
-     $SmartDebitIPN->main( 'event' );
-     break;
- default     :
-     require_once 'CRM/Core/Error.php';
-     CRM_Core_Error::debug_log_message( "Could not get module name from request url" );
-     echo "Could not get module name from request url<p>";
-     break;
- }
-
-
+  case 'contribute':
+    $SmartDebitIPN->main( 'contribute' );
+    break;
+  case 'event':
+    $SmartDebitIPN->main( 'event' );
+    break;
+  default     :
+    require_once 'CRM/Core/Error.php';
+    CRM_Core_Error::debug_log_message( "Could not get module name from request url" );
+    echo "Could not get module name from request url<p>";
+    break;
+}

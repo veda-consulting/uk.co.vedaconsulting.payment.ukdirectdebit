@@ -8,7 +8,7 @@
  * @see civicrm_api3_create_success
  * @see civicrm_api3_create_error
  * @throws API_Exception
- */ 
+ */
 function civicrm_api3_ukdirectdebit_sync($params) {
   $result = array();
   $runner = CRM_DirectDebit_Form_Sync::getRunner($params);
