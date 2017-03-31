@@ -131,11 +131,11 @@ function _uk_direct_debit_civix_civicrm_upgrade($op, CRM_Queue_Queue $queue = NU
  * @return _Upgrader
  */
 function _uk_direct_debit_civix_upgrader() {
-  if (!file_exists(__DIR__ . '//Upgrader.php')) {
+  if (!file_exists(__DIR__ . '/CRM/Upgrader/Upgrader.php')) {
     return NULL;
   }
   else {
-    return _Upgrader_Base::instance();
+    return CRM_DirectDebit_Upgrader_Base::instance();
   }
 }
 
