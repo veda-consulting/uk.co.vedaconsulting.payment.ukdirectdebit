@@ -1,6 +1,7 @@
 <?php
 
 class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
+  // FIXME: What is this form used for?
 
   public $_contactID;
 
@@ -16,7 +17,7 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
 
   public $_bltID = 5;
 
-  public $_membershihpAmount;
+  public $_membershipAmount;
 
   public function preProcess() {
     // Check permission for action.
@@ -30,7 +31,7 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
     // Get the membership id
     $this->_id = CRM_Utils_Request::retrieve('id', 'Positive', $this, TRUE);
     // Get the smart debit payment processor details
-    $this->_paymentProcessor = self::getSmartDebitDetails();
+    $this->_paymentProcessor = CRM_DirectDebit_Auddis::getSmartDebitUserDetails();
 
   }
 
@@ -55,7 +56,7 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
     $ddForm = new CRM_DirectDebit_Form_Main();
     $ddForm->buildOfflineDirectDebit( $this );
     // Required for validation
-    $defaults['ddi_reference'] = $ddForm->getDDIReference();
+    $defaults['ddi_reference'] = CRM_DirectDebit_Base::getDDIReference();
     $this->setDefaults($defaults);
     // Required for billing blocks to be displayed
     $this->assign('bltID', $this->_bltID);
@@ -71,18 +72,17 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
     $defaults['email-'.$this->_bltID] = $contactDetails['email'];
     $defaults['amount']		      = $contactDetails['amount'];
     $defaults['frequency_unit']	      = $contactDetails['frequency_unit'];
-    $this->_membershihpAmount	      = $contactDetails['amount'];
+    $this->_membershipAmount	      = $contactDetails['amount'];
     return $defaults;
   }
 
   public static function formRule($fields, $files, $self) {
     $errors = array ();
-    if($fields['amount'] < $self->_membershihpAmount) {
+    if($fields['amount'] < $self->_membershipAmount) {
       $errors['amount'] = ts('Amount can not be less than corresponding membership amount');
       return $errors;
     }
-    require_once self::getSmartDebitPaymentPath();
-    $validateOutput = uk_co_vedaconsulting_payment_smartdebitdd::validatePayment($fields, $files, $self);
+    $validateOutput = CRM_Core_Payment_Smartdebitdd::validatePayment($fields, $files, $self);
     if ($validateOutput['is_error'] == 1) {
       $errors['_qf_default'] = $validateOutput['error_message'];
     }
@@ -93,8 +93,7 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
     $params		  = $this->controller->exportValues($this->_name);
     $params['contactID']  = $this->_contactID;
 
-    require_once self::getSmartDebitPaymentPath();
-    $smartDebitResponse	  = uk_co_vedaconsulting_payment_smartdebitdd::doDirectPayment($params);
+    $smartDebitResponse	  = CRM_Core_Payment_Smartdebitdd::doDirectPayment($params);
     if ($smartDebitResponse['is_error'] == 1) {
       CRM_Core_Session::singleton()->pushUserContext($params['entryURL']);
       return;
@@ -116,7 +115,7 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
         'modified_date'		=>  date('YmdHis'),
         'start_date'		=>  CRM_Utils_Date::processDate($start_date),
         'amount'		=>  $params['amount'],
-        'frequency_unit'	=>  self::translateSmartDebitFrequencyUnit($smartDebitResponse['frequency_type']),
+        'frequency_unit'	=>  CRM_DirectDebit_Base::translateSmartDebitFrequencyUnit($smartDebitResponse['frequency_type']),
         'frequency_interval'	=>  1,
         'payment_processor_id'	=>  $this->_paymentProcessor['id'],
         'contribution_status_id'=>  CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'In Progress'),
@@ -125,7 +124,7 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
         'financial_type_id'	=>  $financial_type_id,
         'auto_renew'		=> '1', // Make auto renew
         'processor_id'          =>  $trxn_id,
-        'payment_instrument_id' => CRM_DirectDebit_Form_Main::getDDPaymentInstrumentID(),//Direct Debit
+        'payment_instrument_id' => CRM_DirectDebit_Base::getDDPaymentInstrumentID(),//Direct Debit
       );
 
       $recurring		  = CRM_Contribute_BAO_ContributionRecur::add($recurParams);
@@ -209,60 +208,6 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
       return('year' );
     }
     return('month' );
-  }
-
-  static function getSmartDebitDetails(){
-    $paymentProcessorType   = CRM_Core_PseudoConstant::paymentProcessorType(false, null, 'name');
-    $paymentProcessorTypeId = CRM_Utils_Array::key('Smart_Debit', $paymentProcessorType);
-    $domainID               = CRM_Core_Config::domainID();
-
-    if(empty($paymentProcessorTypeId)) {
-      CRM_Core_Session::setStatus(ts('Make sure Payment Processor Type (Smart Debit) is set in Payment Processor setting'), Error, 'error');
-      return FALSE;
-    }
-
-    $sql  = " SELECT user_name ";
-    $sql .= " ,      password ";
-    $sql .= " ,      signature ";
-    $sql .= " ,      billing_mode ";
-    $sql .= " ,      payment_type ";
-    $sql .= " ,      url_api ";
-    $sql .= " ,      id ";
-    $sql .= " FROM civicrm_payment_processor ";
-    $sql .= " WHERE payment_processor_type_id = %1 ";
-    $sql .= " AND is_test= %2 AND domain_id = %3";
-
-    $params = array( 1 => array( $paymentProcessorTypeId, 'Integer' )
-    , 2 => array( '0', 'Int' )
-    , 3 => array( $domainID, 'Int' )
-    );
-
-    $dao    = CRM_Core_DAO::executeQuery( $sql, $params);
-    $result = array();
-    if ($dao->fetch()) {
-      if(empty($dao->user_name) || empty($dao->password) || empty($dao->signature)) {
-        CRM_Core_Session::setStatus(ts('Smart Debit API User Details Missing, Please check the Smart Debit Payment Processor is configured Properly'), Error, 'error');
-        return FALSE;
-      }
-      $result   = array(
-        'user_name'	  => $dao->user_name,
-        'password'	  => $dao->password,
-        'signature'	  => $dao->signature,
-        'billing_mode'    => $dao->billing_mode,
-        'payment_type'    => $dao->payment_type,
-        'url_api'	  => $dao->url_api,
-        'id'		  => $dao->id,
-      );
-
-    }
-    return $result;
-
-  }//end function
-
-  static function getSmartDebitPaymentPath() {
-    $config   = CRM_Core_Config::singleton();
-    $extenDr  = $config->extensionsDir;
-    return $extenDr . DIRECTORY_SEPARATOR .'uk.co.vedaconsulting.payment.smartdebitdd' .DIRECTORY_SEPARATOR.'smart_debit_dd.php';
   }
 
   static function getContactDetails($membershipID) {

@@ -16,8 +16,8 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     $aruddDates      = array();
 
     // Get all auddis files from the API
-    $auddisArray      = CRM_DirectDebit_Form_SyncSd::getSmartDebitAuddis();
-    $aruddArray      = CRM_DirectDebit_Form_SyncSd::getSmartDebitArudd();
+    $auddisArray = CRM_DirectDebit_Auddis::getSmartDebitAuddis();
+    $aruddArray = CRM_DirectDebit_Auddis::getSmartDebitArudd();
 
     // Get the auddis Dates from the Auddis Files
     if($auddisArray) {
@@ -173,99 +173,5 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
 
     CRM_Utils_System::redirect(CRM_Utils_System::url( 'civicrm/directdebit/auddis', ''.$queryDates.$queryDatesArudd. '&reset=1'));
     parent::postProcess();
-  }
-
-  static function getSmartDebitAuddis($uri = NULL) {
-    $session = CRM_Core_Session::singleton();
-    $dateOfCollection = $session->get('collection_date');
-    $userDetails = CRM_DirectDebit_Form_DataSource::getSmartDebitUserDetails();
-    $username    = CRM_Utils_Array::value('username', $userDetails);
-    $password    = CRM_Utils_Array::value('password', $userDetails);
-    $pslid       = CRM_Utils_Array::value('pslid', $userDetails);
-
-    if($uri) {
-      $urlAuddis          = $uri."?query[service_user][pslid]=$pslid";
-      $responseAuddis     = CRM_DirectDebit_Form_Sync::requestPost( $urlAuddis, $username, $password );
-      $scrambled          = str_replace(" ","+",$responseAuddis['file']);
-      $outputafterencode  = base64_decode($scrambled);
-      $auddisArray        = json_decode(json_encode((array) simplexml_load_string($outputafterencode)),1);
-
-      $result = array();
-
-      if($auddisArray['Data']['MessagingAdvices']['MessagingAdvice']['@attributes']) {
-        $result[0] = $auddisArray['Data']['MessagingAdvices']['MessagingAdvice']['@attributes'];
-      }
-      else {
-        foreach ($auddisArray['Data']['MessagingAdvices']['MessagingAdvice'] as $key => $value) {
-          $result[$key] = $value['@attributes'];
-
-        }
-      }
-      return $result;
-    }
-    else {
-
-      // Send payment POST to the target URL
-      $previousDateBackMonth = date('Y-m-d', strtotime($dateOfCollection.'-1 month'));
-      $urlAuddis = "https://secure.ddprocessing.co.uk/api/auddis/list?query[service_user][pslid]=$pslid&query[from_date]=$previousDateBackMonth&query[till_date]=$dateOfCollection";
-      $responseAuddis = CRM_DirectDebit_Form_Sync::requestPost( $urlAuddis, $username, $password );
-      // Take action based upon the response status
-      switch ( strtoupper( $responseAuddis['Status'] ) ) {
-        case 'OK':
-          return $responseAuddis;
-        default:
-          return false;
-      }
-    }
-
-  }
-
-  static function getSmartDebitArudd($uri = NULL) {
-    $session = CRM_Core_Session::singleton();
-    $dateOfCollection = $session->get('collection_date');
-    $userDetails = CRM_DirectDebit_Form_DataSource::getSmartDebitUserDetails();
-    $username    = CRM_Utils_Array::value('username', $userDetails);
-    $password    = CRM_Utils_Array::value('password', $userDetails);
-    $pslid       = CRM_Utils_Array::value('pslid', $userDetails);
-
-    if($uri) {
-      $urlArudd         = $uri."?query[service_user][pslid]=$pslid";
-      $responseArudd     = CRM_DirectDebit_Form_Sync::requestPost( $urlArudd, $username, $password );
-      $scrambled          = str_replace(" ","+",$responseArudd['file']);
-      $outputafterencode  = base64_decode($scrambled);
-      $aruddArray        = json_decode(json_encode((array) simplexml_load_string($outputafterencode)),1);
-      $result = array();
-
-      if($aruddArray['Data']['ARUDD']['Advice']['OriginatingAccountRecords']['OriginatingAccountRecord']['ReturnedDebitItem']['@attributes']) {
-        $result[0] = $aruddArray['Data']['ARUDD']['Advice']['OriginatingAccountRecords']['OriginatingAccountRecord']['ReturnedDebitItem']['@attributes'];
-      }
-      else {
-        foreach ($aruddArray['Data']['ARUDD']['Advice']['OriginatingAccountRecords']['OriginatingAccountRecord']['ReturnedDebitItem'] as $key => $value) {
-          $result[$key] = $value['@attributes'];
-        }
-      }
-      return $result;
-    }
-    else {
-      $previousDateBackMonth = date('Y-m-d', strtotime($dateOfCollection.'-1 month'));
-
-      // Send payment POST to the target URL
-      $urlArudd = "https://secure.ddprocessing.co.uk/api/arudd/list?query[service_user][pslid]=$pslid&query[from_date]=$previousDateBackMonth&query[till_date]=$dateOfCollection";
-
-      $responseArudd = CRM_DirectDebit_Form_Sync::requestPost( $urlArudd, $username, $password );
-
-      // Take action based upon the response status
-      switch ( strtoupper( $responseArudd["Status"] ) ) {
-        case 'OK':
-          $aruddArray = array();
-          // Cater for a single response
-          if (isset($responseArudd['arudd'])) {
-            $aruddArray = $responseArudd['arudd'];
-          }
-          return $aruddArray;
-        default:
-          return false;
-      }
-    }
   }
 }

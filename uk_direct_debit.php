@@ -2,19 +2,26 @@
 
 require_once 'uk_direct_debit.civix.php';
 
-/*
+/**
  * Save setting with prefix in database
+ * @param $name
+ * @param $value
  */
 function uk_direct_debit_civicrm_saveSetting($name, $value) {
-  civicrm_api3('setting', 'create', array(CRM_DirectDebit_Form_Settings::getSettingName($name,true) => (string)$value));
+  civicrm_api3('setting', 'create', array(CRM_DirectDebit_Form_Settings::getSettingName($name,true) => serialize($value)));
 }
 
-/*
+/**
  * Read setting that has prefix in database and return single value
+ * @param $name
+ * @return mixed
  */
 function uk_direct_debit_civicrm_getSetting($name) {
   $settings = civicrm_api3('setting', 'get', array('return' => CRM_DirectDebit_Form_Settings::getSettingName($name,true)));
-  return $settings['values'][1][CRM_DirectDebit_Form_Settings::getSettingName($name,true)];
+  if (isset($settings['values'][1][CRM_DirectDebit_Form_Settings::getSettingName($name,true)])) {
+    return unserialize($settings['values'][1][CRM_DirectDebit_Form_Settings::getSettingName($name, true)]);
+  }
+  return '';
 }
 
 /**
@@ -24,40 +31,55 @@ function uk_direct_debit_civicrm_install() {
   _uk_direct_debit_civix_civicrm_install();
 
   // Create an Direct Debit Activity Type
-  require_once 'api/api.php';
-  $optionGroupParams = array('version'         => '3'
-  ,'name'            => 'activity_type');
-  $optionGroup = civicrm_api('OptionGroup', 'Get', $optionGroupParams);
+  // See if we already have this type
+  $ddActivity = civicrm_api3('OptionValue', 'get', array(
+    'option_group_id' => "activity_type",
+    'name' => "Direct Debit Sign Up",
+  ));
+  if (empty($ddActivity['count'])) {
+    $activityParams = array('version' => '3'
+    , 'option_group_id' => "activity_type"
+    , 'name' => 'Direct Debit Sign Up'
+    , 'description' => 'Direct Debit Sign Up');
+    $activityType = civicrm_api('OptionValue', 'Create', $activityParams);
+    $activityTypeId = $activityType['values'][$activityType['id']]['value'];
+    uk_direct_debit_civicrm_saveSetting('activity_type', $activityTypeId);
+  }
 
-  $activityParams = array('version'         => '3'
-  ,'option_group_id' => $optionGroup['id']
-  ,'name'            => 'Direct Debit Sign Up'
-  ,'description'     => 'Direct Debit Sign Up');
-  $activityType = civicrm_api('OptionValue', 'Create', $activityParams);
-  uk_direct_debit_civicrm_saveSetting('activity_type', $activityType['values'][$activityType['id']]['value']);
-
-  $activityParams = array('version'         => '3'
-  ,'option_group_id' => $optionGroup['id']
-  ,'name'            => 'DD Confirmation Letter'
-  ,'description'     => 'DD Confirmation Letter');
-  $activityType = civicrm_api('OptionValue', 'Create', $activityParams);
-
-  uk_direct_debit_civicrm_saveSetting('activity_type_letter', $activityType['values'][$activityType['id']]['value']);
+  // See if we already have this type
+  $ddActivity = civicrm_api3('OptionValue', 'get', array(
+    'option_group_id' => "activity_type",
+    'name' => "DD Confirmation Letter",
+  ));
+  if (empty($ddActivity['count'])) {
+    // Otherwise create it
+    $activityParams = array('version' => '3'
+    , 'option_group_id' => "activity_type"
+    , 'name' => 'DD Confirmation Letter'
+    , 'description' => 'DD Confirmation Letter');
+    $activityType = civicrm_api('OptionValue', 'Create', $activityParams);
+    $activityTypeId = $activityType['values'][$activityType['id']]['value'];
+    uk_direct_debit_civicrm_saveSetting('activity_type_letter', $activityTypeId);
+  }
 
   // Create an Direct Debit Payment Instrument
-  $optionGroupParams = array('version'         => '3'
-  ,'name'            => 'payment_instrument');
-  $optionGroup = civicrm_api('OptionGroup', 'Get', $optionGroupParams);
-
-  $paymentParams = array('version'         => '3'
-  ,'option_group_id' => $optionGroup['id']
-  ,'name'            => 'Direct Debit'
-  ,'label'           => 'Direct Debit'
-  ,'description'     => 'Direct Debit');
-  $paymentInstrument = civicrm_api('OptionValue', 'Create', $paymentParams);
+  // See if we already have this type
+  $ddPayment = civicrm_api3('OptionValue', 'get', array(
+    'option_group_id' => "payment_instrument",
+    'name' => "Direct Debit",
+  ));
+  if (empty($ddPayment['count'])) {
+    // Otherwise create it
+    $paymentParams = array('version' => '3'
+    , 'option_group_id' => "payment_instrument"
+    , 'name' => 'Direct Debit'
+    , 'description' => 'Direct Debit');
+    $paymentType = civicrm_api('OptionValue', 'Create', $paymentParams);
+    $paymentTypeId = $paymentType['values'][$paymentType['id']]['value'];
+    uk_direct_debit_civicrm_saveSetting('payment_instrument_id', $paymentTypeId);
+  }
 
   // On install, create a table for keeping track of online direct debits
-  require_once "CRM/Core/DAO.php";
   CRM_Core_DAO::executeQuery("
          CREATE TABLE IF NOT EXISTS `civicrm_direct_debit` (
         `id`                        int(10) unsigned NOT NULL auto_increment,
@@ -95,17 +117,22 @@ function uk_direct_debit_civicrm_install() {
 
   uk_direct_debit_message_template();
 
-  // create a sync job
-  $params = array(
-    'sequential' => 1,
-    'name'          => 'SmartDebit Sync',
-    'description'   => 'Sync contacts from smartdebit to civicrm.',
-    'run_frequency' => 'Daily',
-    'api_entity'    => 'Ukdirectdebit',
-    'api_action'    => 'sync',
-    'is_active'     => 0,
-  );
-  $result = civicrm_api3('job', 'create', $params);
+  $syncJob = civicrm_api3('Job', 'get', array(
+    'name' => "SmartDebit Sync",
+  ));
+  if (empty($syncJob['count'])) {
+    // create a sync job
+    $params = array(
+      'sequential' => 1,
+      'name' => 'SmartDebit Sync',
+      'description' => 'Sync contacts from smartdebit to civicrm.',
+      'run_frequency' => 'Daily',
+      'api_entity' => 'Ukdirectdebit',
+      'api_action' => 'sync',
+      'is_active' => 0,
+    );
+    $result = civicrm_api3('job', 'create', $params);
+  }
 }
 
 /**
@@ -132,17 +159,24 @@ function uk_direct_debit_civicrm_uninstall() {
  */
 function uk_direct_debit_civicrm_enable() {
   _uk_direct_debit_civix_civicrm_enable();
+
+  /*if (CRM_Extension_System::singleton()->getManager()->getStatus('uk.co.vedaconsulting.payment.smartdebitdd') == 'disabled') {
+    CRM_Core_Session::setStatus("", ts('Enabling Smart Debit extension'), "success");
+    $result = civicrm_api3('Extension', 'enable', array(
+      'sequential' => 1,
+      'keys' => "uk.co.vedaconsulting.payment.smartdebitdd",
+    ));
+  }*/
 }
 
 function uk_direct_debit_civicrm_disable() {
-  $fred = CRM_Extension_System::singleton()->getManager()->getStatuses();
-  if (CRM_Extension_System::singleton()->getManager()->getStatus('uk.co.vedaconsulting.payment.smartdebitdd') == 'installed') {
+  /*if (CRM_Extension_System::singleton()->getManager()->getStatus('uk.co.vedaconsulting.payment.smartdebitdd') == 'installed') {
     CRM_Core_Session::setStatus("", ts('Disabling Smart Debit extension'), "success");
     $result = civicrm_api3('Extension', 'disable', array(
       'sequential' => 1,
       'keys' => "uk.co.vedaconsulting.payment.smartdebitdd",
     ));
-  }
+  }*/
   if (CRM_Extension_System::singleton()->getManager()->getStatus('uk.co.vedaconsulting.module.reconciliation.smartdebit') == 'installed') {
     CRM_Core_Session::setStatus("", ts('Disabling Smart Debit Reconciliation extension'), "success");
     $result = civicrm_api3('Extension', 'disable', array(
@@ -152,6 +186,18 @@ function uk_direct_debit_civicrm_disable() {
   }
 
   _uk_direct_debit_civix_civicrm_disable();
+}
+
+/**
+ * Implements hook_civicrm_managed().
+ *
+ * Generate a list of entities to create/deactivate/delete when this module
+ * is installed, enabled, disabled, uninstalled.
+ *
+ * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_managed
+ */
+function uk_direct_debit_civicrm_managed(&$entities) {
+  _uk_direct_debit_civix_civicrm_managed($entities);
 }
 
 /**
@@ -809,7 +855,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
         $ddi_reference = $form->_params['ddi_reference'];
     }
 
-    if ($form->_paymentProcessor['payment_processor_type'] == 'Smart Debit') {
+    if ($form->_paymentProcessor['payment_processor_type'] == 'Smart_Debit') {
       if (!empty($ddi_reference)) {
         /*** Get details for ddi
          * then setup local array with all details
@@ -825,7 +871,7 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
         $dao = CRM_Core_DAO::executeQuery($query, $params);
 
         if ($dao->fetch()) {
-          $uk_direct_debit['company_name'] = CRM_DirectDebit_Form_Main::getCompanyName();
+          $uk_direct_debit['company_name'] = CRM_DirectDebit_Base::getCompanyName();
           $uk_direct_debit['bank_name'] = $dao->bank_name;
           $uk_direct_debit['branch'] = $dao->branch;
           $uk_direct_debit['address1'] = $dao->address1;
@@ -838,13 +884,13 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
           $uk_direct_debit['first_collection_date'] = $dao->first_collection_date;
           $uk_direct_debit['preferred_collection_day'] = $dao->preferred_collection_day;
           $uk_direct_debit['confirmation_method'] = $dao->confirmation_method;
-          $uk_direct_debit['formatted_preferred_collection_day'] = CRM_DirectDebit_Form_Main::formatPreferredCollectionDay($dao->preferred_collection_day);
+          $uk_direct_debit['formatted_preferred_collection_day'] = CRM_DirectDebit_Base::formatPreferredCollectionDay($dao->preferred_collection_day);
         }
       }
       else {
         // Set defaults
         $uk_direct_debit['formatted_preferred_collection_day'] = '';
-        $uk_direct_debit['company_name']             = CRM_DirectDebit_Form_Main::getCompanyName();
+        $uk_direct_debit['company_name']             = CRM_DirectDebit_Base::getCompanyName();
         $uk_direct_debit['bank_name']                = '';
         $uk_direct_debit['branch']                   = '';
         $uk_direct_debit['address1']                 = '';
@@ -862,34 +908,28 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form ) {
     }
     else if ($form->_paymentProcessor['payment_processor_type'] == 'Gocardless') {
       // Gocardless
-      $uk_direct_debit['formatted_preferred_collection_day'] 	= CRM_DirectDebit_Form_Main::formatPreferredCollectionDay($form->_params['preferred_collection_day']);
-      $collectionDate                                         = CRM_DirectDebit_Form_Main::firstCollectionDate($form->_params['preferred_collection_day']);
+      $uk_direct_debit['formatted_preferred_collection_day'] 	= CRM_DirectDebit_Base::formatPreferredCollectionDay($form->_params['preferred_collection_day']);
+      $collectionDate                                         = CRM_DirectDebit_Base::firstCollectionDate($form->_params['preferred_collection_day']);
       $uk_direct_debit['first_collection_date']               = $collectionDate->format("Y-m-d");
       $uk_direct_debit['confirmation_method']                 = 'EMAIL'; //KJ fixme as we don't give options to choose
-      $uk_direct_debit['company_name']                        = CRM_DirectDebit_Form_Main::getCompanyName();;
+      $uk_direct_debit['company_name']                        = CRM_DirectDebit_Base::getCompanyName();
     }
 
     $form->assign( 'direct_debit_details', $uk_direct_debit );
-    $form->assign( 'service_user_number', CRM_DirectDebit_Form_Main::getSUNParts());
-    $form->assign( 'company_address', CRM_DirectDebit_Form_Main::getCompanyAddress());
+    $form->assign( 'service_user_number', CRM_DirectDebit_Base::getSUNParts());
+    $form->assign( 'company_address', CRM_DirectDebit_Base::getCompanyAddress());
     $form->assign( 'directDebitDate', date('Ymd'));
   }
 }
 
-/*************************************************************
-Send a post request with cURL
-$url = URL to send request to
-$data = POST data to send (in URL encoded Key=value pairs)
- *************************************************************/
+/**
+ * Send a post request with cURL
+ *
+ * @param $url
+ */
 function call_CiviCRM_IPN($url){
-
-  CRM_Core_Error::debug_log_message('call_CiviCRM_IPN url='.$url);
-
   // Set a one-minute timeout for this script
   set_time_limit(160);
-
-  // Initialise output variable
-  $output = array();
 
   $options = array(
     CURLOPT_RETURNTRANSFER => true, // return web page
@@ -902,7 +942,6 @@ function call_CiviCRM_IPN($url){
   );
 
   $session = curl_init( $url );
-
   curl_setopt_array( $session, $options );
 
   // Tell curl that this is the body of the POST
@@ -911,17 +950,14 @@ function call_CiviCRM_IPN($url){
 
   // $output contains the output string
   $output = curl_exec($session);
-
-  $header = curl_getinfo( $session );
-
-  CRM_Core_Error::debug_var( 'result : ', $output);
-
+  $header = curl_getinfo($session);
 } // END function requestPost()
 
 /**
  * Renew Membership by one period if the membership expires
  * before the contribution collection date starts
  * @author shobbs
+ * @param $membershipID
  */
 function renew_membership_by_one_period($membershipID) {
 
@@ -955,12 +991,10 @@ function renew_membership_by_one_period($membershipID) {
   );
 
   $contributionReceiveDate = $contribution['values'][$contributionID]['receive_date'];
-
   $contributionReceiveDateString = date("Ymd", strtotime($contributionReceiveDate));
   $membershipEndDateString = date("Ymd", strtotime($membershipEndDate));
 
   if ($contributionReceiveDateString > $membershipEndDateString) {
-
     $contributionRecurring = civicrm_api("ContributionRecur"
       ,"get"
       , array ('version' => '3'
@@ -969,13 +1003,10 @@ function renew_membership_by_one_period($membershipID) {
     );
 
     $frequencyUnit = $contributionRecurring['values'][$contributionRecurID]['frequency_unit'];
-
     if (!is_null($frequencyUnit)) {
       $membershipEndDateString = date("Y-m-d",strtotime(date("Y-m-d", strtotime($membershipEndDate)) . " +1 $frequencyUnit"));
     }
-
   }
-
   $updatedMember = civicrm_api("Membership"
     ,"create"
     , array ('version'       => '3',
@@ -995,7 +1026,6 @@ function uk_direct_debit_civicrm_searchTasks( $objectName, &$tasks ) {
   if($objectName != 'membership') {
     return;
   }
-//    if (!is_null(array_search('Renew Memberships', $tasks)))
   if (!(array_search('Renew Memberships', $tasks)))
   {
     $tasks[] = array(
@@ -1007,15 +1037,17 @@ function uk_direct_debit_civicrm_searchTasks( $objectName, &$tasks ) {
 }
 
 function uk_direct_debit_civicrm_pre( $op, $objectName, $id, &$params ) {
-  if(($objectName == 'ContributionRecur' && $op =='edit') && ($params['payment_processor_type'] == 'Smart_Debit') ) {
-    $params['start_date'] = CRM_Utils_Date::processDate($params['start_date']);
-    $params['end_date']   = CRM_Utils_Date::processDate($params['end_date']);
-    $frequencyUnit        = $params['frequency_unit'];
-    $frequencyUnits       = array('D' =>'day','W'=> 'week','M'=> 'month', 'Y' => 'year');
-    $params['frequency_unit'] = CRM_Utils_Array::value($frequencyUnit, $frequencyUnits);
+  if(($objectName == 'ContributionRecur') && ($op =='edit')) {
+    if (isset($params['payment_processor_type']) && ($params['payment_processor_type'] == 'Smart_Debit')) {
+      $params['start_date'] = CRM_Utils_Date::processDate($params['start_date']);
+      $params['end_date'] = CRM_Utils_Date::processDate($params['end_date']);
+      // FIXME: use CRM_DirectDebit_Base::translateSmartDebitFrequencytoCiviCRM()
+      $frequencyUnit = $params['frequency_unit'];
+      $frequencyUnits = array('D' => 'day', 'W' => 'week', 'M' => 'month', 'Y' => 'year');
+      $params['frequency_unit'] = CRM_Utils_Array::value($frequencyUnit, $frequencyUnits);
+    }
   }
 }
-
 
 function uk_direct_debit_civicrm_pageRun(&$page) {
   $pageName = $page->getVar('_name');
@@ -1085,6 +1117,8 @@ function uk_direct_debit_civicrm_validateForm($name, &$fields, &$files, &$form, 
  * This hook is used to perform the IPN code on the direct debit contribution
  * This should result in the membership showing as active, so this only really applies to membership base contribution forms
  *
+ * @param $formName
+ * @param $form
  */
 function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
   // Check the form being submitted is a contribution form
@@ -1110,7 +1144,7 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
       $contributionID      = $dao->id;
       $contributionRecurID = $dao->contribution_recur_id;
 
-      $start_date     = urlencode( $form->_params['start_date'] );
+      $start_date     = urlencode( $form->_values['start_date'] );
 
       if ( $isRecur == 1 ) {
         $paymentProcessorType = urlencode( $form->_paymentProcessor['payment_processor_type'] );
@@ -1125,7 +1159,6 @@ function uk_direct_debit_civicrm_postProcess( $formName, &$form ) {
 
         // Get the recur ID for the contribution
         $url = CRM_Utils_System::url('civicrm/payment/ipn', $query,  TRUE, NULL, FALSE, TRUE);
-        CRM_Core_Error::debug_log_message('uk_direct_debit_civicrm_postProcess url='.$url);
         call_CiviCRM_IPN($url);
 
         renew_membership_by_one_period($membershipID);

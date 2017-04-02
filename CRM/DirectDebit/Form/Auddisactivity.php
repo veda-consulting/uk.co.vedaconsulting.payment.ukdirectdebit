@@ -4,11 +4,11 @@ class CRM_DirectDebit_Form_Auddisactivity extends CRM_Core_Form {
   public $_processedAuddis;
 
   function preProcess() {
-    $auddisDetails    = array();
-    $auddisDates      = array();
+    $auddisDetails = array();
+    $auddisDates = array();
 
     // Get all auddis files from the API
-    $auddisArray      = CRM_DirectDebit_Form_SyncSd::getSmartDebitAuddis();
+    $auddisArray = CRM_DirectDebit_Auddis::getSmartDebitAuddis();
     // Get the auddis Dates from the Auddis Files
     if($auddisArray) {
       foreach ($auddisArray as $auddis) {
@@ -98,5 +98,3 @@ class CRM_DirectDebit_Form_Auddisactivity extends CRM_Core_Form {
     CRM_Utils_System::redirect(CRM_Utils_System::url( 'civicrm/directdebit/syncsd/activity', 'reset=1'));
   }
 }
-
-

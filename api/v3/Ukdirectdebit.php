@@ -16,10 +16,17 @@ function civicrm_api3_ukdirectdebit_sync($params) {
     $result = $runner->runAll();
   }
 
-  if ($result['is_error'] == 0) {
+  if ($result && !isset($result['is_error'])) {
     return civicrm_api3_create_success();
   }
   else {
-    return civicrm_api3_create_error();
+    $msg = '';
+    if (isset($result)) {
+      $msg .= $result['exception']->getMessage() . '; ';
+    }
+    if (isset($result['last_task_title'])) {
+      $msg .= $result['last_task_title'] .'; ';
+    }
+    return civicrm_api3_create_error($msg);
   }
 }

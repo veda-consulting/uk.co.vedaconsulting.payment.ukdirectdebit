@@ -5,10 +5,12 @@ require_once 'CRM/Core/Session.php';
 require_once 'CRM/Core/PseudoConstant.php';
 
 class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
-
-  function preProcess() {
-    parent::preProcess();
-  }
+/*
+ * Notification of failed debits and cancelled or amended DDIs are made available via Automated Direct Debit
+ * Instruction Service (AUDDIS), Automated Return of Unpaid Direct Debit (ARUDD) files and Automated Direct Debit
+ * Amendment and Cancellation (ADDACS) files. Notification of any claims relating to disputed Debits are made via
+ * Direct Debit Indemnity Claim Advice (DDICA) reports.
+ */
 
   function buildQuickForm() {
     $auddisFiles = array();
@@ -16,19 +18,18 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     $auddisDates = CRM_Utils_Request::retrieve('auddisDates', 'String', $this, false);
     $aruddDates = CRM_Utils_Request::retrieve('aruddDates', 'String', $this, false);
 
-    $auddisArray = CRM_DirectDebit_Form_SyncSd::getSmartDebitAuddis();
-    $aruddArray = CRM_DirectDebit_Form_SyncSd::getSmartDebitArudd();
+    $auddisArray = CRM_DirectDebit_Auddis::getSmartDebitAuddis();
+    $aruddArray = CRM_DirectDebit_Auddis::getSmartDebitArudd();
     if($auddisDates) {
       foreach ($auddisDates as $auddisDate) {
-        $auddisDetails  = self::getRightAuddisFile($auddisArray, $auddisDate);
-        $auddisFiles[] = CRM_DirectDebit_Form_SyncSd::getSmartDebitAuddis($auddisDetails['uri']);
+        $auddisDetails  = CRM_DirectDebit_Auddis::getRightAuddisFile($auddisArray, $auddisDate);
+        $auddisFiles[] = CRM_DirectDebit_Auddis::getSmartDebitAuddis($auddisDetails['uri']);
       }
     }
     if($aruddDates) {
       foreach ($aruddDates as $aruddDate) {
-        $aruddDetails  = self::getRightAruddFile($aruddArray, $aruddDate);
-        $aruddFiles[] = CRM_DirectDebit_Form_SyncSd::getSmartDebitArudd($aruddDetails['uri']);
-
+        $aruddDetails  = CRM_DirectDebit_Auddis::getRightAruddFile($aruddArray, $aruddDate);
+        $aruddFiles[] = CRM_DirectDebit_Auddis::getSmartDebitArudd($aruddDetails['uri']);
       }
     }
 
@@ -38,7 +39,6 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     $rejectedIds  = array();
     foreach ($auddisFiles as $auddisFile) {
       foreach ($auddisFile as $inside => $value) {
-
         $sql = "
           SELECT ctrc.id as contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.frequency_interval
           FROM civicrm_contribution_recur ctrc
@@ -49,7 +49,6 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
         $dao = CRM_Core_DAO::executeQuery( $sql, $params);
         $rejectedIds[]  = "'".$value['reference']."' ";
         if ($dao->fetch()) {
-
           $newAuddisArray[$key]['contribution_recur_id']    = $dao->contribution_recur_id;
           $newAuddisArray[$key]['contact_id']               = $dao->contact_id;
           $newAuddisArray[$key]['contact_name']             = $dao->display_name;
@@ -61,7 +60,6 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
           $newAuddisArray[$key]['reason-code']              = $value['reason-code'];
           $key++;
         }
-
       }
     }
 
@@ -78,7 +76,6 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     $key = 0;
     foreach ($aruddFiles as $aruddFile) {
       foreach ($aruddFile as $inside => $value) {
-
         $sql = "
           SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.frequency_interval
           FROM civicrm_contribution_recur ctrc
@@ -89,7 +86,6 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
         $dao = CRM_Core_DAO::executeQuery( $sql, $params);
         $rejectedIds[]  = "'".$value['ref']."' ";
         if ($dao->fetch()) {
-
           $newAruddArray[$key]['contribution_recur_id']    = $dao->contribution_recur_id;
           $newAruddArray[$key]['contact_id']               = $dao->contact_id;
           $newAruddArray[$key]['contact_name']             = $dao->display_name;
@@ -101,7 +97,6 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
           $newAruddArray[$key]['reason-code']              = $value['returnDescription'];
           $key++;
         }
-
       }
     }
 
@@ -171,9 +166,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
         CRM_DirectDebit_Utils_Hook::validateSmartDebitContributionParams( $params );
 
         $listArray[$key] = $params;
-
         $key++;
-
       }
       //MV: temp store the matched contribution in settings table.
       if(!empty($matchTrxnIds)) {
@@ -289,7 +282,6 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     $totalSummaryNumber = count($newAuddisArray) + count($newAruddArray) + count($existArray) + count($missingArray) + count($listArray);
     $totalSummaryAmount = $totalRejected + $totalRejectedArudd + $totalExist + $totalMissing + $totalList ;
 
-
     $this->assign('newAuddisArray', $newAuddisArray);
     $this->assign('newAruddArray', $newAruddArray);
     $this->assign('listArray', $listArray);
@@ -303,59 +295,5 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     $this->assign('summary', $summary);
 
     parent::buildQuickForm();
-  }
-
-  function postProcess() {
-    parent::postProcess();
-  }
-
-  static function getRightAuddisFile($auddisArray = array(), $auddisDate = NULL) {
-    $auddisDetails = array();
-    if($auddisArray && $auddisDate) {
-      if (isset($auddisArray[0]['@attributes'])) {
-        // Multiple results returned
-        foreach ($auddisArray as $key => $auddis) {
-          if(strtotime($auddisDate) == strtotime(substr($auddis['report_generation_date'], 0, 10))){
-            $auddisDetails['auddis_id']              = $auddis['auddis_id'];
-            $auddisDetails['report_generation_date'] = substr($auddis['report_generation_date'], 0, 10);
-            $auddisDetails['uri']                    = $auddis['@attributes']['uri'];
-            break;
-          }
-        }
-      } else {
-        // Only one result returned
-        if(strtotime($auddisDate) == strtotime(substr($auddisArray['report_generation_date'], 0, 10))){
-          $auddisDetails['auddis_id']              = $auddisArray['auddis_id'];
-          $auddisDetails['report_generation_date'] = substr($auddisArray['report_generation_date'], 0, 10);
-          $auddisDetails['uri']                    = $auddisArray['@attributes']['uri'];
-        }
-      }
-    }
-    return $auddisDetails;
-  }
-
-  static function getRightAruddFile($aruddArray = array(), $aruddDate = NULL) {
-    $aruddDetails = array();
-    if($aruddArray && $aruddDate) {
-      if (isset($aruddArray[0]['@attributes'])) {
-        // Multiple results returned
-        foreach ($aruddArray as $key => $arudd) {
-          if(strtotime($aruddDate) == strtotime(substr($arudd['current_processing_date'], 0, 10))){
-            $aruddDetails['arudd_id']              = $arudd['arudd_id'];
-            $aruddDetails['current_processing_date'] = substr($arudd['current_processing_date'], 0, 10);
-            $aruddDetails['uri']                    = $arudd['@attributes']['uri'];
-            break;
-          }
-        }
-      } else {
-        // Only one result returned
-        if(strtotime($aruddDate) == strtotime(substr($aruddArray['current_processing_date'], 0, 10))){
-          $aruddDetails['arudd_id']              = $aruddArray['arudd_id'];
-          $aruddDetails['current_processing_date'] = substr($aruddArray['current_processing_date'], 0, 10);
-          $aruddDetails['uri']                    = $aruddArray['@attributes']['uri'];
-        }
-      }
-    }
-    return $aruddDetails;
   }
 }

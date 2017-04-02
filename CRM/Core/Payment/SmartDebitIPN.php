@@ -147,7 +147,7 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
       case 'recurring_payment':
         CRM_Core_Error::debug_log_message("recurring_payment");
         if ( $first ) {
-          $recur->payment_instrument_id = CRM_DirectDebit_Form_Main::getDDPaymentInstrumentID();
+          $recur->payment_instrument_id = CRM_DirectDebit_Base::getDDPaymentInstrumentID();
           $recur->trxn_id = $input['trxn_id'];
           $recur->processor_id = $input['trxn_id'];
           $recur->cycle_day = $input['collection_day'];
@@ -235,7 +235,7 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
       $contribution->receive_date = $now;
 
       $contribution->currency = $objects['contribution']->currency;
-      $contribution->payment_instrument_id = CRM_DirectDebit_Form_Main::getDDPaymentInstrumentID(); // $objects['contribution']->payment_instrument_id;
+      $contribution->payment_instrument_id = CRM_DirectDebit_Base::getDDPaymentInstrumentID(); // $objects['contribution']->payment_instrument_id;
       $contribution->amount_level          = $objects['contribution']->amount_level;
 
       $objects['contribution']             = &$contribution;
@@ -270,7 +270,7 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
       $contribution->total_amount = $input['amount'];
     }
 
-    $contribution->payment_instrument_id = CRM_DirectDebit_Form_Main::getDDPaymentInstrumentID();
+    $contribution->payment_instrument_id = CRM_DirectDebit_Base::getDDPaymentInstrumentID();
 
     if ($first) {
       // Set the received date to the date expected for DD payments

@@ -114,7 +114,6 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
         $result = civicrm_api('Activity', 'create', $params);
       }
       foreach ($aruddDates as $aruddDate) {
-
         $params = array(
           'version' => 3,
           'sequential' => 1,
@@ -141,20 +140,20 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     ));
 
     // List of auddis files
-    $auddisArray      = CRM_DirectDebit_Form_SyncSd::getSmartDebitAuddis();
-    $aruddArray       = CRM_DirectDebit_Form_SyncSd::getSmartDebitArudd();
+    $auddisArray      = CRM_DirectDebit_Auddis::getSmartDebitAuddis();
+    $aruddArray       = CRM_DirectDebit_Auddis::getSmartDebitArudd();
     if($auddisDates) {
       // Find the relevant auddis file
       foreach ($auddisDates as $auddisDate) {
-        $auddisDetails  = CRM_DirectDebit_Form_Auddis::getRightAuddisFile($auddisArray, $auddisDate);
-        $auddisFiles[] = CRM_DirectDebit_Form_SyncSd::getSmartDebitAuddis($auddisDetails['uri']);
+        $auddisDetails  = CRM_DirectDebit_Auddis::getRightAuddisFile($auddisArray, $auddisDate);
+        $auddisFiles[] = CRM_DirectDebit_Auddis::getSmartDebitAuddis($auddisDetails['uri']);
       }
     }
 
     if($aruddDates) {
       foreach ($aruddDates as $aruddDate) {
-        $aruddDetails  = CRM_DirectDebit_Form_Auddis::getRightAruddFile($aruddArray, $aruddDate);
-        $aruddFiles[] = CRM_DirectDebit_Form_SyncSd::getSmartDebitArudd($aruddDetails['uri']);
+        $aruddDetails  = CRM_DirectDebit_Auddis::getRightAruddFile($aruddArray, $aruddDate);
+        $aruddFiles[] = CRM_DirectDebit_Auddis::getSmartDebitArudd($aruddDetails['uri']);
 
       }
     }
@@ -574,8 +573,11 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     return $days;
   }
 
-  /*
+  /**
    * Function to get number of days difference between 2 dates
+   * @param $date1
+   * @param $date2
+   * @return float
    */
   static function getDateDifference($date1, $date2) {
     return floor((strtotime($date1) - strtotime($date2))/(60*60*24));

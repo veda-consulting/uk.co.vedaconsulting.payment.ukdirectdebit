@@ -70,10 +70,6 @@ class CRM_DirectDebit_Form_Settings extends CRM_Core_Form {
 
   function postProcess() {
     $this->_submittedValues = $this->exportValues();
-    // boolean fields are unset if false but we need them to save
-    if (!isset($this->_submittedValues['auto_renew_membership'])) {
-      $this->_submittedValues['auto_renew_membership'] = '0';
-    }
     $this->saveSettings();
     parent::postProcess();
     CRM_Core_Session::singleton()->setStatus('Configuration Updated', 'UK Direct Debit', 'success');
