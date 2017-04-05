@@ -74,10 +74,10 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
   }
 
   public function buildQuickForm() {
-    $auddisDates = CRM_Utils_Request::retrieve('auddisDates', 'String', $this, false, '', 'GET');
-    $aruddDates = CRM_Utils_Request::retrieve('aruddDates', 'String', $this, false, '', 'GET');
-    $this->add('hidden', 'auddisDate', serialize($auddisDates));
-    $this->add('hidden', 'aruddDate', serialize($aruddDates));
+    $auddisIDs = explode(',', CRM_Utils_Request::retrieve('auddisID', 'String', $this, false));
+    $aruddIDs = explode(',', CRM_Utils_Request::retrieve('aruddID', 'String', $this, false));
+    $this->add('hidden', 'auddisIDs', serialize($auddisIDs));
+    $this->add('hidden', 'aruddIDs', serialize($aruddIDs));
     $redirectUrlBack = CRM_Utils_System::url('civicrm/directdebit/syncsd', 'reset=1');
 
     $this->addButtons(array(
@@ -97,33 +97,11 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
 
   public function postProcess() {
     $params     = $this->controller->exportValues();
-    $auddisDates = unserialize($params['auddisDate']);
-    $aruddDates = unserialize($params['aruddDate']);
+    $auddisIDs = unserialize($params['auddisIDs']);
+    $aruddIDs = unserialize($params['aruddIDs']);
 
-    $runner = self::getRunner($auddisDates, $aruddDates);
+    $runner = self::getRunner($auddisIDs, $aruddIDs);
     if ($runner) {
-      // Create activity for the sync just finished with the auddis date
-      foreach ($auddisDates as $auddisDate) {
-        $params = array(
-          'version' => 3,
-          'sequential' => 1,
-          'activity_type_id' => 6,
-          'subject' => $auddisDate,
-          'details' => 'Sync had been processed already for this date '.$auddisDate,
-        );
-        $result = civicrm_api('Activity', 'create', $params);
-      }
-      foreach ($aruddDates as $aruddDate) {
-        $params = array(
-          'version' => 3,
-          'sequential' => 1,
-          'activity_type_id' => 6,
-          'subject' => 'ARUDD'.$aruddDate,
-          'details' => 'Sync had been processed already for this date '.$aruddDate,
-        );
-        $result = civicrm_api('Activity', 'create', $params);
-      }
-
       // Run Everything in the Queue via the Web.
       $runner->runAllViaWeb();
     } else {
@@ -131,7 +109,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     }
   }
 
-  static function getRunner($auddisDates = NULL, $aruddDates = NULL) {
+  static function getRunner($auddisIDs = NULL, $aruddIDs = NULL) {
     // Setup the Queue
     $queue = CRM_Queue_Service::singleton()->create(array(
       'name'  => self::QUEUE_NAME,
@@ -139,22 +117,16 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       'reset' => TRUE,
     ));
 
-    // List of auddis files
-    $auddisArray      = CRM_DirectDebit_Auddis::getSmartDebitAuddis();
-    $aruddArray       = CRM_DirectDebit_Auddis::getSmartDebitArudd();
-    if($auddisDates) {
+    if($auddisIDs) {
       // Find the relevant auddis file
-      foreach ($auddisDates as $auddisDate) {
-        $auddisDetails  = CRM_DirectDebit_Auddis::getRightAuddisFile($auddisArray, $auddisDate);
-        $auddisFiles[] = CRM_DirectDebit_Auddis::getSmartDebitAuddis($auddisDetails['uri']);
+      foreach ($auddisIDs as $auddisID) {
+        $auddisFiles[] = CRM_DirectDebit_Auddis::getSmartDebitAuddisFile($auddisID);
       }
     }
 
-    if($aruddDates) {
-      foreach ($aruddDates as $aruddDate) {
-        $aruddDetails  = CRM_DirectDebit_Auddis::getRightAruddFile($aruddArray, $aruddDate);
-        $aruddFiles[] = CRM_DirectDebit_Auddis::getSmartDebitArudd($aruddDetails['uri']);
-
+    if($aruddIDs) {
+      foreach ($aruddIDs as $aruddID) {
+        $aruddFiles[] = CRM_DirectDebit_Auddis::getSmartDebitAruddFile($aruddID);
       }
     }
 
@@ -184,7 +156,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       $counter = ($rounds > 1) ? ($start + self::BATCH_COUNT) : $count;
       $task    = new CRM_Queue_Task(
         array('CRM_DirectDebit_Form_Confirm', 'syncSmartDebitRecords'),
-        array(array($contactsarray), array($auddisDetails), array($auddisFiles), $auddisDate),
+        array(array($contactsarray)),
         "Pulling smart debit - Contacts {$counter} of {$count}"
       );
 
@@ -208,6 +180,8 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       // Add contributions for rejected payments with the status of 'failed'
       $ids = array();
       foreach ($auddisFiles as $auddisFile) {
+        $auddisDate = $auddisFile['auddis_date'];
+        unset($auddisFile['auddis_date']);
         foreach ($auddisFile as $key => $value) {
 
           $sql = "
@@ -230,7 +204,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
                 'trxn_id'                => $value['reference'].'/'.CRM_Utils_Date::processDate($receiveDate),
                 'financial_type_id'      => $dao->financial_type_id,
                 'payment_instrument_id'  => $dao->payment_instrument_id,
-                'contribution_status_id' => 4,
+                'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Failed'),
                 'source'                 => 'Smart Debit Import',
                 'receive_date'           => $value['effective-date'],
               );
@@ -258,6 +232,15 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
             }
           }
         }
+        // Create activity now we've processed auddis
+        $params = array(
+            'version' => 3,
+            'sequential' => 1,
+            'activity_type_id' => 6,
+            'subject' => 'SmartDebitAUDDIS'.$auddisDate,
+            'details' => 'Sync had been processed already for this date '.$auddisDate,
+        );
+        $result = civicrm_api('Activity', 'create', $params);
       }
 
       // Add contributions for rejected payments with the status of 'failed'
@@ -275,8 +258,9 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
                                                                 )
        */
       foreach ($aruddFiles as $aruddFile) {
+        $aruddDate = $aruddFile['arudd_date'];
+        unset($aruddFile['arudd_date']);
         foreach ($aruddFile as $key => $value) {
-
           $sql = "
             SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id, ctrc.financial_type_id
             FROM civicrm_contribution_recur ctrc
@@ -297,7 +281,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
                 'trxn_id'                => $value['ref'].'/'.CRM_Utils_Date::processDate($receiveDate),
                 'financial_type_id'      => $dao->financial_type_id,
                 'payment_instrument_id'  => $dao->payment_instrument_id,
-                'contribution_status_id' => 4,
+                'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Failed'),
                 'source'                 => 'Smart Debit Import',
                 'receive_date'           => $value['originalProcessingDate'],
               );
@@ -326,6 +310,15 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
             }
           }
         }
+        // Create activity now we've processed auddis
+        $params = array(
+            'version' => 3,
+            'sequential' => 1,
+            'activity_type_id' => 6,
+            'subject' => 'SmartDebitARUDD'.$aruddDate,
+            'details' => 'Sync had been processed already for this date '.$aruddDate,
+        );
+        $result = civicrm_api('Activity', 'create', $params);
       }
 
       uk_direct_debit_civicrm_saveSetting('rejected_ids', $ids);
@@ -334,7 +327,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     return FALSE;
   }
 
-  static function syncSmartDebitRecords(CRM_Queue_TaskContext $ctx, $contactsarray, $auddisDetails, $auddisFile, $auddisDate ) {
+  static function syncSmartDebitRecords(CRM_Queue_TaskContext $ctx, $contactsarray) {
     $contactsarray  = array_shift($contactsarray);
     $ids = array();
 
@@ -353,7 +346,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       $daoSelect->fetch();
 
       // Smart debit charge file has dates in UK format
-      // UK dates (eg. 27/05/1990) won't work with strotime, even with timezone properly set.
+      // UK dates (eg. 27/05/1990) won't work with strtotime, even with timezone properly set.
       // However, if you just replace "/" with "-" it will work fine.
       $receiveDate = date('Y-m-d', strtotime(str_replace('/', '-', $daoSelect->receive_date)));
 
@@ -368,7 +361,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
             'trxn_id'                => $smartDebitRecord.'/'.CRM_Utils_Date::processDate($receiveDate),
             'financial_type_id'      => $dao->financial_type_id,
             'payment_instrument_id'  => $dao->payment_instrument_id,
-            'contribution_status_id' => 1,
+            'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
             'source'                 => 'Smart Debit Import',
             'receive_date'           => CRM_Utils_Date::processDate($receiveDate),
           );
@@ -391,7 +384,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
           $columnExists	    = CRM_Core_DAO::checkFieldExists('civicrm_contribution_recur', 'membership_id');
           if($columnExists) {
             $membershipQuery  = "SELECT `membership_id` FROM `civicrm_contribution_recur` WHERE `id` = %1";
-            $membershipID     = CRM_Core_DAO::singleValueQuery($membershipQuery, array( 1 => array( $contriReurID, 'Int' ) ) );
+            $membershipID     = CRM_Core_DAO::singleValueQuery($membershipQuery, array( 1 => array( $contriRecurID, 'Int' ) ) );
           }
 
           // If membership ID is empty, check if we can get from contribution_membership table
@@ -400,7 +393,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
             $columnExists	    = CRM_Core_DAO::checkFieldExists('civicrm_membership', 'contribution_recur_id');
             if($columnExists) {
               $membershipQuery  = "SELECT `id` FROM `civicrm_membership` WHERE `contribution_recur_id` = %1";
-              $membershipID     = CRM_Core_DAO::singleValueQuery($membershipQuery, array( 1 => array( $contriReurID, 'Int' ) ) );
+              $membershipID     = CRM_Core_DAO::singleValueQuery($membershipQuery, array( 1 => array( $contriRecurID, 'Int' ) ) );
             }
           }
 

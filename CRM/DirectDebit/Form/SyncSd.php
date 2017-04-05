@@ -4,56 +4,57 @@ require_once 'CRM/Core/Session.php';
 require_once 'CRM/Core/PseudoConstant.php';
 
 class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
+  // Form Path: civicrm/directdebit/syncsd
+  // This form retrieves a list of AUDDIS / ARUDD dates and displays them for selection.
 
-  function preProcess() {
-    parent::preProcess();
-  }
-
+  private $_auddisArray = NULL;
+  private $_aruddArray = NULL;
+  /**
+   * Retrieves a list of available AUDDIS / ARUDD dates and displays them for selection
+   */
   public function buildQuickForm() {
-    $auddisDetails    = array();
-    $aruddDetails    = array();
+    // Get all auddis files from the API
     $auddisDates      = array();
     $aruddDates      = array();
 
-    // Get all auddis files from the API
-    $auddisArray = CRM_DirectDebit_Auddis::getSmartDebitAuddis();
-    $aruddArray = CRM_DirectDebit_Auddis::getSmartDebitArudd();
+    // Get date of collection (or set to today if not set)
+    $dateOfCollectionEnd = CRM_Utils_Request::retrieve('c_end', 'String', $this, false);
+    if (empty($dateOfCollectionEnd)) {
+      $now = new DateTime();
+      $dateOfCollectionEnd = date('Y-m-d', (string)$now->getTimestamp()); // Today
+    }
+    $dateOfCollectionStart = date('Y-m-d', strtotime($dateOfCollectionEnd . '-1 month'));
+    $this->assign('dateOfCollectionEnd', $dateOfCollectionEnd);
+    $this->assign('dateOfCollectionStart', $dateOfCollectionStart);
 
+    $this->_auddisArray = CRM_DirectDebit_Auddis::getSmartDebitAuddisList($dateOfCollectionStart, $dateOfCollectionEnd);
+    $this->_aruddArray = CRM_DirectDebit_Auddis::getSmartDebitAruddList($dateOfCollectionStart, $dateOfCollectionEnd);
+
+    if (($this->_auddisArray) && isset($this->_auddisArray['Status']) && ($this->_auddisArray['Status'] == 'OK')) {
     // Get the auddis Dates from the Auddis Files
-    if($auddisArray) {
-      if (isset($auddisArray[0]['@attributes'])) {
+      if (isset($this->_auddisArray['@attributes']['results']) && ($this->_auddisArray['@attributes']['results'] > 0)) {
         // Multiple results returned
-        foreach ($auddisArray as $key => $auddis) {
-          $auddisDetails['auddis_id']              = $auddis['auddis_id'];
-          $auddisDetails['report_generation_date'] = date('Y-m-d', strtotime($auddis['report_generation_date']));
+        foreach ($this->_auddisArray['auddis'] as $key => $auddis) {
           $auddisDates[]                           = date('Y-m-d', strtotime($auddis['report_generation_date']));
-          $auddisDetails['uri']                    = $auddis['@attributes']['uri'];
         }
-      } else {
+      } /*else {
         // Only one result returned
-        $auddisDetails['auddis_id']              = $auddisArray['auddis_id'];
-        $auddisDetails['report_generation_date'] = date('Y-m-d', strtotime($auddisArray['report_generation_date']));
+        // FIXME find an example where 1 result is returned and see if this is correct
         $auddisDates[]                           = date('Y-m-d', strtotime($auddisArray['report_generation_date']));
-        $auddisDetails['uri']                    = $auddisArray['@attributes']['uri'];
-      }
+      }*/
     }
 
     // Get the arudd Dates from the Arudd Files
-    if($aruddArray) {
-      if (isset($aruddArray[0]['@attributes'])) {
+    if($this->_aruddArray) {
+      if (isset($this->_aruddArray[0]['@attributes'])) {
         // Multiple results returned
-        foreach ($aruddArray as $key => $arudd) {
-          $aruddDetails['arudd_id']              = $arudd['arudd_id'];
-          $aruddDetails['current_processing_date'] = date('Y-m-d', strtotime($arudd['current_processing_date']));
+        foreach ($this->_aruddArray as $key => $arudd) {
           $aruddDates[]                           = date('Y-m-d', strtotime($arudd['current_processing_date']));
-          $aruddDetails['uri']                    = $arudd['@attributes']['uri'];
         }
       } else {
         // Only one result returned
-        $aruddDetails['arudd_id']              = $aruddArray['arudd_id'];
-        $aruddDetails['current_processing_date'] = date('Y-m-d', strtotime($aruddArray['current_processing_date']));
-        $aruddDates[]                           = date('Y-m-d', strtotime($aruddArray['current_processing_date']));
-        $aruddDetails['uri']                    = $aruddArray['@attributes']['uri'];
+        // FIXME find an example where 1 result is returned and see if this is correct
+        $aruddDates[]                           = date('Y-m-d', strtotime($this->_aruddArray['current_processing_date']));
       }
     }
 
@@ -61,7 +62,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     $processedAuddisDates = array();
     if($auddisDates) {
       foreach ($auddisDates as $auddisDate) {
-        $details    = CRM_Core_DAO::getFieldValue('CRM_Activity_DAO_Activity', $auddisDate, 'details', 'subject');
+        $details    = CRM_Core_DAO::getFieldValue('CRM_Activity_DAO_Activity', 'SmartDebitAUDDIS'.$auddisDate, 'details', 'subject');
         if($details) {
           $processedAuddisDates[] = $auddisDate;
         }
@@ -71,7 +72,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     $processedAruddDates = array();
     if($aruddDates) {
       foreach ($aruddDates as $aruddDate) {
-        $details    = CRM_Core_DAO::getFieldValue('CRM_Activity_DAO_Activity', 'ARUDD'.$aruddDate, 'details', 'subject');
+        $details    = CRM_Core_DAO::getFieldValue('CRM_Activity_DAO_Activity', 'SmartDebitARUDD'.$aruddDate, 'details', 'subject');
         if($details) {
           $processedAruddDates[] = $aruddDate;
         }
@@ -138,19 +139,25 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     }
     $this->addElement('select', 'auddis_date', ts('Auddis Date'), $auddisDatesArray);
     $this->addElement('select', 'arudd_date', ts('Arudd Date'), $aruddDatesArray);
-    $this->addDate('sync_date', ts('Sync Date'), FALSE, array('formatType' => 'custom'));
+    $this->assign('dateOfCollectionStart', $dateOfCollectionStart);
+    $this->assign('dateOfCollectionEnd', $dateOfCollectionEnd);
+
+    $redirectUrlBack = CRM_Utils_System::url('civicrm/directdebit/syncsd/import', 'reset=1');
+
     $this->addButtons(array(
         array(
-          'type' => 'next',
+          'type' => 'back',
+          'js' => array('onclick' => "location.href='{$redirectUrlBack}'; return false;"),
+          'name' => ts('Change Date Range'),
+        ),
+        array(
+          'type' => 'submit',
           'name' => ts('Continue'),
           'isDefault' => TRUE,
         ),
-        array(
-          'type' => 'back',
-          'name' => ts('Cancel'),
-        )
       )
     );
+    CRM_Utils_System::setTitle('Synchronise CiviCRM with Smart Debit: Choose data');
     parent::buildQuickForm();
   }
 
@@ -160,18 +167,45 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     $aruddDates = $params['includeAruddDate'];
 
     // Make the query string to send in the url for the next page
-    $queryDates = '';
-    foreach ($auddisDates as $value) {
-      $queryDates .= "auddisDates[]=".$value."&";
+    $queryParams = '';
+    foreach ($auddisDates as $date) {
+      // Find auddis ID
+      if (isset($this->_auddisArray['@attributes']['results']) && ($this->_auddisArray['@attributes']['results'] > 0)) {
+        foreach ($this->_auddisArray['auddis'] as $key => $auddis) {
+          if ($date == date('Y-m-d', strtotime($auddis['report_generation_date']))) {
+            $auddisIDs[] = $auddis['auddis_id'];
+            break;
+          }
+        }
+      }
     }
 
-    // Make the query string to send in the url for the next page
-    $queryDatesArudd = '';
-    foreach ($aruddDates as $value) {
-      $queryDatesArudd .= "aruddDates[]=".$value."&";
+    foreach ($aruddDates as $date) {
+      // Find arudd ID
+      if (isset($this->_aruddArray[0]['@attributes'])) {
+        foreach ($this->_aruddArray as $key => $arudd) {
+          if ($date == date('Y-m-d', strtotime($arudd['current_processing_date']))) {
+            $aruddIDs[] = $arudd['arudd_id'];
+            break;
+          }
+        }
+      }
     }
 
-    CRM_Utils_System::redirect(CRM_Utils_System::url( 'civicrm/directdebit/auddis', ''.$queryDates.$queryDatesArudd. '&reset=1'));
+    if (!empty($queryParams)) { $queryParams.='&'; }
+    if (isset($auddisIDs)) {
+      $queryParams .= "auddisID=" . urlencode(implode(',',$auddisIDs));
+    }
+
+    if (!empty($queryParams)) { $queryParams.='&'; }
+    if (isset($aruddIDs)) {
+      $queryParams .= "aruddID=" . urlencode(implode(',',$aruddIDs));
+    }
+
+    if (!empty($queryParams)) { $queryParams.='&'; }
+    $queryParams .= 'reset=1';
+
+    CRM_Utils_System::redirect(CRM_Utils_System::url( 'civicrm/directdebit/auddis', $queryParams));
     parent::postProcess();
   }
 }

@@ -42,19 +42,90 @@ require_once 'CRM/Core/Form.php';
 
 class CRM_DirectDebit_Form_Main extends CRM_Core_Form
 {
+  /**
+   * Function to add all the direct debit fields
+   * Offline is used for backend functions (eg. New Donation, update Billing Details)
+   * @param $form
+   * @param bool $useRequired
+   * @param bool $offline
+   */
+  function buildDirectDebitForm(&$form, $useRequired = FALSE, $offline = TRUE) {
+    if ( $form->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_FORM ) {
+      if ($form->_name != 'UpdateBilling') {
+        self::setDirectDebitFields($form);
+      }
+
+      //if ($offline) self::setBillingDetailsFields($form);
+      foreach ( $form->_paymentFields as $name => $field ) {
+        if ( isset($field['cc_field'] ) &&
+          $field['cc_field']
+        ) {
+          if ($field['htmlType'] == 'chainSelect') {
+            $form->addChainSelect($field['name'], array('required' => $useRequired && $field['is_required']));
+          }
+          else {
+            $form->add( $field['htmlType'],
+              $field['name'],
+              $field['title'],
+              CRM_Utils_Array::value('attributes', $field),
+              $useRequired ? $field['is_required'] : FALSE
+            );
+          }
+        }
+      }
+
+      if ($form->_name != 'UpdateBilling') {
+        $form->addRule('bank_identification_number',
+          ts('Please enter a valid Bank Identification Number (value must not contain punctuation characters).'),
+          'nopunctuation'
+        );
+
+        $form->addRule('bank_account_number',
+          ts('Please enter a valid Bank Account Number (value must not contain punctuation characters).'),
+          'nopunctuation'
+        );
+      }
+    }
+
+    if (!$offline) {
+      if ( $form->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_BUTTON ) {
+        $form->_expressButtonName = $form->getButtonName( $form->buttonType(), 'express' );
+        $form->add( 'image',
+          $form->_expressButtonName,
+          $form->_paymentProcessor['url_button'],
+          array( 'class' => 'form-submit' )
+        );
+      }
+
+      $defaults['ddi_reference'] = CRM_DirectDebit_Base::getDDIReference();
+
+    }
+    if ($form->_name == 'UpdateBilling') {
+      // Get billing data from SmartDebit
+      $subscriptionDetails = $form->getVar('_subscriptionDetails');
+      $defaults['ddi_reference'] = $subscriptionDetails->subscription_id;
+      if (empty($defaults['ddi_reference'])) {
+        CRM_Core_Error::statusBounce('No Reference found for this recurring contribution!');
+        return;
+      }
+    }
+      $form->setDefaults($defaults);
+  }
+
   /** create all fields needed for direct debit transaction
    *
    * @return void
    * @access public
    */
-  function setDirectDebitFields( &$form ) {
+  function setDirectDebitFields( &$form )
+  {
     $form->_paymentFields['account_holder'] = array(
-      'htmlType'    => 'text',
-      'name'        => 'account_holder',
-      'title'       => ts( 'Account Holder' ),
-      'cc_field'    => TRUE,
-      'attributes'  => array( 'size'         => 20
-      , 'maxlength'    => 18
+      'htmlType' => 'text',
+      'name' => 'account_holder',
+      'title' => ts('Account Holder'),
+      'cc_field' => TRUE,
+      'attributes' => array('size' => 20
+      , 'maxlength' => 18
       , 'autocomplete' => 'on'
       ),
       'is_required' => TRUE
@@ -62,12 +133,12 @@ class CRM_DirectDebit_Form_Main extends CRM_Core_Form
 
     //e.g. IBAN can have maxlength of 34 digits
     $form->_paymentFields['bank_account_number'] = array(
-      'htmlType'    => 'text',
-      'name'        => 'bank_account_number',
-      'title'       => ts( 'Bank Account Number' ),
-      'cc_field'    => TRUE,
-      'attributes'  => array( 'size'         => 20
-      , 'maxlength'    => 34
+      'htmlType' => 'text',
+      'name' => 'bank_account_number',
+      'title' => ts('Bank Account Number'),
+      'cc_field' => TRUE,
+      'attributes' => array('size' => 20
+      , 'maxlength' => 34
       , 'autocomplete' => 'off'
       ),
       'is_required' => TRUE
@@ -75,24 +146,24 @@ class CRM_DirectDebit_Form_Main extends CRM_Core_Form
 
     //e.g. SWIFT-BIC can have maxlength of 11 digits
     $form->_paymentFields['bank_identification_number'] = array(
-      'htmlType'    => 'text',
-      'name'        => 'bank_identification_number',
-      'title'       => ts( 'Sort Code' ),
-      'cc_field'    => TRUE,
-      'attributes'  => array( 'size'         => 20
-      , 'maxlength'    => 11
+      'htmlType' => 'text',
+      'name' => 'bank_identification_number',
+      'title' => ts('Sort Code'),
+      'cc_field' => TRUE,
+      'attributes' => array('size' => 20
+      , 'maxlength' => 11
       , 'autocomplete' => 'off'
       ),
       'is_required' => TRUE
     );
 
     $form->_paymentFields['bank_name'] = array(
-      'htmlType'    => 'text',
-      'name'        => 'bank_name',
-      'title'       => ts( 'Bank Name' ),
-      'cc_field'    => TRUE,
-      'attributes'  => array( 'size'         => 20
-      , 'maxlength'    => 64
+      'htmlType' => 'text',
+      'name' => 'bank_name',
+      'title' => ts('Bank Name'),
+      'cc_field' => TRUE,
+      'attributes' => array('size' => 20
+      , 'maxlength' => 64
       , 'autocomplete' => 'off'
       ),
       'is_required' => TRUE
@@ -102,139 +173,57 @@ class CRM_DirectDebit_Form_Main extends CRM_Core_Form
     $collectionDaysArray = CRM_DirectDebit_Base::getCollectionDaysOptions();
 
     $form->_paymentFields['preferred_collection_day'] = array(
-      'htmlType'    => 'select',
-      'name'        => 'preferred_collection_day',
-      'title'       => ts( 'Preferred Collection Day' ),
-      'cc_field'    => TRUE,
-      'attributes'  => $collectionDaysArray, // array('1' => '1st', '8' => '8th', '21' => '21st'),
+      'htmlType' => 'select',
+      'name' => 'preferred_collection_day',
+      'title' => ts('Preferred Collection Day'),
+      'cc_field' => TRUE,
+      'attributes' => $collectionDaysArray, // array('1' => '1st', '8' => '8th', '21' => '21st'),
       'is_required' => TRUE
     );
 
     $form->_paymentFields['confirmation_method'] = array(
-      'htmlType'    => 'select',
-      'name'        => 'confirmation_method',
-      'title'       => ts( 'Confirm By' ),
-      'cc_field'    => TRUE,
-      'attributes'  => array( 'EMAIL' => 'Email'
+      'htmlType' => 'select',
+      'name' => 'confirmation_method',
+      'title' => ts('Confirm By'),
+      'cc_field' => TRUE,
+      'attributes' => array('EMAIL' => 'Email'
       , 'POST' => 'Post'
       ),
       'is_required' => TRUE
     );
 
     $form->_paymentFields['payer_confirmation'] = array(
-      'htmlType'    => 'checkbox',
-      'name'        => 'payer_confirmation',
-      'title'       => ts( 'Please confirm that you are the account holder and only person required to authorise Direct Debits from this account' ),
-      'cc_field'    => TRUE,
+      'htmlType' => 'checkbox',
+      'name' => 'payer_confirmation',
+      'title' => ts('Please confirm that you are the account holder and only person required to authorise Direct Debits from this account'),
+      'cc_field' => TRUE,
       'is_required' => TRUE
     );
 
     $form->_paymentFields['ddi_reference'] = array(
-      'htmlType'    => 'hidden',
-      'name'        => 'ddi_reference',
-      'title'       => ts('DDI Reference'),
-      'cc_field'    => TRUE,
-      'attributes'  => array( 'size'         => 20
-      , 'maxlength'    => 64
+      'htmlType' => 'hidden',
+      'name' => 'ddi_reference',
+      'title' => ts('DDI Reference'),
+      'cc_field' => TRUE,
+      'attributes' => array('size' => 20
+      , 'maxlength' => 64
       , 'autocomplete' => 'off'
       ),
       'is_required' => FALSE,
-      'default'     => 'hello'
+      'default' => 'hello'
     );
 
     $telephoneNumber = CRM_DirectDebit_Base::getTelephoneNumber();
-    $form->assign( 'telephoneNumber', $telephoneNumber );
+    $form->assign('telephoneNumber', $telephoneNumber);
 
     $companyName = CRM_DirectDebit_Base::getCompanyName();
-    $form->assign( 'companyName', $companyName );
+    $form->assign('companyName', $companyName);
   }
 
   /**
-   * Function to add all the direct debit fields
-   *
-   * @return None
-   * @access public
+   * Called on submit of New Donation / Update Billing Details
+   * @param $form
    */
-  function buildDirectDebit( &$form, $useRequired = FALSE ) {
-    if ( $form->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_FORM ) {
-      self::setDirectDebitFields( $form );
-      foreach ( $form->_paymentFields as $name => $field ) {
-        if ( isset($field['cc_field'] ) &&
-          $field['cc_field']
-        ) {
-          if ($field['htmlType'] == 'chainSelect') {
-            $form->addChainSelect($field['name'], array('required' => $useRequired && $field['is_required']));
-          }
-          else {
-            $form->add( $field['htmlType'],
-              $field['name'],
-              $field['title'],
-              CRM_Utils_Array::value('attributes', $field),
-              $useRequired ? $field['is_required'] : FALSE
-            );
-          }
-        }
-      }
-
-      $form->addRule( 'bank_identification_number',
-        ts( 'Please enter a valid Bank Identification Number (value must not contain punctuation characters).' ),
-        'nopunctuation'
-      );
-
-      $form->addRule( 'bank_account_number',
-        ts( 'Please enter a valid Bank Account Number (value must not contain punctuation characters).' ),
-        'nopunctuation'
-      );
-    }
-
-    if ( $form->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_BUTTON ) {
-      $form->_expressButtonName = $form->getButtonName( $form->buttonType(), 'express' );
-      $form->add( 'image',
-        $form->_expressButtonName,
-        $form->_paymentProcessor['url_button'],
-        array( 'class' => 'form-submit' )
-      );
-    }
-
-    $defaults['ddi_reference'] = CRM_DirectDebit_Base::getDDIReference();
-    $form->setDefaults($defaults);
-  }
-
-  function buildOfflineDirectDebit(&$form, $useRequired = FALSE) {
-    if ( $form->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_FORM ) {
-      self::setDirectDebitFields( $form );
-      self::setBillingDetailsFields($form);
-      foreach ( $form->_paymentFields as $name => $field ) {
-        if ( isset($field['cc_field'] ) &&
-          $field['cc_field']
-        ) {
-          if ($field['htmlType'] == 'chainSelect') {
-            $form->addChainSelect($field['name'], array('required' => $useRequired && $field['is_required']));
-          }
-          else {
-            $form->add( $field['htmlType'],
-              $field['name'],
-              $field['title'],
-              CRM_Utils_Array::value('attributes', $field),
-              $useRequired ? $field['is_required'] : FALSE
-            );
-          }
-        }
-      }
-
-      $form->addRule( 'bank_identification_number',
-        ts( 'Please enter a valid Bank Identification Number (value must not contain punctuation characters).' ),
-        'nopunctuation'
-      );
-
-      $form->addRule( 'bank_account_number',
-        ts( 'Please enter a valid Bank Account Number (value must not contain punctuation characters).' ),
-        'nopunctuation'
-      );
-    }
-
-  }
-
   function setBillingDetailsFields(&$form) {
     $bltID =  $form->_bltID;
     $form->_paymentFields['billing_first_name'] = array(

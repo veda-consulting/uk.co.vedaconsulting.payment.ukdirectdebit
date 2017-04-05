@@ -1,6 +1,6 @@
 <!-- MV: Custom changes from older version,  -->
 {if $paymentProcessor.payment_type & 2}
-    <div><span style="float: right;margin: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit.gif}" alt="Direct Debit Logo" border="0"></span></div>
+    <div><span style="float: right;margin: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit_small.png}" alt="Direct Debit Logo" border="0"></span></div>
     <div style="clear: both;"></div>
     {ts}<p>All the normal Direct Debit safeguards and guarantees apply.
         No changes in the amount, date or frequency to be debited can be made without notifying you at least 10 working days in advance of your account being debited.

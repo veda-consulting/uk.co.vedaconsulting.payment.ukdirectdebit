@@ -339,38 +339,4 @@ return array(
       'size' => 50,
     ),
   ),
-
-//api_contact_val_regex
-  'ukdirectdebit_api_contact_val_regex' => array(
-    'group_name' => 'UK Direct Debit Settings',
-    'group' => 'ukdirectdebit',
-    'name' => 'ukdirectdebit_api_contact_val_regex',
-    'type' => 'String',
-    'default' => NULL,
-    'add' => '4.7',
-    'is_domain' => 1,
-    'is_contact' => 0,
-    'description' => 'Direct Debit API Contact Val Regex',
-    'html_type' => 'Text',
-    'html_attributes' => array(
-      'size' => 50,
-    ),
-  ),
-
-//api_contact_val_regex_index
-  'ukdirectdebit_api_contact_val_regex_index' => array(
-    'group_name' => 'UK Direct Debit Settings',
-    'group' => 'ukdirectdebit',
-    'name' => 'ukdirectdebit_api_contact_val_regex_index',
-    'type' => 'String',
-    'default' => NULL,
-    'add' => '4.7',
-    'is_domain' => 1,
-    'is_contact' => 0,
-    'description' => 'Direct Debit API Contact Val Regex Index',
-    'html_type' => 'Text',
-    'html_attributes' => array(
-      'size' => 50,
-    ),
-  ),
 );

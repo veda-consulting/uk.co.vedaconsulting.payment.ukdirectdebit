@@ -8,106 +8,170 @@ class CRM_DirectDebit_Auddis
    * Amendment and Cancellation (ADDACS) files. Notification of any claims relating to disputed Debits are made via
    * Direct Debit Indemnity Claim Advice (DDICA) reports.
    */
-  static function getSmartDebitAuddis($uri = NULL)
+
+  /**
+   * Get List of AUDDIS files from SmartDebit for the past month.
+   * If dateOfCollection is not specified it defaults to today.
+   * @param null $dateOfCollection
+   * @return bool|mixed
+   */
+  static function getSmartDebitAuddisList($dateOfCollectionStart = null, $dateOfCollectionEnd = null)
   {
-    $session = CRM_Core_Session::singleton();
-    $dateOfCollection = $session->get('collection_date');
+    if (!isset($dateOfCollectionEnd)) {
+      $dateOfCollectionEnd = date('Y-m-d', new DateTime()); // Today
+    }
+    if (!isset($dateOfCollectionStart)) {
+      $dateOfCollectionStart = date('Y-m-d', strtotime($dateOfCollectionEnd . '-1 month'));
+    }
     $userDetails = CRM_DirectDebit_Auddis::getSmartDebitUserDetails();
     $username = CRM_Utils_Array::value('user_name', $userDetails);
     $password = CRM_Utils_Array::value('password', $userDetails);
     $pslid = CRM_Utils_Array::value('signature', $userDetails);
 
-    if ($uri) {
-      $urlAuddis = $uri . "?query[service_user][pslid]=$pslid";
-      $responseAuddis = CRM_DirectDebit_Base::requestPost($urlAuddis, '', $username, $password, '');
-      $scrambled = str_replace(" ", "+", $responseAuddis['file']);
-      $outputafterencode = base64_decode($scrambled);
-      $auddisArray = json_decode(json_encode((array)simplexml_load_string($outputafterencode)), 1);
-      $result = array();
+    // Send payment POST to the target URL
 
-      if ($auddisArray['Data']['MessagingAdvices']['MessagingAdvice']['@attributes']) {
-        $result[0] = $auddisArray['Data']['MessagingAdvices']['MessagingAdvice']['@attributes'];
-      } else {
-        foreach ($auddisArray['Data']['MessagingAdvices']['MessagingAdvice'] as $key => $value) {
-          $result[$key] = $value['@attributes'];
-        }
-      }
-      return $result;
-    } else {
-      // Send payment POST to the target URL
-      $previousDateBackMonth = date('Y-m-d', strtotime($dateOfCollection . '-1 month'));
-      $urlAuddis = CRM_DirectDebit_Base::getApiUrl('/api/auddis/list',
-        "query[service_user][pslid]=$pslid&query[from_date]=$previousDateBackMonth&query[till_date]=$dateOfCollection");
-      $responseAuddis = CRM_DirectDebit_Base::requestPost($urlAuddis, '', $username, $password, '');
-      // Take action based upon the response status
-      switch (strtoupper($responseAuddis['Status'])) {
-        case 'OK':
-          return $responseAuddis;
-        default:
-          return false;
-      }
+    $urlAuddis = CRM_DirectDebit_Base::getApiUrl('/api/auddis/list',
+      "query[service_user][pslid]=$pslid&query[from_date]=$dateOfCollectionStart&query[till_date]=$dateOfCollectionEnd");
+    $responseAuddis = CRM_DirectDebit_Base::requestPost($urlAuddis, '', $username, $password, '');
+    // Take action based upon the response status
+    switch (strtoupper($responseAuddis['Status'])) {
+      case 'OK':
+        return $responseAuddis;
+      default:
+        return false;
     }
   }
 
-  static function getSmartDebitArudd($uri = NULL)
+  /**
+   * Get AUDDIS file from Smart Debit. $uri is retrieved using getSmartDebitAuddisList
+   * @param null $uri
+   * @return array
+   */
+  static function getSmartDebitAuddisFile($fileId)
   {
-    $session = CRM_Core_Session::singleton();
-    $dateOfCollection = $session->get('collection_date');
     $userDetails = CRM_DirectDebit_Auddis::getSmartDebitUserDetails();
     $username = CRM_Utils_Array::value('user_name', $userDetails);
     $password = CRM_Utils_Array::value('password', $userDetails);
     $pslid = CRM_Utils_Array::value('signature', $userDetails);
 
-    if ($uri) {
-      $urlArudd = $uri . "?query[service_user][pslid]=$pslid";
-      $responseArudd = CRM_DirectDebit_Base::requestPost($urlArudd, '', $username, $password, '');
-      $scrambled = str_replace(" ", "+", $responseArudd['file']);
-      $outputafterencode = base64_decode($scrambled);
-      $aruddArray = json_decode(json_encode((array)simplexml_load_string($outputafterencode)), 1);
-      $result = array();
+    if (empty($fileId)) {
+      CRM_Core_Error::debug_log_message('SmartDebit getSmartDebitAuddisFile: Must specify file ID!');
+      return false;
+    }
+    $url = CRM_DirectDebit_Base::getApiUrl("/api/auddis/$fileId",
+      "query[service_user][pslid]=$pslid");
+    $responseAuddis = CRM_DirectDebit_Base::requestPost($url, '', $username, $password, '');
+    $scrambled = str_replace(" ", "+", $responseAuddis['file']);
+    $outputafterencode = base64_decode($scrambled);
+    $auddisArray = json_decode(json_encode((array)simplexml_load_string($outputafterencode)), 1);
+    $result = array();
 
-      if ($aruddArray['Data']['ARUDD']['Advice']['OriginatingAccountRecords']['OriginatingAccountRecord']['ReturnedDebitItem']['@attributes']) {
-        $result[0] = $aruddArray['Data']['ARUDD']['Advice']['OriginatingAccountRecords']['OriginatingAccountRecord']['ReturnedDebitItem']['@attributes'];
-      } else {
-        foreach ($aruddArray['Data']['ARUDD']['Advice']['OriginatingAccountRecords']['OriginatingAccountRecord']['ReturnedDebitItem'] as $key => $value) {
-          $result[$key] = $value['@attributes'];
-        }
-      }
-      return $result;
+    if ($auddisArray['Data']['MessagingAdvices']['MessagingAdvice']['@attributes']) {
+      $result[0] = $auddisArray['Data']['MessagingAdvices']['MessagingAdvice']['@attributes'];
     } else {
-      $previousDateBackMonth = date('Y-m-d', strtotime($dateOfCollection . '-1 month'));
-
-// Send payment POST to the target URL
-      $urlArudd = CRM_DirectDebit_Base::getApiUrl('/api/arudd/list', "query[service_user][pslid]=$pslid&query[from_date]=$previousDateBackMonth&query[till_date]=$dateOfCollection");
-      $responseArudd = CRM_DirectDebit_Base::requestPost($urlArudd, '', $username, $password, '');
-
-// Take action based upon the response status
-      switch (strtoupper($responseArudd["Status"])) {
-        case 'OK':
-          $aruddArray = array();
-// Cater for a single response
-          if (isset($responseArudd['arudd'])) {
-            $aruddArray = $responseArudd['arudd'];
-          }
-          return $aruddArray;
-        default:
-          return false;
+      foreach ($auddisArray['Data']['MessagingAdvices']['MessagingAdvice'] as $key => $value) {
+        $result[$key] = $value['@attributes'];
       }
+    }
+    if (isset($auddisArray['Data']['MessagingAdvices']['Header']['@attributes']['report-generation-date'])) {
+      $result['auddis_date'] = $auddisArray['Data']['MessagingAdvices']['Header']['@attributes']['report-generation-date'];
+    }
+    return $result;
+  }
+
+  /**
+   * Get List of ARUDD files from SmartDebit for the past month.
+   * If dateOfCollection is not specified it defaults to today.
+   * @param null $dateOfCollection
+   * @return bool|mixed
+   */
+  static function getSmartDebitAruddList($dateOfCollectionStart = null, $dateOfCollectionEnd = null)
+  {
+    if (!isset($dateOfCollectionEnd)) {
+      $dateOfCollectionEnd = date('Y-m-d', new DateTime()); // Today
+    }
+    if (!isset($dateOfCollectionStart)) {
+      $dateOfCollectionStart = date('Y-m-d', strtotime($dateOfCollectionEnd . '-1 month'));
+    }
+    $userDetails = CRM_DirectDebit_Auddis::getSmartDebitUserDetails();
+    $username = CRM_Utils_Array::value('user_name', $userDetails);
+    $password = CRM_Utils_Array::value('password', $userDetails);
+    $pslid = CRM_Utils_Array::value('signature', $userDetails);
+
+    // Send payment POST to the target URL
+    $urlArudd = CRM_DirectDebit_Base::getApiUrl('/api/arudd/list', "query[service_user][pslid]=$pslid&query[from_date]=$dateOfCollectionStart&query[till_date]=$dateOfCollectionEnd");
+    $responseArudd = CRM_DirectDebit_Base::requestPost($urlArudd, '', $username, $password, '');
+
+    // Take action based upon the response status
+    switch (strtoupper($responseArudd["Status"])) {
+      case 'OK':
+        $aruddArray = array();
+        // Cater for a single response
+        if (isset($responseArudd['arudd'])) {
+          $aruddArray = $responseArudd['arudd'];
+        }
+        return $aruddArray;
+      default:
+        return false;
     }
   }
 
+  /**
+   * Get ARUDD file from Smart Debit. $uri is retrieved using getSmartDebitAuddisList
+   * @param null $uri
+   * @return array
+   */
+  static function getSmartDebitAruddFile($fileId)
+  {
+    $userDetails = CRM_DirectDebit_Auddis::getSmartDebitUserDetails();
+    $username = CRM_Utils_Array::value('user_name', $userDetails);
+    $password = CRM_Utils_Array::value('password', $userDetails);
+    $pslid = CRM_Utils_Array::value('signature', $userDetails);
+
+    if (!isset($fileId)) {
+      CRM_Core_Error::debug_log_message('SmartDebit getSmartDebitAruddFile: Must specify file ID!');
+      return false;
+    }
+
+    $url = CRM_DirectDebit_Base::getApiUrl("/api/arudd/$fileId",
+      "query[service_user][pslid]=$pslid");
+    $responseArudd = CRM_DirectDebit_Base::requestPost($url, '', $username, $password, '');
+    $scrambled = str_replace(" ", "+", $responseArudd['file']);
+    $outputafterencode = base64_decode($scrambled);
+    $aruddArray = json_decode(json_encode((array)simplexml_load_string($outputafterencode)), 1);
+    $result = array();
+
+    if (isset($aruddArray['Data']['ARUDD']['Advice']['OriginatingAccountRecords']['OriginatingAccountRecord']['ReturnedDebitItem']['@attributes'])) {
+      // Got a single result
+      // FIXME: Check that this is correct (ie. results not in array at ReturnedDebitItem if single
+      $result[0] = $aruddArray['Data']['ARUDD']['Advice']['OriginatingAccountRecords']['OriginatingAccountRecord']['ReturnedDebitItem']['@attributes'];
+    } else {
+      foreach ($aruddArray['Data']['ARUDD']['Advice']['OriginatingAccountRecords']['OriginatingAccountRecord']['ReturnedDebitItem'] as $key => $value) {
+        $result[$key] = $value['@attributes'];
+      }
+    }
+    $result['arudd_date'] = $aruddArray['Data']['ARUDD']['Header']['@attributes']['currentProcessingDate'];
+    return $result;
+  }
+
+  /**
+   * Get the AUDDIS record for $auddisDate. Returns FALSE if not found.
+   * @param array $auddisArray
+   * @param null $auddisDate
+   * @return array
+   */
   static function getRightAuddisFile($auddisArray = array(), $auddisDate = NULL)
   {
     $auddisDetails = array();
     if ($auddisArray && $auddisDate) {
-      if (isset($auddisArray[0]['@attributes'])) {
+      if (isset($auddisArray['@attributes']['results']) && ($auddisArray['@attributes']['results'] > 1)) {
         // Multiple results returned
-        foreach ($auddisArray as $key => $auddis) {
+        foreach ($auddisArray['auddis'] as $key => $auddis) {
           if (strtotime($auddisDate) == strtotime(substr($auddis['report_generation_date'], 0, 10))) {
             $auddisDetails['auddis_id'] = $auddis['auddis_id'];
             $auddisDetails['report_generation_date'] = substr($auddis['report_generation_date'], 0, 10);
             $auddisDetails['uri'] = $auddis['@attributes']['uri'];
-            break;
+            return $auddisDetails;
           }
         }
       } else {
@@ -116,15 +180,21 @@ class CRM_DirectDebit_Auddis
           $auddisDetails['auddis_id'] = $auddisArray['auddis_id'];
           $auddisDetails['report_generation_date'] = substr($auddisArray['report_generation_date'], 0, 10);
           $auddisDetails['uri'] = $auddisArray['@attributes']['uri'];
+          return $auddisDetails;
         }
       }
     }
-    return $auddisDetails;
+    return FALSE;
   }
 
+  /**
+   * Get the ARUDD record for $aruddDate. Returns FALSE if not found
+   * @param array $aruddArray
+   * @param null $aruddDate
+   * @return array
+   */
   static function getRightAruddFile($aruddArray = array(), $aruddDate = NULL)
   {
-    $aruddDetails = array();
     if ($aruddArray && $aruddDate) {
       if (isset($aruddArray[0]['@attributes'])) {
         // Multiple results returned
@@ -133,7 +203,7 @@ class CRM_DirectDebit_Auddis
             $aruddDetails['arudd_id'] = $arudd['arudd_id'];
             $aruddDetails['current_processing_date'] = substr($arudd['current_processing_date'], 0, 10);
             $aruddDetails['uri'] = $arudd['@attributes']['uri'];
-            break;
+            return $aruddDetails;
           }
         }
       } else {
@@ -142,12 +212,40 @@ class CRM_DirectDebit_Auddis
           $aruddDetails['arudd_id'] = $aruddArray['arudd_id'];
           $aruddDetails['current_processing_date'] = substr($aruddArray['current_processing_date'], 0, 10);
           $aruddDetails['uri'] = $aruddArray['@attributes']['uri'];
+          return $aruddDetails;
         }
       }
     }
-    return $aruddDetails;
+    return FALSE;
   }
 
+  static function getSmartDebitCollectionReportForMonth($dateOfCollection) {
+    if( empty($dateOfCollection)){
+      // CRM_Core_Session::setStatus(ts('Please select the collection date'), ts('Smart Debit'), 'error');
+      $collections['error'] = 'Please specify a collection date';
+      return $collections;
+    }
+    $collections = array();
+
+    // Empty the collection reports table
+    $emptySql = "TRUNCATE TABLE veda_civicrm_smartdebit_import";
+    CRM_Core_DAO::executeQuery($emptySql);
+
+    // Get a collection report for every day of the month
+    $dateEnd = new DateTime($dateOfCollection);
+    $dateStart = clone $dateEnd;
+    $dateStart->modify('-1 month');
+    $dateCurrent = clone $dateEnd;
+
+    while ($dateCurrent > $dateStart) {
+      $newCollections = CRM_DirectDebit_Auddis::getSmartDebitCollectionReport($dateCurrent->format('Y-m-d'));
+      if (!isset($newCollections['error'])) {
+        $collections = array_merge($collections, $newCollections);
+      }
+      $dateCurrent->modify('-1 day');
+    }
+    return $collections;
+  }
   /**
    * Retrieve Collection Report from Smart Debit
    * @param $dateOfCollection
@@ -165,17 +263,15 @@ class CRM_DirectDebit_Auddis
     $pslid       = CRM_Utils_Array::value('signature', $userDetails);
 
     $collections = array();
-    $url = CRM_DirectDebit_Base::getApiUrl('/api/get_collection_report', "query[service_user][pslid]=$pslid&query[debit_date]=$dateOfCollection");
+    $url = CRM_DirectDebit_Base::getApiUrl('/api/get_successful_collection_report', "query[service_user][pslid]=$pslid&query[collection_date]=$dateOfCollection");
     $response    = CRM_DirectDebit_Base::requestPost($url, '', $username, $password, '');
 
     // Take action based upon the response status
     switch ( strtoupper( $response["Status"] ) ) {
       case 'OK':
         if (!isset($response['Successes']) || !isset($response['Rejects'])) {
-          $url = CRM_Utils_System::url('civicrm/directdebit/syncsd/import'); // DataSource Form
-          CRM_Core_Session::setStatus($response['Summary'], ts('Sorry'), 'error');
-          CRM_Utils_System::redirect($url);
-          return FALSE;
+          $collections['error'] = $response['Summary'];
+          return $collections;
         }
         // Cater for a single response
         if (isset($response['Successes']['Success']['@attributes'])) {
@@ -190,10 +286,48 @@ class CRM_DirectDebit_Auddis
         $url = CRM_Utils_System::url('civicrm/directdebit/syncsd/import'); // DataSource Form
         CRM_Core_Session::setStatus($response['error'], ts('UK Direct Debit'), 'error');
         CRM_Utils_System::redirect($url);
-        return FALSE;
+        $collections['error'] = $response['error'];
+        return $collections;
       default:
-        return FALSE;
+        $collections['error'] = $response['error'];
+        return $collections;
     }
+  }
+
+  /**
+   * Save collection report (getSmartDebitCollectionReport) to database
+   * @param $collections
+   */
+  static function saveSmartDebitCollectionReport($collections) {
+    $tableName = "veda_civicrm_smartdebit_import";
+    if(!empty($collections)){
+      foreach ($collections as $key => $value) {
+        $resultCollection = array(
+          'transaction_id' => $value['reference_number'],
+          'contact'        => $value['account_name'],
+          'amount'         => $value['amount'],
+          'receive_date'   => !empty($value['debit_date']) ? date('YmdHis', strtotime(str_replace('/', '-', $value['debit_date']))) : NULL,
+        );
+        $insertValue[] = " ( \"". implode('", "', $resultCollection) . "\" )";
+      }
+      $sql = " INSERT INTO `{$tableName}`
+              (`transaction_id`, `contact`, `amount`, `receive_date`)
+              VALUES ".implode(', ', $insertValue)."
+              ";
+      CRM_Core_DAO::executeQuery($sql);
+    }
+  }
+
+  /**
+   * Remove all collection report date from veda_civicrm_smartdebit_import that is older than one month
+   */
+  static function removeOldSmartDebitCollectionReports() {
+    $date = new DateTime();
+    $date->modify('-1 month');
+    $dateString = $date->format('Ymd') . '000000';
+    $query = "DELETE FROM `veda_civicrm_smartdebit_import` WHERE receive_date < %1";
+    $params = array(1 => array($dateString, 'String'));
+    CRM_Core_DAO::executeQuery($query, $params);
   }
 
   /**

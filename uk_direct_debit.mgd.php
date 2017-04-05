@@ -25,4 +25,17 @@ return array(
       'is_recur' => 1,
     ),
   ),
+  1 => array (
+    'name' => 'Cron:SmartDebit.getSmartDebitPayerContactDetails',
+    'entity' => 'Job',
+    'params' => array (
+      'version' => 3,
+      'name' => 'Sync contacts from SmartDebit to CiviCRM.',
+      'description' => 'Sync contacts from SmartDebit to CiviCRM.',
+      'run_frequency' => 'Daily',
+      'api_entity' => 'Ukdirectdebit',
+      'api_action' => 'sync',
+      'parameters' => '',
+    ),
+  ),
 );

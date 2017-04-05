@@ -498,8 +498,15 @@ EOF;
   /**
    * Function will return the Payment instrument to be used by DD payment processor
    */
-  static function getDDPaymentInstrumentID() {
+  static function getDefaultPaymentInstrumentID() {
     return uk_direct_debit_civicrm_getSetting('payment_instrument_id');
+  }
+
+  /**
+   * Function will return the default Financial Type to be used by DD payment processor
+   */
+  static function getDefaultFinancialTypeID() {
+    return uk_direct_debit_civicrm_getSetting('financial_type');
   }
 
   static function getCountry( $country_id ) {
@@ -533,21 +540,299 @@ EOF;
    * @return array ($civicrm_frequency_unit, $civicrm_frequency_interval)
    */
   static function translateSmartDebitFrequencytoCiviCRM($sdFrequencyUnit, $sdFrequencyFactor) {
+    if (empty($sdFrequencyFactor)) {
+      $sdFrequencyFactor = 1;
+    }
     switch ($sdFrequencyUnit) {
       case 'W':
         $unit = 'day';
         $interval = $sdFrequencyFactor * 7;
+        break;
       case 'M':
         $unit = 'month';
         $interval = $sdFrequencyFactor;
+        break;
       case 'Q':
         $unit = 'month';
         $interval = $sdFrequencyFactor*3;
+        break;
       case 'Y':
       default:
         $unit = 'year';
         $interval = $sdFrequencyFactor;
     }
     return array ($unit, $interval);
+  }
+
+  /**
+   * Get array of valid frequency Units (for display in select etc)
+   * @return array
+   */
+  static function getSmartDebitFrequencyUnits() {
+    $frequencyUnits = array(
+      'W'  => 'Weekly',
+      'M'  => 'Monthly',
+      'Q'  => 'Quarterly',
+      'Y'  => 'Annually'
+    );
+    return $frequencyUnits;
+  }
+
+  /**
+   * * Get array of valid frequency Intervals (for display in select etc)
+   * @return array
+   */
+  static function getCiviCRMFrequencyIntervals() {
+    $frequencyIntervals = array(
+      1  => '1',
+      2  => '2',
+      3  => '3',
+      4  => '4',
+      5  => '5',
+      6  => '6',
+      7  => '7',
+      8  => '8',
+      9  => '9',
+      10 => '10',
+      11 => '11',
+      12 => '12'
+    );
+    return $frequencyIntervals;
+  }
+
+  /**
+   * Create a new recurring contribution for the direct debit instruction we set up.
+   * @param $recurParams
+   */
+  static function createRecurContribution($recurParams) {
+    // Mandatory Parameters
+    // Amount
+    if (empty($recurParams['amount'])) {
+      CRM_Core_Error::debug_log_message('SmartDebit createRecurContribution: ERROR must specify amount!');
+      return FALSE;
+    }
+    else {
+      // Make sure it's properly formatted (ie remove symbols etc)
+      $recurParams['amount'] = preg_replace("/([^0-9\\.])/i", "", $recurParams['amount']);
+    }
+    if (empty($recurParams['contact_id'])) {
+      CRM_Core_Error::debug_log_message('SmartDebit createRecurContribution: ERROR must specify contact_id!');
+      return FALSE;
+    }
+
+    // Optional parameters
+    // Set default processor_id
+    if (empty($recurParams['payment_processor_id'])) {
+      $recurParams['payment_processor_id'] = CRM_Core_Payment_Smartdebitdd::getSmartDebitPaymentProcessorID();
+    }
+    // Set status
+    if (empty($recurParams['contribution_status_id'])) {
+      // Default to "In Progress" as we assume setup was successful at this point
+      $recurParams['contribution_status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'In Progress');
+    }
+    // Set unit/interval
+    if (isset($recurParams['frequency_type'])) {
+      if (empty($recurParams['frequency_factor'])) {
+        $recurParams['frequency_factor'] = 1;
+      }
+      // Convert SmartDebit frequency params if we have them
+      list($recurParams['frequency_unit'], $recurParams['frequency_interval']) = CRM_DirectDebit_Base::translateSmartDebitFrequencytoCiviCRM($recurParams['frequency_type'], $recurParams['frequency_factor']);
+    }
+    if (empty($recurParams['frequency_unit']) && empty($recurParams['frequency_interval'])) {
+      // Default to 1 year if undefined
+      $recurParams['frequency_unit'] = 'year';
+      $recurParams['frequency_interval'] = 1;
+    }
+    // Default to today for creation date
+    if (empty($recurParams['create_date'])) {
+      $recurParams['create_date'] = date('YmdHis');
+    }
+    else {
+      $recurParams['create_date'] = CRM_Utils_Date::processDate($recurParams['create_date']);
+    }
+    // Default to today for modified date
+    if (empty($recurParams['modified_date'])) {
+      $recurParams['modified_date'] = date('YmdHis');
+    }
+    else {
+      $recurParams['modified_date'] = CRM_Utils_Date::processDate($recurParams['modified_date']);
+    }
+    // Default to today for modified date
+    if (empty($recurParams['start_date'])) {
+      $recurParams['start_date'] = date('YmdHis');
+    }
+    else {
+      $recurParams['start_date'] = CRM_Utils_Date::processDate($recurParams['start_date']);
+    }
+    // Cycle day defaults to day of start date
+    if (empty($recurParams['cycle_day'])) {
+      $recurParams['cycle_day'] = date('j', strtotime($recurParams['start_date'])); //Day of the month without leading zeros
+    }
+    // processor id (match trxn_id)
+    if (empty($recurParams['processor_id'])) {
+      if (!empty($recurParams['reference_number'])) {
+        $recurParams['processor_id'] = $recurParams['reference_number'];
+      }
+      elseif (!empty($recurParams['trxn_id'])) {
+        $recurParams['processor_id'] = $recurParams['trxn_id'];
+      }
+      else {
+        $recurParams['processor_id'] = '';
+      }
+    }
+    // trxn_id (match processor id)
+    if (empty($recurParams['trxn_id'])) {
+      if (!empty($recurParams['processor_id'])) {
+        $recurParams['trxn_id'] = $recurParams['processor_id'];
+      }
+      else {
+        $recurParams['trxn_id'] = '';
+      }
+    }
+    // Default value for payment_instrument id (payment method, eg. "Direct Debit")
+    if (empty($recurParams['payment_instrument_id'])){
+      $recurParams['payment_instrument_id'] = CRM_DirectDebit_Base::getDefaultPaymentInstrumentID();
+    }
+    // Default value for financial_type_id (eg. "Member dues")
+    if (empty($recurParams['financial_type_id'])){
+      $recurParams['financial_type_id'] = CRM_DirectDebit_Base::getDefaultFinancialTypeID();
+    }
+    // Default currency
+    if (empty($recurParams['currency'])) {
+      $config = CRM_Core_Config::singleton();
+      $recurParams['currency'] = $config->defaultCurrency;
+    }
+    // Invoice ID
+    if (empty($recurParams['invoice_id'])) {
+      $recurParams['invoice_id'] = md5(uniqid(rand(), TRUE ));
+    }
+
+    // Build recur params
+    $recurParams = array(
+      'contact_id' =>  $recurParams['contact_id'],
+      'create_date' => $recurParams['create_date'],
+      'modified_date' => $recurParams['modified_date'],
+      'start_date' => $recurParams['start_date'],
+      'amount' => $recurParams['amount'],
+      'frequency_unit' => $recurParams['frequency_unit'],
+      'frequency_interval' => $recurParams['frequency_interval'],
+      'payment_processor_id' => $recurParams['payment_processor_id'],
+      'contribution_status_id'=> $recurParams['contribution_status_id'],
+      'trxn_id'	=> $recurParams['trxn_id'],
+      'financial_type_id'	=> $recurParams['financial_type_id'],
+      'auto_renew' => '1', // Make auto renew
+      'cycle_day' => $recurParams['cycle_day'],
+      'currency' => $recurParams['currency'],
+      'processor_id' => $recurParams['processor_id'],
+      'payment_instrument_id' => $recurParams['payment_instrument_id'],
+      'invoice_id' => $recurParams['invoice_id'],
+    );
+    // Create the recurring contribution
+
+    $result = civicrm_api3('ContributionRecur', 'create', $recurParams);
+    return array_merge($result, $recurParams);
+  }
+
+  /**
+   * Create a new recurring contribution for the direct debit instruction we set up.
+   * @param $recurParams
+   * @return object
+   */
+  static function createContribution($recurParams) {
+    // Mandatory Parameters
+    // Amount
+    if (empty($recurParams['total_amount'])) {
+      CRM_Core_Error::debug_log_message('SmartDebit createRecurContribution: ERROR must specify amount!');
+      return FALSE;
+    }
+    else {
+      // Make sure it's properly formatted (ie remove symbols etc)
+      $recurParams['total_amount'] = preg_replace("/([^0-9\\.])/i", "", $recurParams['total_amount']);
+    }
+    if (empty($recurParams['contact_id'])) {
+      CRM_Core_Error::debug_log_message('SmartDebit createRecurContribution: ERROR must specify contact_id!');
+      return FALSE;
+    }
+
+    // Optional parameters
+    // Set default processor_id
+    if (empty($recurParams['payment_processor_id'])) {
+      $recurParams['payment_processor_id'] = CRM_Core_Payment_Smartdebitdd::getSmartDebitPaymentProcessorID();
+    }
+    // Set status
+    if (empty($recurParams['contribution_status_id'])) {
+      // Default to "In Progress" as we assume setup was successful at this point
+      $recurParams['contribution_status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'In Progress');
+    }
+    // Default to today for modified date
+    if (empty($recurParams['receive_date'])) {
+      $recurParams['receive_date'] = date('YmdHis');
+    }
+    else {
+      $recurParams['receive_date'] = CRM_Utils_Date::processDate($recurParams['receive_date']);
+    }
+    // processor id (match trxn_id)
+    if (empty($recurParams['processor_id'])) {
+      if (!empty($recurParams['reference_number'])) {
+        $recurParams['processor_id'] = $recurParams['reference_number'];
+      }
+      elseif (!empty($recurParams['trxn_id'])) {
+        $recurParams['processor_id'] = $recurParams['trxn_id'];
+      }
+      else {
+        $recurParams['processor_id'] = '';
+      }
+    }
+    // trxn_id (match processor id)
+    if (empty($recurParams['trxn_id'])) {
+      if (!empty($recurParams['processor_id'])) {
+        $recurParams['trxn_id'] = $recurParams['processor_id'];
+      }
+      else {
+        $recurParams['trxn_id'] = '';
+      }
+    }
+    // Default value for payment_instrument id (payment method, eg. "Direct Debit")
+    if (empty($recurParams['payment_instrument_id'])){
+      $recurParams['payment_instrument_id'] = CRM_DirectDebit_Base::getDefaultPaymentInstrumentID();
+    }
+    // Default value for financial_type_id (eg. "Member dues")
+    if (empty($recurParams['financial_type_id'])){
+      $recurParams['financial_type_id'] = CRM_DirectDebit_Base::getDefaultFinancialTypeID();
+    }
+    // Default currency
+    if (empty($recurParams['currency'])) {
+      $config = CRM_Core_Config::singleton();
+      $recurParams['currency'] = $config->defaultCurrency;
+    }
+    // Invoice ID
+    if (empty($recurParams['invoice_id'])) {
+      $recurParams['invoice_id'] = md5(uniqid(rand(), TRUE ));
+    }
+
+    // Build recur params
+    $contributionParams = array(
+      'contact_id' =>  $recurParams['contact_id'],
+      'receive_date' => $recurParams['receive_date'],
+      'total_amount' => $recurParams['total_amount'],
+      'payment_processor_id' => $recurParams['payment_processor_id'],
+      'contribution_status_id'=> $recurParams['contribution_status_id'],
+      'trxn_id'	=> $recurParams['trxn_id'],
+      'financial_type_id'	=> $recurParams['financial_type_id'],
+      'currency' => $recurParams['currency'],
+      'processor_id' => $recurParams['processor_id'],
+      'payment_instrument_id' => $recurParams['payment_instrument_id'],
+      'invoice_id' => $recurParams['invoice_id'],
+    );
+    if (!empty($recurParams['contribution_id'])) {
+      $contributionParams['contribution_id'] = $recurParams['contribution_id'];
+    }
+    if (!empty($recurParams['contribution_recur_id'])) {
+      $contributionParams['contribution_recur_id'] = $recurParams['contribution_recur_id'];
+    }
+
+    // Create/Update the contribution
+    $result = civicrm_api3('Contribution', 'create', $contributionParams);
+    return array_merge($result, $contributionParams);
   }
 }

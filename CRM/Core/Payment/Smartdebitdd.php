@@ -77,21 +77,28 @@ class CRM_Core_Payment_Smartdebitdd extends CRM_Core_Payment
     }
   }
 
-  // FIXME: Is this function actually used?
   /**
    * @param CRM_Core_Form $form
    * @return bool|void
    */
   function buildForm(&$form)
   {
-    $ddForm = new CRM_DirectDebit_Form_Main();
-    $ddForm->buildDirectDebit($form);
-    // If we are updating billing address of smart debit mandate we don't need to validate, validation will happen in updateSubscriptionBillingInfo method
-    if ($form->getVar('_name') == 'UpdateBilling') {
-      return;
+    $offline = FALSE;
+    if (in_array($form->getVar('_name'), array(
+      'UpdateBilling',
+      'UpdateSubscription',
+    ))) {
+      $offline = TRUE;
     }
-    $form->addFormRule(array('CRM_Core_Payment_Smartdebitdd', 'validatePayment'), $form);
-    return TRUE;
+
+    $ddForm = new CRM_DirectDebit_Form_Main();
+    $ddForm->buildDirectDebitForm($form,FALSE,$offline);
+    // If we are updating billing address of smart debit mandate we don't need to validate, validation will happen in updateSubscriptionBillingInfo method
+    if ($form->getVar('_name') != 'UpdateBilling') {
+      $form->addFormRule(array('CRM_Core_Payment_Smartdebitdd', 'validatePayment'), $form);
+      return TRUE;
+    }
+    return;
   }
 
   /**
@@ -160,6 +167,15 @@ class CRM_Core_Payment_Smartdebitdd extends CRM_Core_Payment
           $frequencyInterval = ($frequencyInterval / 3);
           $collectionFrequency = 'Q';
         }
+        break;
+      case 'week':
+        // weekly
+        if ($frequencyInterval > 4) {
+          CRM_Core_Error::debug_log_message('The maximum weekly collection interval for Smart Debit is 4 weeks but you specified ' . $frequencyInterval . ' weeks. 
+            Resetting to 4 weeks.');
+          $frequencyInterval = 4;
+        }
+        $collectionFrequency = 'W';
         break;
       case 'day':
         // Make sure frequencyInterval is a multiple of 7 days (ie 1 week)
@@ -652,15 +668,28 @@ EOF;
    * @param array $params
    * @return bool
    */
-  function cancelSubscription(&$message = '', $params = array())
+  function cancelSubscription($params = array())
   {
-    if ($this->_paymentProcessor['payment_processor_type'] == 'Smart_Debit') {
+    if ($this->_processorName == 'Smart Debit Processor') {
       $post = '';
       $serviceUserId = $this->_paymentProcessor['signature'];
       $username = $this->_paymentProcessor['user_name'];
       $password = $this->_paymentProcessor['password'];
       $url = $this->_paymentProcessor['url_api'];
-      $reference = $params['subscriptionId'];
+      try {
+        $contributionRecur = civicrm_api3('ContributionRecur', 'getsingle', array(
+          'sequential' => 1,
+          'id' => $_GET['crid'],
+        ));
+      }
+      catch (Exception $e) {
+        return FALSE;
+      }
+      if (empty($contributionRecur['processor_id'])) {
+        CRM_Core_Session::setStatus(ts('The recurring contribution cannot be cancelled (No reference (processor_id) found).'), 'Smart Debit', 'error');
+        return FALSE;
+      }
+      $reference = $contributionRecur['processor_id'];
       $request_path = 'api/ddi/variable/' . $reference . '/cancel';
       $smartDebitParams = array(
         'variable_ddi[service_user][pslid]' => $serviceUserId,
@@ -681,6 +710,12 @@ EOF;
     }
   }
 
+  /**
+   * Called when
+   * @param string $message
+   * @param array $params
+   * @return bool
+   */
   function updateSubscriptionBillingInfo(&$message = '', $params = array())
   {
     if ($this->_paymentProcessor['payment_processor_type'] == 'Smart_Debit') {
@@ -707,6 +742,7 @@ EOF;
         'variable_ddi[address_1]' => self::replaceCommaWithSpace($streetAddress),
         'variable_ddi[town]' => $city,
         'variable_ddi[postcode]' => $postcode,
+        'variable_ddi[county]' => $state,
         'variable_ddi[country]' => $country,
       );
       foreach ($smartDebitParams as $key => $value) {
@@ -743,5 +779,62 @@ EOF;
     }
     $errorMsg .= 'Please correct the errors and try again';
     return $errorMsg;
+  }
+
+  /**
+   * Format and submit IPN
+   * @param $txn_type
+   * @param $trxn_id
+   * @param $contactID
+   * @param $contributionID
+   * @param $amount
+   * @param $invoice_id
+   * @param $recurID
+   * @param $financial_type_id
+   */
+  static function callIPN($txn_type, $trxn_id, $contactID, $contributionID, $amount, $invoice_id, $recurID,
+                          $financial_type_id=null, $membershipID=null, $firstCollection=null, $collectionDay=null) {
+    $query = "processor_name=Smart_Debit&module=contribute"
+             . "&contactID=".urlencode($contactID)."&contributionID=".urlencode($contributionID)
+             . "&mc_gross=".urlencode($amount)."&invoice=".urlencode($invoice_id)
+             . "&payment_status=Completed"
+             . "&txn_type=".urlencode($txn_type)."&contributionRecurID=".urlencode($recurID)
+             . "&txn_id=".urlencode($trxn_id);
+    if (!empty($financial_type_id)) {
+      $query .= "&financial_type_id=".urlencode($financial_type_id);
+    }
+    if (!empty($membershipID)) {
+      $query .= "&membershipID=".urlencode($membershipID);
+    }
+    if (!empty($firstCollection)) {
+      $query .= "&first_collection_date=".urlencode($firstCollection);
+    }
+    if (!empty($collectionDay)) {
+      $query .= "&collection_day=".urlencode($collectionDay);
+    }
+    $url = CRM_Utils_System::url('civicrm/payment/ipn', $query, TRUE, NULL, FALSE, TRUE);
+    call_CiviCRM_IPN($url);
+  }
+
+  /**
+   * Get ID of payment processor with class name "Payment_Smartdebitdd"
+   * @return int
+   */
+  static function getSmartDebitPaymentProcessorID() {
+    $result = civicrm_api3('PaymentProcessor', 'get', array(
+      'sequential' => 1,
+      'return' => array("id"),
+      'class_name' => "Payment_Smartdebitdd",
+      'is_test' => 0,
+    ));
+    if ($result['count'] > 0) {
+      // Return the first one, it's possible there is more than one payment processor of the same type configured
+      //  so we'll just return the first one here.
+      if (isset($result['values'][0]['id'])) {
+        return $result['values'][0]['id'];
+      }
+    }
+    // If we don't have a valid processor id return false;
+    return FALSE;
   }
 }

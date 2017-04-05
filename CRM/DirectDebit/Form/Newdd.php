@@ -1,8 +1,11 @@
 <?php
 
+/**
+ * Class CRM_DirectDebit_Form_Newdd
+ * This form is accessed at civicrm/directdebit/new
+ * It allows for creation of a new membership direct debit via the backend
+ */
 class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
-  // FIXME: What is this form used for?
-
   public $_contactID;
 
   public $_paymentProcessor = array();
@@ -42,6 +45,7 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
     $this->addRule("email-{$this->_bltID}", ts('Email is not valid.'), 'email');
     // Membership Frequench Month/Year
     $this->add('hidden', 'frequency_unit');
+    $this->add('hidden', 'frequency_interval');
 
     $submitButton = array(
       array('type' => 'upload',
@@ -54,7 +58,7 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
 
     // Build Direct Debit Payment Fields including Billing
     $ddForm = new CRM_DirectDebit_Form_Main();
-    $ddForm->buildOfflineDirectDebit( $this );
+    $ddForm->buildDirectDebitForm( $this );
     // Required for validation
     $defaults['ddi_reference'] = CRM_DirectDebit_Base::getDDIReference();
     $this->setDefaults($defaults);
@@ -124,7 +128,7 @@ class CRM_DirectDebit_Form_Newdd extends CRM_Core_Form {
         'financial_type_id'	=>  $financial_type_id,
         'auto_renew'		=> '1', // Make auto renew
         'processor_id'          =>  $trxn_id,
-        'payment_instrument_id' => CRM_DirectDebit_Base::getDDPaymentInstrumentID(),//Direct Debit
+        'payment_instrument_id' => CRM_DirectDebit_Base::getDefaultPaymentInstrumentID(),//Direct Debit
       );
 
       $recurring		  = CRM_Contribute_BAO_ContributionRecur::add($recurParams);

@@ -41,7 +41,6 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
 
   function getValue($name, $abort = TRUE) {
     if (!empty($_POST)) {
-      $rpInvoiceArray = array();
       $value          = NULL;
       $rpInvoiceArray = explode('&', $_POST['rp_invoice_id']);
       foreach ($rpInvoiceArray as $rpInvoiceValue) {
@@ -70,7 +69,7 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
       FALSE, NULL, $location
     );
     if ($abort && $value === NULL) {
-      CRM_Core_Error::debug_log_message("Could not find an entry for $name in $location");
+      CRM_Core_Error::debug_log_message("SmartDebitIPN: Could not find an entry for $name in $location");
       echo "Failure (retrieve): Missing Parameter $name<p>";
       exit();
     }
@@ -79,7 +78,7 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
 
   function recur(&$input, &$ids, &$objects, $first) {
     if (!isset($input['txnType'])) {
-      CRM_Core_Error::debug_log_message("Could not find txn_type in input request");
+      CRM_Core_Error::debug_log_message("SmartDebitIPN: Could not find txn_type in input request");
       echo "Failure: Invalid parameters<p>";
       return FALSE;
     }
@@ -87,7 +86,7 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
     if ( $input['txnType']       == 'recurring_payment' &&
       $input['paymentStatus'] != 'Completed'
     ) {
-      CRM_Core_Error::debug_log_message("Ignore all IPN payments that are not completed");
+      CRM_Core_Error::debug_log_message("SmartDebitIPN: Ignore all IPN payments that are not completed");
       echo "Failure: Invalid parameters<p>";
       return FALSE;
     }
@@ -98,7 +97,7 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
     // make sure the invoice is valid and matches what we have in
     // the contribution record
     if ( $recur->invoice_id != $input['invoice'] ) {
-      CRM_Core_Error::debug_log_message("Invoice values dont match between database and IPN request recur is " . $recur->invoice_id . " input is " . $input['invoice']);
+      CRM_Core_Error::debug_log_message("SmartDebitIPN: Invoice values dont match between database and IPN request recur is " . $recur->invoice_id . " input is " . $input['invoice']);
       echo "Failure: Invoice values dont match between database and IPN request recur is " . $recur->invoice_id . " input is " . $input['invoice'];
       return FALSE;
     }
@@ -125,19 +124,19 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
       case 'subscr_cancel':
         $recur->contribution_status_id = 3;
         $recur->cancel_date = $now;
-        $objects['contribution']->source  = ts('Cancel Recurring Contribution: Smart Debit API');
+        $objects['contribution']->source  = ts('SmartDebitIPN: Cancel Recurring Contribution');
         $objects['contribution']->receive_date  = $now;
         CRM_Activity_BAO_Activity::addActivity($objects['contribution'], NULL);
         break;
       case 'subscr_failed':
         $recur->contribution_status_id = 4;
         $recur->modified_date = $now;
-        $objects['contribution']->source  = ts('Fail Recurring Contribution: Smart Debit API');
+        $objects['contribution']->source  = ts('SmartDebitIPN: Fail Recurring Contribution');
         $objects['contribution']->receive_date  = $now;
         CRM_Activity_BAO_Activity::addActivity($objects['contribution'], NULL);
         break;
       case 'recurring_payment_profile_created':
-        CRM_Core_Error::debug_log_message("recurring_payment_profile_created");
+        CRM_Core_Error::debug_log_message("SmartDebitIPN: recurring_payment_profile_created");
         $recur->create_date            = $now;
         $recur->contribution_status_id = 2;
         $recur->processor_id           = $_POST['recurring_payment_id'];
@@ -145,36 +144,13 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
         $subscriptionPaymentStatus     = CRM_Core_Payment::RECURRING_PAYMENT_START;
         break;
       case 'recurring_payment':
-        CRM_Core_Error::debug_log_message("recurring_payment");
+        CRM_Core_Error::debug_log_message("SmartDebitIPN: recurring_payment");
         if ( $first ) {
-          $recur->payment_instrument_id = CRM_DirectDebit_Base::getDDPaymentInstrumentID();
+          $recur->payment_instrument_id = CRM_DirectDebit_Base::getDefaultPaymentInstrumentID();
           $recur->trxn_id = $input['trxn_id'];
           $recur->processor_id = $input['trxn_id'];
           $recur->cycle_day = $input['collection_day'];
           $recur->start_date = $input['start_date'];
-
-          //Create membership_id column in recur table if not exists.
-          if($ids['membership']) {
-            $columnExists = CRM_Core_DAO::checkFieldExists('civicrm_contribution_recur', 'membership_id');
-            if(!$columnExists) {
-              $query = "
-                ALTER TABLE civicrm_contribution_recur
-                ADD membership_id int(10) unsigned AFTER contact_id,
-                ADD CONSTRAINT FK_civicrm_contribution_recur_membership_id
-                FOREIGN KEY(membership_id) REFERENCES civicrm_membership(id) ON DELETE CASCADE ON UPDATE RESTRICT";
-
-              CRM_Core_DAO::executeQuery($query);
-            }
-
-            // Populate membership_id
-            $query = "
-            UPDATE civicrm_contribution_recur
-            SET membership_id = %1
-            WHERE id = %2 ";
-
-            $params = array( 1 => array( $ids['membership'][0], 'Int' ), 2 => array($ids['contributionRecur'], 'Int') );
-            $dao = CRM_Core_DAO::executeQuery($query, $params);
-          }
         }
         else {
           $recur->modified_date = $now;
@@ -228,19 +204,11 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
       $contribution->contribution_type_id = $objects['contributionType']->id;
       $contribution->contribution_page_id = $ids['contributionPage'];
       $contribution->contribution_recur_id = $ids['contributionRecur'];
-
-      /* TODO
-       * This should probably be the date received, which is probably not now an a date passed in
-       */
-      $contribution->receive_date = $now;
-
       $contribution->currency = $objects['contribution']->currency;
-      $contribution->payment_instrument_id = CRM_DirectDebit_Base::getDDPaymentInstrumentID(); // $objects['contribution']->payment_instrument_id;
+      $contribution->payment_instrument_id = CRM_DirectDebit_Base::getDefaultPaymentInstrumentID(); // $objects['contribution']->payment_instrument_id;
       $contribution->amount_level          = $objects['contribution']->amount_level;
-
       $objects['contribution']             = &$contribution;
     }
-
     $this->single( $input, $ids, $objects, TRUE, $first );
   }
 
@@ -250,7 +218,7 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
     // make sure the invoice is valid and matches what we have in the contribution record
     if ( ( !$recur ) || ( $recur && $first ) ) {
       if ( $contribution->invoice_id != $input['invoice'] ) {
-        CRM_Core_Error::debug_log_message("Invoice values dont match between database and IPN request");
+        CRM_Core_Error::debug_log_message("SmartDebitIPN: Invoice values dont match between database and IPN request");
         echo "Failure: Invoice values dont match between database and IPN request<p>contribution is" . $contribution->invoice_id . " and input is " . $input['invoice'];
         return FALSE;
       }
@@ -261,7 +229,7 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
 
     if ( !$recur ) {
       if ( $contribution->total_amount != $input['amount'] ) {
-        CRM_Core_Error::debug_log_message("Amount values dont match between database and IPN request");
+        CRM_Core_Error::debug_log_message("SmartDebitIPN: Amount values dont match between database and IPN request");
         echo "Failure: Amount values dont match between database and IPN request<p>";
         return FALSE;
       }
@@ -270,7 +238,7 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
       $contribution->total_amount = $input['amount'];
     }
 
-    $contribution->payment_instrument_id = CRM_DirectDebit_Base::getDDPaymentInstrumentID();
+    $contribution->payment_instrument_id = CRM_DirectDebit_Base::getDefaultPaymentInstrumentID();
 
     if ($first) {
       // Set the received date to the date expected for DD payments
@@ -318,7 +286,7 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
     // If its the first payment being recorded then we need to call the complete DD setup routine
     // All of the data required will now be in place
     if ($first) {
-      CRM_DirectDebit_Form_Main::completeDirectDebitSetup( $objects );
+      CRM_DirectDebit_Base::completeDirectDebitSetup( $objects );
     }
   }
 
@@ -348,30 +316,19 @@ class CRM_Core_Payment_SmartDebitIPN extends CRM_Core_Payment_BaseIPN {
     }
 
     if ( $ids['membership'] && !$ids['contributionRecur'] ) {
-      $sql = <<<EOF
-                SELECT m.contribution_recur_id
-                FROM   civicrm_membership m
-                INNER  JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contribution_id = %1
-                WHERE  m.id = %2
-                LIMIT 1
-EOF;
+      // Get recurring contribution ID for membership
+      $membershipInfo = civicrm_api3('Membership', 'getsingle', array(
+        'sequential' => 1,
+        'return' => array("contribution_recur_id"),
+        'id' => $ids['membership'],
+      ));
 
-      $sqlParams = array( 1 => array( $ids['contribution'], 'Integer' )
-      , 2 => array( $ids['membership']  , 'Integer' )
-      );
-
-      $contributionRecurId = CRM_Core_DAO::singleValueQuery( $sql, $sqlParams );
-      if ( !empty( $contributionRecurId ) ) {
-        $ids['contributionRecur'] = $contributionRecurId;
+      if (!empty( $membershipInfo["contribution_recur_id"])) {
+        $ids['contributionRecur'] = $membershipInfo["contribution_recur_id"];
       }
     }
 
-    $paymentProcessorID = CRM_Core_DAO::getFieldValue(  'CRM_Financial_DAO_PaymentProcessorType'
-      , 'Smart_Debit'
-      , 'id'
-      , 'name'
-    );
-
+    $paymentProcessorID = CRM_Core_Payment_Smartdebitdd::getSmartDebitPaymentProcessorID();
     if ( !$this->validateData( $input, $ids, $objects, FALSE, $paymentProcessorID ) ) {
       return FALSE;
     }

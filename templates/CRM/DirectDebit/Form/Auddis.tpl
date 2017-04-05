@@ -1,3 +1,13 @@
+<h3>{ts}Select the AUDDIS and ARUDD dates that you wish to process now:{/ts}</h3>
+<div class="help">
+{ts}The below tables summarise the data available in the selected AUDDIS/ARUDD files.{/ts}<br />
+{if $totalExist == 0}
+    <strong>{ts}As there are no matching contacts you cannot import any transactions.{/ts}</strong>
+{else}
+    <strong>{ts}To import click continue.{/ts}</strong>
+{/if}
+
+</div>
 <div class="crm-block crm-form-block crm-export-form-block">
   <div class="crm-block crm-form-block crm-campaignmonitor-sync-form-block">
     <div class="crm-submit-buttons">

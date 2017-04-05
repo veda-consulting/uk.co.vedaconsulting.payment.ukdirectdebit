@@ -88,9 +88,3 @@ For example, if this is set to "WEB" references will be in the form WEB0001023{/
 {htxt id='api_contact_key'}
 {ts}If using SmartDebit, leave this as default "payerReference"{/ts}
 {/htxt}
-{htxt id='api_contact_val_regex'}
-{ts}Not used with SmartDebit{/ts}
-{/htxt}
-{htxt id='api_contact_val_regex_index'}
-{ts}Not used with SmartDebit{/ts}
-{/htxt}

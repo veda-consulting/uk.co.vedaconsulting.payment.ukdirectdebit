@@ -10,7 +10,7 @@
 
             <div style="text-align: center;">
                 {*        <div><span id="logo1"><img src="client_logo.jpg" alt="Client Logo" border="0"></span></div> *}
-                <div><span style="float: right;margin: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit.gif}" alt="Direct Debit Logo" border="0"></span></div>
+                <div><span style="float: right;margin: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit_small.png}" alt="Direct Debit Logo" border="0"></span></div>
                 <div style="clear: both;"></div>
             </div>
 
@@ -134,7 +134,7 @@
             <TR>
                 <TD WIDTH="580" VALIGN=TOP>
                     <P ALIGN=CENTER>
-                        <FONT FACE="Arial,Helvetica,Monaco"><FONT SIZE="5"><B>The Direct Debit Guarantee</B></FONT><FONT SIZE="6"> </FONT></FONT><!-- $MVD$:picsz("894","306") --><IMG SRC="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit.gif}" ALIGN=TOP WIDTH="107" HEIGHT="37" VSPACE="0" HSPACE="0" ALT="direct debit logo" BORDER="0" LOOP="0"></TD>
+                        <FONT FACE="Arial,Helvetica,Monaco"><FONT SIZE="5"><B>The Direct Debit Guarantee</B></FONT><FONT SIZE="6"> </FONT></FONT><!-- $MVD$:picsz("894","306") --><IMG SRC="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit_small.png}" ALIGN=TOP WIDTH="107" HEIGHT="37" VSPACE="0" HSPACE="0" ALT="direct debit logo" BORDER="0" LOOP="0"></TD>
                 <TD WIDTH="20" VALIGN=TOP></TD>
             </TR>
             <TR>

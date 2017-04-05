@@ -11,7 +11,7 @@
  */
 function civicrm_api3_ukdirectdebit_sync($params) {
   $result = array();
-  $runner = CRM_DirectDebit_Form_Sync::getRunner($params);
+  $runner = CRM_DirectDebit_Sync::getRunner(FALSE);
   if ($runner) {
     $result = $runner->runAll();
   }
