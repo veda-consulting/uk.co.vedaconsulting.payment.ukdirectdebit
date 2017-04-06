@@ -91,10 +91,7 @@ class CRM_DirectDebit_Sync
   static function syncSmartDebitRecords(CRM_Queue_TaskContext $ctx, $contactsarray)
   {
     $contactsarray = array_shift($contactsarray);
-
     $api_contact_key = uk_direct_debit_civicrm_getSetting('api_contact_key');
-    $api_contact_val_regex = uk_direct_debit_civicrm_getSetting('api_contact_val_regex');
-    $api_contact_val_regex_index = uk_direct_debit_civicrm_getSetting('api_contact_val_regex_index');
 
     foreach ($contactsarray as $key => $smartDebitRecord) {
       if (!$smartDebitRecord['start_date'] || !$smartDebitRecord['frequency_type']) {

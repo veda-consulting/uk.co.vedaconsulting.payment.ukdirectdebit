@@ -208,15 +208,17 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
       if (!empty($missingTrxnIds)) {
         $missingTrxnIdsString = implode(',', $missingTrxnIds);
         $findMissingQuery = "
-          SELECT `transaction_id` as trxn_id, contact as display_name, amount as amount
+          SELECT `transaction_id` as trxn_id, contact as display_name, contact_id as contact_id, amount as amount, receive_date as receive_date
           FROM `veda_civicrm_smartdebit_import`
           WHERE transaction_id IN ($missingTrxnIdsString)";
         $dao = CRM_Core_DAO::executeQuery($findMissingQuery);
         $key = 0;
         while ($dao->fetch()) {
           $missingArray[$key]['contact_name'] = $dao->display_name;
+          $missingArray[$key]['contact_id'] = $dao->contact_id;
           $missingArray[$key]['amount'] = $dao->amount;
           $missingArray[$key]['transaction_id'] = $dao->trxn_id;
+          $missingArray[$key]['receive_date'] = !empty($dao->receive_date) ? date('Y-m-d', strtotime($dao->receive_date)) : '';
           $key++;
         }
       }
@@ -263,21 +265,21 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     CRM_Utils_System::setTitle('Synchronise CiviCRM with Smart Debit: View Results');
 
     if ($validResults) {
-      $totalList = 0;
+      $totalMatched = 0;
       foreach ($listArray as $value) {
-        $totalList += $value['amount'];
+        $totalMatched += $value['amount'];
       }
 
       $summary['Contribution matched to contacts']['count'] = count($listArray);
-      $summary['Contribution matched to contacts']['total'] = CRM_Utils_Money::format($totalList);
+      $summary['Contribution matched to contacts']['total'] = CRM_Utils_Money::format($totalMatched);
 
       $totalSummaryNumber = count($newAuddisArray) + count($newAruddArray) + count($existArray) + count($missingArray) + count($listArray);
-      $totalSummaryAmount = $totalRejected + $totalRejectedArudd + $totalExist + $totalMissing + $totalList;
+      $totalSummaryAmount = $totalRejected + $totalRejectedArudd + $totalExist + $totalMissing + $totalMatched;
 
       $this->assign('newAuddisArray', $newAuddisArray);
       $this->assign('newAruddArray', $newAruddArray);
       $this->assign('listArray', $listArray);
-      $this->assign('total', CRM_Utils_Money::format($totalList));
+      $this->assign('totalMatched', CRM_Utils_Money::format($totalMatched));
       $this->assign('totalExist', CRM_Utils_Money::format($totalExist));
       $this->assign('totalMissing', CRM_Utils_Money::format($totalMissing));
       $this->assign('existArray', $existArray);

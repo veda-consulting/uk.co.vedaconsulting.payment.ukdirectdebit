@@ -121,6 +121,7 @@ function uk_direct_debit_civicrm_install() {
                    `id` int(10) unsigned NOT NULL AUTO_INCREMENT, 
                    `transaction_id` varchar(255) DEFAULT NULL,
                    `contact` varchar(255) DEFAULT NULL,
+                   `contact_id` varchar(255) DEFAULT NULL,
                    `amount` decimal(20,2) DEFAULT NULL,
                    `info` int(11) DEFAULT NULL,
                    `receive_date` varchar(255) DEFAULT NULL,

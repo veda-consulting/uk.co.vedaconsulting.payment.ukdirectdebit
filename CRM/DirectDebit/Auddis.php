@@ -305,13 +305,14 @@ class CRM_DirectDebit_Auddis
         $resultCollection = array(
           'transaction_id' => $value['reference_number'],
           'contact'        => $value['account_name'],
+          'contact_id'     => $value['customer_id'],
           'amount'         => $value['amount'],
           'receive_date'   => !empty($value['debit_date']) ? date('YmdHis', strtotime(str_replace('/', '-', $value['debit_date']))) : NULL,
         );
         $insertValue[] = " ( \"". implode('", "', $resultCollection) . "\" )";
       }
       $sql = " INSERT INTO `{$tableName}`
-              (`transaction_id`, `contact`, `amount`, `receive_date`)
+              (`transaction_id`, `contact`, `contact_id`, `amount`, `receive_date`)
               VALUES ".implode(', ', $insertValue)."
               ";
       CRM_Core_DAO::executeQuery($sql);
