@@ -280,6 +280,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
       $this->assign('newAruddArray', $newAruddArray);
       $this->assign('listArray', $listArray);
       $this->assign('totalMatched', CRM_Utils_Money::format($totalMatched));
+      $this->assign('totalMatchedCount', $summary['Contribution matched to contacts']['count']);
       $this->assign('totalExist', CRM_Utils_Money::format($totalExist));
       $this->assign('totalMissing', CRM_Utils_Money::format($totalMissing));
       $this->assign('existArray', $existArray);
