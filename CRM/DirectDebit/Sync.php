@@ -50,7 +50,7 @@ class CRM_DirectDebit_Sync
       $counter = ($rounds > 1) ? ($start + self::BATCH_COUNT) : $count;
       if ($counter > $count) $counter = $count;
       $task = new CRM_Queue_Task(
-        array('CRM_DirectDebit_Form_Sync', 'syncSmartDebitRecords'),
+        array('CRM_DirectDebit_Sync', 'syncSmartDebitRecords'),
         array(array($contactsarray)),
         "Pulling smart debit - Contacts {$counter} of {$count}"
       );
