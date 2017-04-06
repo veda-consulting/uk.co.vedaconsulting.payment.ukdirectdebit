@@ -121,7 +121,6 @@
             <td><b>{ts}Frequency{/ts}</td>
             <td><b>{ts}Receive Date{/ts}</td>
             <td style ="text-align: right"><b>{ts}Total{/ts}</td>
-            <td></td>
         </tr>
         {foreach from=$existArray item=row}
             {assign var=id value=$row.id}
@@ -148,7 +147,6 @@
             <td></td>
             <td><b>{ts}Total Processed Contributions{/ts}</td>
             <td style ="text-align: right"><b>{ts}{$totalExist}{/ts}</td>
-            <td></td>
         </tr>
     </table>
     <br>
@@ -160,7 +158,6 @@
             <td><b>{ts}Frequency{/ts}</td>
             <td><b>{ts}Receive Date{/ts}</td>
             <td style ="text-align: right"><b>{ts}Total{/ts}</td>
-            <td><b>{ts}Message{/ts}</b></td>
         </tr>
         {foreach from=$listArray item=row}
             {assign var=id value=$row.id}
@@ -178,7 +175,6 @@
                 <td>{$row.frequency}</td>
                 <td>{$row.start_date|crmDate}</td>
                 <td style ="text-align: right">{$row.amount|crmMoney}</td>
-                <td>{$row.message}</td>
             </tr>
         {/foreach}
         <br/>
@@ -188,7 +184,6 @@
             <td></td>
             <td><b>{ts}Total Matched Contributions{/ts}</td>
             <td style ="text-align: right"><b>{ts}{$totalMatched}{/ts}</td>
-            <td></td>
         </tr>
     </table>
     <h3>{ts}Contributions not matched to contacts{/ts}</h3>
