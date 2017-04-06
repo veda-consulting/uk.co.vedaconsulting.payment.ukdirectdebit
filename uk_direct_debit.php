@@ -224,7 +224,7 @@ function uk_direct_debit_civicrm_navigationMenu( &$params ) {
     'permission' => 'administer CiviCRM',
   );
 
-  _uk_direct_debit_civix_insert_navigation_menu($params, 'Contributions', $item[3]);
+  _uk_direct_debit_civix_insert_navigation_menu($params, 'Contributions', $item[2]);
 }
 
 
