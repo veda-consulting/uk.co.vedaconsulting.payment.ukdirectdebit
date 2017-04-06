@@ -203,7 +203,7 @@
                     {$row.contact_name}
                 </td>
                 <td>{$row.contact_id}</td>
-                <td>{$row.receive_date}</td>
+                <td>{$row.receive_date|crmDate}</td>
                 <td style ="text-align: right">{$row.amount|crmMoney}</td>
             </tr>
         {/foreach}

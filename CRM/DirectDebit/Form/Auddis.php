@@ -218,7 +218,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
           $missingArray[$key]['contact_id'] = $dao->contact_id;
           $missingArray[$key]['amount'] = $dao->amount;
           $missingArray[$key]['transaction_id'] = $dao->trxn_id;
-          $missingArray[$key]['receive_date'] = !empty($dao->receive_date) ? date('Y-m-d', strtotime($dao->receive_date)) : '';
+          $missingArray[$key]['receive_date'] = $dao->receive_date;
           $key++;
         }
       }
