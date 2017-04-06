@@ -117,34 +117,19 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       'reset' => TRUE,
     ));
 
-    if($auddisIDs) {
-      // Find the relevant auddis file
-      foreach ($auddisIDs as $auddisID) {
-        $auddisFiles[] = CRM_DirectDebit_Auddis::getSmartDebitAuddisFile($auddisID);
-      }
-    }
-
-    if($aruddIDs) {
-      foreach ($aruddIDs as $aruddID) {
-        $aruddFiles[] = CRM_DirectDebit_Auddis::getSmartDebitAruddFile($aruddID);
-      }
-    }
-
+    // Get the matched IDs for processing and put them in transactionIds array
     $selectQuery = "SELECT `transaction_id` as trxn_id, `receive_date` as receive_date FROM `veda_civicrm_smartdebit_import`";
-    //MV: TO process only the matched Ids
     $aMatchedids  = uk_direct_debit_civicrm_getSetting('result_ids');
     if(!empty($aMatchedids)){
       $selectQuery .= " WHERE transaction_id IN (".implode(', ', $aMatchedids)." )";
     }
-
     $dao = CRM_Core_DAO::executeQuery($selectQuery);
-    $traIds = array();
+    $transactionIds = array();
     while($dao->fetch()) {
-      $traIds[] = $dao->trxn_id;
-      $receiveDate  = $dao->receive_date;
+      $transactionIds[] = $dao->trxn_id;
     }
-
-    $count  = count($traIds);
+    // Get number of matched transactions
+    $count  = count($transactionIds);
 
     // Set the Number of Rounds
     $rounds = ceil($count/self::BATCH_COUNT);
@@ -152,20 +137,21 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     $i = 0;
     while ($i < $rounds) {
       $start   = $i * self::BATCH_COUNT;
-      $contactsarray  = array_slice($traIds, $start, self::BATCH_COUNT, TRUE);
+      $transactionIdsBatch  = array_slice($transactionIds, $start, self::BATCH_COUNT, TRUE);
       $counter = ($rounds > 1) ? ($start + self::BATCH_COUNT) : $count;
+      if ($counter > $count) $counter = $count;
       $task    = new CRM_Queue_Task(
         array('CRM_DirectDebit_Form_Confirm', 'syncSmartDebitRecords'),
-        array(array($contactsarray)),
+        array(array($transactionIdsBatch)),
         "Pulling smart debit - Contacts {$counter} of {$count}"
       );
 
-      // Add the Task to the Queu
+      // Add the Task to the Queue
       $queue->createItem($task);
       $i++;
     }
 
-    if (!empty($traIds)) {
+    if (!empty($transactionIds)) {
       // Setup the Runner
       $runner = new CRM_Queue_Runner(array(
         'title' => ts('Import From Smart Debit'),
@@ -179,69 +165,79 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
 
       // Add contributions for rejected payments with the status of 'failed'
       $ids = array();
-      foreach ($auddisFiles as $auddisFile) {
-        $auddisDate = $auddisFile['auddis_date'];
-        unset($auddisFile['auddis_date']);
-        foreach ($auddisFile as $key => $value) {
 
-          $sql = "
+      // Retrieve AUDDIS files from SmartDebit
+      if($auddisIDs) {
+        // Find the relevant auddis file
+        foreach ($auddisIDs as $auddisID) {
+          $auddisFiles[] = CRM_DirectDebit_Auddis::getSmartDebitAuddisFile($auddisID);
+        }
+        // Process AUDDIS files
+        foreach ($auddisFiles as $auddisFile) {
+          $auddisDate = $auddisFile['auddis_date'];
+          unset($auddisFile['auddis_date']);
+          foreach ($auddisFile as $key => $value) {
+
+            $sql = "
             SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id, ctrc.financial_type_id
             FROM civicrm_contribution_recur ctrc
             INNER JOIN civicrm_contact cont ON (ctrc.contact_id = cont.id)
             WHERE ctrc.trxn_id = %1";
 
-          $params = array( 1 => array( $value['reference'], 'String' ) );
-          $dao = CRM_Core_DAO::executeQuery( $sql, $params);
+            $params = array( 1 => array( $value['reference'], 'String' ) );
+            $dao = CRM_Core_DAO::executeQuery( $sql, $params);
 
-          if ($dao->fetch()) {
-            $contributeParams =
-              array(
-                'version'                => 3,
-                'contact_id'             => $dao->contact_id,
-                'contribution_recur_id'  => $dao->contribution_recur_id,
-                'total_amount'           => $dao->amount,
-                'invoice_id'             => md5(uniqid(rand(), TRUE )),
-                'trxn_id'                => $value['reference'].'/'.CRM_Utils_Date::processDate($receiveDate),
-                'financial_type_id'      => $dao->financial_type_id,
-                'payment_instrument_id'  => $dao->payment_instrument_id,
-                'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Failed'),
-                'source'                 => 'Smart Debit Import',
-                'receive_date'           => $value['effective-date'],
-              );
+            if ($dao->fetch()) {
+              $contributeParams =
+                array(
+                  'version'                => 3,
+                  'contact_id'             => $dao->contact_id,
+                  'contribution_recur_id'  => $dao->contribution_recur_id,
+                  'total_amount'           => $dao->amount,
+                  'invoice_id'             => md5(uniqid(rand(), TRUE )),
+                  'trxn_id'                => $value['reference'].'/'.CRM_Utils_Date::processDate($receiveDate),
+                  'financial_type_id'      => $dao->financial_type_id,
+                  'payment_instrument_id'  => $dao->payment_instrument_id,
+                  'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Failed'),
+                  'source'                 => 'Smart Debit Import',
+                  'receive_date'           => $value['effective-date'],
+                );
 
-            // Allow params to be modified via hook
-            CRM_DirectDebit_Utils_Hook::alterSmartDebitContributionParams( $contributeParams );
-            $contributeResult = civicrm_api('Contribution', 'create', $contributeParams);
+              // Allow params to be modified via hook
+              CRM_DirectDebit_Utils_Hook::alterSmartDebitContributionParams( $contributeParams );
+              $contributeResult = civicrm_api('Contribution', 'create', $contributeParams);
 
-            if(!$contributeResult['is_error']) {
-              $contributionID   = $contributeResult['id'];
-              // get contact display name to display in result screen
-              $contactParams = array('version' => 3, 'id' => $contributeResult['values'][$contributionID]['contact_id']);
-              $contactResult = civicrm_api('Contact', 'getsingle', $contactParams);
+              if(!$contributeResult['is_error']) {
+                $contributionID = $contributeResult['id'];
+                // get contact display name to display in result screen
+                $contactParams = array('version' => 3, 'id' => $contributeResult['values'][$contributionID]['contact_id']);
+                $contactResult = civicrm_api('Contact', 'getsingle', $contactParams);
 
-              $ids[$contributionID]= array(   'cid' => $contributeResult['values'][$contributionID]['contact_id']
-              , 'id' => $contributionID
-              , 'display_name' => $contactResult['display_name']
-              , 'total_amount' => CRM_Utils_Money::format($contributeResult['values'][$contributionID]['total_amount'])
-              , 'trxn_id'      => $value['reference']
-              , 'status'       => $contributeResult['label']
-              );
+                $ids[$contributionID] = array('cid' => $contributeResult['values'][$contributionID]['contact_id'],
+                  'id' => $contributionID,
+                  'display_name' => $contactResult['display_name'],
+                  'total_amount' => CRM_Utils_Money::format($contributeResult['values'][$contributionID]['total_amount']),
+                  'trxn_id'      => $value['reference'],
+                  'status'       => $contributeResult['label'],
+                );
 
-              // Allow auddis rejected contribution to be handled by hook
-              CRM_DirectDebit_Utils_Hook::handleAuddisRejectedContribution( $contributionID );
+                // Allow auddis rejected contribution to be handled by hook
+                CRM_DirectDebit_Utils_Hook::handleAuddisRejectedContribution($contributionID);
+              }
             }
           }
-        }
-        // Create activity now we've processed auddis
-        $params = array(
+          // Create activity now we've processed auddis
+          $params = array(
             'version' => 3,
             'sequential' => 1,
             'activity_type_id' => 6,
             'subject' => 'SmartDebitAUDDIS'.$auddisDate,
             'details' => 'Sync had been processed already for this date '.$auddisDate,
-        );
-        $result = civicrm_api('Activity', 'create', $params);
+          );
+          $result = civicrm_api('Activity', 'create', $params);
+        }
       }
+
 
       // Add contributions for rejected payments with the status of 'failed'
       /*
@@ -257,68 +253,75 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
                                                                     [valueOf] => 10.50
                                                                 )
        */
-      foreach ($aruddFiles as $aruddFile) {
-        $aruddDate = $aruddFile['arudd_date'];
-        unset($aruddFile['arudd_date']);
-        foreach ($aruddFile as $key => $value) {
-          $sql = "
+      // Retrieve ARUDD files from SmartDebit
+      if($aruddIDs) {
+        foreach ($aruddIDs as $aruddID) {
+          $aruddFiles[] = CRM_DirectDebit_Auddis::getSmartDebitAruddFile($aruddID);
+        }
+        // Process ARUDD files
+        foreach ($aruddFiles as $aruddFile) {
+          $aruddDate = $aruddFile['arudd_date'];
+          unset($aruddFile['arudd_date']);
+          foreach ($aruddFile as $key => $value) {
+            $sql = "
             SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id, ctrc.financial_type_id
             FROM civicrm_contribution_recur ctrc
             INNER JOIN civicrm_contact cont ON (ctrc.contact_id = cont.id)
             WHERE ctrc.trxn_id = %1";
 
-          $params = array( 1 => array( $value['ref'], 'String' ) );
-          $dao = CRM_Core_DAO::executeQuery( $sql, $params);
+            $params = array( 1 => array( $value['ref'], 'String' ) );
+            $dao = CRM_Core_DAO::executeQuery( $sql, $params);
 
-          if ($dao->fetch()) {
-            $contributeParams =
-              array(
-                'version'                => 3,
-                'contact_id'             => $dao->contact_id,
-                'contribution_recur_id'  => $dao->contribution_recur_id,
-                'total_amount'           => $dao->amount,
-                'invoice_id'             => md5(uniqid(rand(), TRUE )),
-                'trxn_id'                => $value['ref'].'/'.CRM_Utils_Date::processDate($receiveDate),
-                'financial_type_id'      => $dao->financial_type_id,
-                'payment_instrument_id'  => $dao->payment_instrument_id,
-                'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Failed'),
-                'source'                 => 'Smart Debit Import',
-                'receive_date'           => $value['originalProcessingDate'],
-              );
+            if ($dao->fetch()) {
+              $contributeParams =
+                array(
+                  'version'                => 3,
+                  'contact_id'             => $dao->contact_id,
+                  'contribution_recur_id'  => $dao->contribution_recur_id,
+                  'total_amount'           => $dao->amount,
+                  'invoice_id'             => md5(uniqid(rand(), TRUE )),
+                  'trxn_id'                => $value['ref'].'/'.CRM_Utils_Date::processDate($receiveDate),
+                  'financial_type_id'      => $dao->financial_type_id,
+                  'payment_instrument_id'  => $dao->payment_instrument_id,
+                  'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Failed'),
+                  'source'                 => 'Smart Debit Import',
+                  'receive_date'           => $value['originalProcessingDate'],
+                );
 
-            // Allow params to be modified via hook
-            CRM_DirectDebit_Utils_Hook::alterSmartDebitContributionParams( $contributeParams );
+              // Allow params to be modified via hook
+              CRM_DirectDebit_Utils_Hook::alterSmartDebitContributionParams( $contributeParams );
 
-            $contributeResult = civicrm_api('Contribution', 'create', $contributeParams);
+              $contributeResult = civicrm_api('Contribution', 'create', $contributeParams);
 
-            if(!$contributeResult['is_error']) {
-              $contributionID   = $contributeResult['id'];
-              // get contact display name to display in result screen
-              $contactParams = array('version' => 3, 'id' => $contributeResult['values'][$contributionID]['contact_id']);
-              $contactResult = civicrm_api('Contact', 'getsingle', $contactParams);
+              if(!$contributeResult['is_error']) {
+                $contributionID   = $contributeResult['id'];
+                // get contact display name to display in result screen
+                $contactParams = array('version' => 3, 'id' => $contributeResult['values'][$contributionID]['contact_id']);
+                $contactResult = civicrm_api('Contact', 'getsingle', $contactParams);
 
-              $ids[$contributionID]= array(   'cid' => $contributeResult['values'][$contributionID]['contact_id']
-              , 'id' => $contributionID
-              , 'display_name' => $contactResult['display_name']
-              , 'total_amount' => CRM_Utils_Money::format($contributeResult['values'][$contributionID]['total_amount'])
-              , 'trxn_id'      => $value['ref']
-              , 'status'       => $contributeResult['label']
-              );
+                $ids[$contributionID] = array('cid' => $contributeResult['values'][$contributionID]['contact_id'],
+                  'id' => $contributionID,
+                  'display_name' => $contactResult['display_name'],
+                  'total_amount' => CRM_Utils_Money::format($contributeResult['values'][$contributionID]['total_amount']),
+                  'trxn_id'      => $value['ref'],
+                  'status'       => $contributeResult['label'],
+                );
 
-              // Allow auddis rejected contribution to be handled by hook
-              CRM_DirectDebit_Utils_Hook::handleAuddisRejectedContribution( $contributionID );
+                // Allow auddis rejected contribution to be handled by hook
+                CRM_DirectDebit_Utils_Hook::handleAuddisRejectedContribution( $contributionID );
+              }
             }
           }
-        }
-        // Create activity now we've processed auddis
-        $params = array(
+          // Create activity now we've processed auddis
+          $params = array(
             'version' => 3,
             'sequential' => 1,
             'activity_type_id' => 6,
             'subject' => 'SmartDebitARUDD'.$aruddDate,
             'details' => 'Sync had been processed already for this date '.$aruddDate,
-        );
-        $result = civicrm_api('Activity', 'create', $params);
+          );
+          $result = civicrm_api('Activity', 'create', $params);
+        }
       }
 
       uk_direct_debit_civicrm_saveSetting('rejected_ids', $ids);
@@ -327,21 +330,21 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     return FALSE;
   }
 
-  static function syncSmartDebitRecords(CRM_Queue_TaskContext $ctx, $contactsarray) {
-    $contactsarray  = array_shift($contactsarray);
+  static function syncSmartDebitRecords(CRM_Queue_TaskContext $ctx, $transactionIdsBatch) {
+    $transactionIdsBatch  = array_shift($transactionIdsBatch);
     $ids = array();
 
-    foreach ($contactsarray as $key => $smartDebitRecord) {
+    foreach ($transactionIdsBatch as $key => $transactionId) {
       $sql = "
-        SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id, ctrc.financial_type_id
+        SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.frequency_interval, ctrc.payment_instrument_id, ctrc.financial_type_id
         FROM civicrm_contribution_recur ctrc
         INNER JOIN civicrm_contact cont ON (ctrc.contact_id = cont.id)
         WHERE ctrc.trxn_id = %1";
 
-      $params = array( 1 => array( $smartDebitRecord, 'String' ) );
+      $params = array( 1 => array( $transactionId, 'String' ) );
       $dao = CRM_Core_DAO::executeQuery( $sql, $params);
 
-      $selectQuery  = "SELECT `receive_date` as receive_date, `amount` as amount FROM `veda_civicrm_smartdebit_import` WHERE `transaction_id` = '{$smartDebitRecord}'";
+      $selectQuery  = "SELECT `receive_date` as receive_date, `amount` as amount FROM `veda_civicrm_smartdebit_import` WHERE `transaction_id` = '{$transactionId}'";
       $daoSelect    = CRM_Core_DAO::executeQuery($selectQuery);
       $daoSelect->fetch();
 
@@ -358,7 +361,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
             'contribution_recur_id'  => $dao->contribution_recur_id,
             'total_amount'           => $daoSelect->amount,
             'invoice_id'             => md5(uniqid(rand(), TRUE )),
-            'trxn_id'                => $smartDebitRecord.'/'.CRM_Utils_Date::processDate($receiveDate),
+            'trxn_id'                => $transactionId.'/'.CRM_Utils_Date::processDate($receiveDate),
             'financial_type_id'      => $dao->financial_type_id,
             'payment_instrument_id'  => $dao->payment_instrument_id,
             'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
@@ -369,125 +372,118 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
         // Check if the contribution is first payment
         // if yes, update the contribution instead of creating one
         // as CiviCRM should have created the first contribution
-        $contributeParams = self::checkIfFirstPayment($contributeParams, $dao->frequency_unit);
+        $contributeParams = self::checkIfFirstPayment($contributeParams, $dao->frequency_unit, $dao->frequency_interval);
 
         // Allow params to be modified via hook
-        CRM_DirectDebit_Utils_Hook::alterSmartDebitContributionParams( $contributeParams );
+        CRM_DirectDebit_Utils_Hook::alterSmartDebitContributionParams($contributeParams);
 
         $contributeResult = civicrm_api('Contribution', 'create', $contributeParams);
-        $membershipRenew  = 0;
-        $frequency    = $membership_renew_from = $membership_renew_to = 'NULL';
+        $membershipRenew = 0;
+        CRM_Core_Error::debug_log_message('SmartDebit syncSmartDebitRecords: $contributeResult='.print_r($contributeResult)); //DEBUG
 
         if(!$contributeResult['is_error']) {
+          CRM_Core_Error::debug_log_message('syncSmartDebitRecords: Created contribution success'); //DEBUG
+          // Get recurring contribution ID
           $contributionID   = $contributeResult['id'];
-          $contriRecurID     = $contributeResult['values'][$contributionID]['contribution_recur_id'];
-          $columnExists	    = CRM_Core_DAO::checkFieldExists('civicrm_contribution_recur', 'membership_id');
-          if($columnExists) {
-            $membershipQuery  = "SELECT `membership_id` FROM `civicrm_contribution_recur` WHERE `id` = %1";
-            $membershipID     = CRM_Core_DAO::singleValueQuery($membershipQuery, array( 1 => array( $contriRecurID, 'Int' ) ) );
+          $contributionRecurID     = $contributeResult['values'][$contributionID]['contribution_recur_id'];
+          // Get membership ID for recurring contribution
+          $membershipRecord = civicrm_api3('Membership', 'get', array(
+            'sequential' => 1,
+            'return' => array("id", "end_date", "status_id"),
+            'contribution_recur_id' => $contributionRecurID,
+          ));
+          if (isset($membershipRecord['id'])) {
+            $membershipID = $membershipRecord['id'];
           }
 
-          // If membership ID is empty, check if we can get from contribution_membership table
-          // Latest CiviCRM versions have contribution_recur_id in civicrm_membership table
-          if (empty($membershipID)) {
-            $columnExists	    = CRM_Core_DAO::checkFieldExists('civicrm_membership', 'contribution_recur_id');
-            if($columnExists) {
-              $membershipQuery  = "SELECT `id` FROM `civicrm_membership` WHERE `contribution_recur_id` = %1";
-              $membershipID     = CRM_Core_DAO::singleValueQuery($membershipQuery, array( 1 => array( $contriRecurID, 'Int' ) ) );
-            }
-          }
-
-          // CRM_Core_Error::debug_log_message('membershipID = '. print_r($membershipID, TRUE));
+          CRM_Core_Error::debug_log_message('membershipID = '. $membershipID); //DEBUG
           if (!empty($membershipID)) {
-            $getMembership  = civicrm_api("Membership"
-              ,"get"
-              , array ('version'       => '3'
-              ,'membership_id' => $membershipID
-              )
-            );
+            // Get membership dates
+            if (isset($membershipRecord['values'][0]['end_date'])) {
+              $membershipEndDate = $membershipRecord['values'][0]['end_date'];
+            }
+            else {
+              // Membership is probably pending so we can't do anything here
+              // We shouldn't get here because the completed contribution should renew the membership
+            }
 
-            $membershipEndDate   = $getMembership['values'][$membershipID]['end_date'];
-            $membership_renew_from   = $getMembership['values'][$membershipID]['end_date'];
-            $tempEndDateArray['from'] = date('d-M-Y', strtotime($membershipEndDate));
-            $contributionReceiveDate = $contributeResult['values'][$contributionID]['receive_date'];
-            $membershipEndDateString = date("Ymd", strtotime($membershipEndDate));
+            // Create membership payment
+            self::createMembershipPayment($membershipID, $contributionID);
 
-            $contributionRecurring = civicrm_api("ContributionRecur"
-              ,"get"
-              , array ('version' => '3'
-              ,'id'      => $contriRecurID
-              )
-            );
+            // Get recurring contribution details
+            $contributionRecur = civicrm_api("ContributionRecur","get", array ('version' => '3', 'id' => $contributionRecurID));
+            if (isset($contributionRecur['values'][$contributionRecurID]['frequency_unit'])) {
+              $frequencyUnit = $contributionRecur['values'][$contributionRecurID]['frequency_unit'];
+              $frequencyInterval = $contributionRecur['values'][$contributionRecurID]['frequency_interval'];
+            }
+            else {
+              CRM_Core_Error::debug_log_message('SmartDebit syncSmartDebitRecords: FrequencyUnit/Interval not defined for recurring contribution='.$contributionRecurID);
+              // Membership won't be renewed as we don't know the renewal frequency
+            }
 
-            $frequencyUnit = $contributionRecurring['values'][$contriRecurID]['frequency_unit'];
-            $frequency     = $contributionRecurring['values'][$contriRecurID]['frequency_unit'];
-            $frequencyInterval     = $contributionRecurring['values'][$contriRecurID]['frequency_interval'];
+            // FIXME: What do we do if we don't have an end date? Will it get created for us when membership payment is made?
+            $membershipRenewStartDate = $membershipEndDate;
+            $membershipRenewEndDate = date("Y-m-d", strtotime($membershipEndDate));
 
-            // CRM_Core_Error::debug_log_message('frequencyUnit = '. print_r($frequencyUnit, TRUE));
-            if (!is_null($frequencyUnit)) {
-              $membershipEndDateString = date("Y-m-d",strtotime(date("Y-m-d", strtotime($membershipEndDate)) . " +$frequencyInterval $frequencyUnit"));
-              $membership_renew_to    = date("Y-m-d",strtotime(date("Y-m-d", strtotime($membershipEndDate)) . " +$frequencyInterval $frequencyUnit"));
+            // Renew the membership if we have a renewal frequency
+            if (isset($frequencyUnit)) {
+              // Increase new membership end date by one period
+              $membershipRenewEndDate = date("Y-m-d",strtotime(date("Y-m-d", strtotime($membershipEndDate)) . " +$frequencyInterval $frequencyUnit"));
 
-              $membershipParams = array ( 'version'       => '3'
-              , 'membership_id' => $membershipID
-              , 'id'            => $membershipID
-              , 'end_date'      => $membershipEndDateString
+              $membershipParams = array ( 'version'       => '3',
+                                          'membership_id' => $membershipID,
+                                          'id'            => $membershipID,
+                                          'end_date'      => $membershipRenewEndDate,
               );
 
               // Set a flag to be sent to hook, so that membership renewal can be skipped
               $membershipParams['renew'] = 1;
 
               // Allow membership update params to be modified via hook
-              CRM_DirectDebit_Utils_Hook::handleSmartDebitMembershipRenewal( $membershipParams );
+              CRM_DirectDebit_Utils_Hook::handleSmartDebitMembershipRenewal($membershipParams);
 
               // Membership renewal may be skipped in hook by setting 'renew' = 0
-              if ($membershipParams['renew'] == 1 ) {
-
-                // remove the renew kay from params array, which need to be passed to API
+              if ($membershipParams['renew'] == 1) {
+                // remove the renew key from params array, which need to be passed to API
                 $membershipRenew = $membershipParams['renew'];
                 unset($membershipParams['renew']);
-
-                $updatedMember = civicrm_api("Membership"
-                  ,"create"
-                  , $membershipParams
-                );
-
-                $tempEndDateArray['to'] = date('d -M-Y', strtotime($membershipEndDateString));
+                // Update/Renew the membership
+                //FIXME: Do we also need to change the membership status?
+                $updatedMember = civicrm_api("Membership", "create", $membershipParams);
               }
             }
-            // Create membership payment
-            self::createMembershipPayment($membershipID, $contributionID);
           }
           // get contact display name to display in result screen
           $contactParams = array('version' => 3, 'id' => $contributeResult['values'][$contributionID]['contact_id']);
           $contactResult = civicrm_api('Contact', 'getsingle', $contactParams);
 
-          $ids[$contributionID]= array(   'cid'           => $contributeResult['values'][$contributionID]['contact_id']
-          , 'id'            => $contributionID
-          , 'display_name'  => $contactResult['display_name']
+          $ids[$contributionID]= array('cid' => $contributeResult['values'][$contributionID]['contact_id'],
+                                       'id'  => $contributionID,
+                                       'display_name'  => $contactResult['display_name'],
           );
 
+          // Store the results in veda_civicrm_smartdebit_import_success_contributions table
           $keepSuccessResultsSQL = "
             INSERT Into veda_civicrm_smartdebit_import_success_contributions
-            ( `transaction_id`, `contribution_id`, `contact_id`, `contact`, `amount`, `frequency`, `is_membership_renew`, `membership_renew_from`, `membership_renew_to` )
-            VALUES ( %1, %2, %3, %4, %5, %6, %7, '{$membership_renew_from}', '{$membership_renew_to}' )
+            ( `transaction_id`, `contribution_id`, `contact_id`, `contact`, `amount`, `frequency`, `is_membership_renew`, `membershipRenewStartDate`, `membership_renew_to` )
+            VALUES ( %1, %2, %3, %4, %5, %6, %7, %8, %9 )
           ";
-
           $keepSuccessResultsParams = array(
-            1 => array( $smartDebitRecord, 'String'),
+            1 => array( $transactionId, 'String'),
             2 => array( $contributionID, 'Integer'),
             3 => array( $contactResult['id'], 'Integer'),
             4 => array( $contactResult['display_name'], 'String'),
             5 => array( $contributeResult['values'][$contributionID]['total_amount'], 'String'),
-            6 => array( $frequency, 'String'),
+            6 => array( $frequencyInterval . ' ' . $frequencyUnit, 'String'),
             7 => array( $membershipRenew, 'Integer'),
+            8 => array( $membershipRenewStartDate, 'String'),
+            9 => array ($membershipRenewEndDate, 'String'),
           );
-
           CRM_Core_DAO::executeQuery($keepSuccessResultsSQL, $keepSuccessResultsParams);
-
         }
         else {
-          CRM_Core_Error::debug_log_message('contributeResult = '.print_r($contributeResult, TRUE));
+          // No membership ID so we don't do anything with membership
+          CRM_Core_Error::debug_log_message('SmartDebit syncSmartDebitRecords: No Membership ID! contributeResult = '.print_r($contributeResult, TRUE)); //DEBUG
         }
       }
     }
@@ -498,13 +494,13 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
    * Function to check if the contribution is first contribution
    * for the recurring contribution record
    */
-  static function checkIfFirstPayment($params, $frequencyUnit = 'month') {
+  static function checkIfFirstPayment($params, $frequencyUnit = 'year', $frequencyInterval = 1) {
     if (empty($params['contribution_recur_id'])) {
       return;
     }
 
     // Get days difference to determine if this is first payment
-    $days = self::daysDifferenceForFrequency($frequencyUnit);
+    $days = self::daysDifferenceForFrequency($frequencyUnit, $frequencyInterval);
 
     $contributionResult = civicrm_api3('Contribution', 'get', array(
       'contribution_recur_id' => $params['contribution_recur_id'],
@@ -519,13 +515,14 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
         $dateDiff = self::getDateDifference($params['receive_date'], $contributionDetails['receive_date']);
 
         // if diff is less than set number of days, return Contribution ID to update the contribution
-        if ($dateDiff < $days) {
+        // If $days == 0 it's a lifetime membership
+        if (($dateDiff < $days) && ($days != 0)) {
           $params['id'] = $contributionResult['id'];
           unset($params['source']);
         }
       }
     }
-    // Get the recent pending contribution if there are more than 1 payment for the recurring record
+    // Get the recent pending contribution if there is more than 1 payment for the recurring record
     else if ($contributionResult['count'] > 1) {
       $sqlParams = array(
         1 => array($params['contribution_recur_id'], 'Integer'),
@@ -547,20 +544,29 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     return $params;
   }
 
-  /*
+  /**
    * Function to return number of days difference to check between current date
    * and payment date to determine if this is first payment or not
+   *
+   * @param $frequencyUnit
+   * @param $frequencyInterval
+   * @return int
    */
-  static function daysDifferenceForFrequency($frequencyUnit) {
+  static function daysDifferenceForFrequency($frequencyUnit, $frequencyInterval) {
     switch ($frequencyUnit) {
+      case 'day':
+        $days = $frequencyInterval * 1;
       case 'month':
-        $days = 7;
+        $days = $frequencyInterval * 7;
         break;
       case 'year':
-        $days = 30;
+        $days = $frequencyInterval * 30;
+        break;
+      case 'lifetime':
+        $days = 0;
         break;
       default:
-        $days = 7;
+        $days = 30;
         break;
     }
     return $days;
@@ -576,6 +582,11 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     return floor((strtotime($date1) - strtotime($date2))/(60*60*24));
   }
 
+  /**
+   * Link Membership ID with Contribution ID
+   * @param $membershipId
+   * @param $contributionId
+   */
   function createMembershipPayment($membershipId, $contributionId) {
     if (empty($membershipId) || empty($contributionId)) {
       return;

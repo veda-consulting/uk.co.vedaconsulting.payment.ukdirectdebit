@@ -421,25 +421,30 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form )
         'template' => 'CRM/Contribute/Form/Contribution/DirectDebitAgreement.tpl',
       ));
     } elseif ($formName == 'CRM_Contribute_Form_UpdateSubscription') {
-      // FIXME: Where is this form used?
+      // Accessed when you click edit on a recurring contribution
       $paymentProcessor = $form->_paymentProcessor;
       if (isset($paymentProcessor['payment_processor_type']) && ($paymentProcessor['payment_processor_type'] == 'Smart_Debit')) {
-        $recurID = $form->getVar('_crid');
+        $recurID = $form->getVar('contributionRecurID');
         $linkedMembership = FALSE;
-        $membershipID = CRM_Core_DAO::singleValueQuery('SELECT id FROM civicrm_membership WHERE contribution_recur_id = %1', array(1 => array($recurID, 'Int')));
-        if ($membershipID) {
+        $membershipRecord = civicrm_api3('Membership', 'get', array(
+          'sequential' => 1,
+          'return' => array("id"),
+          'contribution_recur_id' => $recurID,
+        ));
+        if (isset($membershipRecord['id'])) {
           $linkedMembership = TRUE;
         }
+
         $form->removeElement('installments');
-        $frequencyType = array(
-          'W' => 'Weekly',
-          'M' => 'Monthly',
-          'Q' => 'Quarterly',
-          'Y' => 'Annually'
-        );
+
+        $frequencyUnits = array('W' => 'week', 'M' => 'month', 'Q' => 'quarter', 'Y' => 'year');
+        $frequencyIntervals = array(1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 5, 6 => 6, 7 => 7, 8 => 8, 9 => 9, 10 => 10, 11 => 11, 12 => 12);
 
         $form->addElement('select', 'frequency_unit', ts('Frequency'),
-          array('' => ts('- select -')) + $frequencyType
+          array('' => ts('- select -')) + $frequencyUnits
+        );
+        $form->addElement('select', 'frequency_interval', ts('Frequency Interval'),
+          array('' => ts('- select -')) + $frequencyIntervals
         );
         $form->addDate('start_date', ts('Start Date'), FALSE, array('formatType' => 'custom'));
         $form->addDate('end_date', ts('End Date'), FALSE, array('formatType' => 'custom'));
@@ -451,17 +456,20 @@ function uk_direct_debit_civicrm_buildForm( $formName, &$form )
         $subscriptionDetails = $form->getVar('_subscriptionDetails');
         $reference = $subscriptionDetails->subscription_id;
         $frequencyUnit = $subscriptionDetails->frequency_unit;
-        $frequencyUnits = array('D' => 'day', 'W' => 'week', 'M' => 'month', 'Y' => 'year');
+        $frequencyInterval = $subscriptionDetails->frequency_interval;
         $recur = new CRM_Contribute_BAO_ContributionRecur();
         $recur->processor_id = $reference;
         $recur->find(TRUE);
         $startDate = $recur->start_date;
         list($defaults['start_date'], $defaults['start_date_time']) = CRM_Utils_Date::setDateDefaults($startDate, NULL);
         $defaults['frequency_unit'] = array_search($frequencyUnit, $frequencyUnits);
+        $defaults['frequency_interval'] = array_search($frequencyInterval, $frequencyIntervals);
         $form->setDefaults($defaults);
         if ($linkedMembership) {
           $form->assign('membership', TRUE);
           $e =& $form->getElement('frequency_unit');
+          $e->freeze();
+          $e =& $form->getElement('frequency_interval');
           $e->freeze();
           $e =& $form->getElement('start_date');
           $e->freeze();

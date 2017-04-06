@@ -232,6 +232,14 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
       // Create query url for continue
       $queryParams = '';
       if (!empty($queryParams)) { $queryParams.='&'; }
+      if (isset($auddisIDs)) {
+        $queryParams .= "auddisID=" . urlencode(implode(',',$auddisIDs));
+      }
+      if (!empty($queryParams)) { $queryParams.='&'; }
+      if (isset($aruddIDs)) {
+        $queryParams .= "aruddID=" . urlencode(implode(',',$aruddIDs));
+      }
+      if (!empty($queryParams)) { $queryParams.='&'; }
       $queryParams .= 'reset=1';
 
       // Set valid flag
