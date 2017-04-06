@@ -23,14 +23,14 @@ class CRM_DirectDebit_Form_Settings extends CRM_Core_Form {
     $this->addSelect('payment_instrument_id',
       array(
         'entity' => 'contribution',
-        'label' => ts('Payment Method'),
+        'label' => ts('Default Payment Method'),
         'placeholder'  => NULL,
       )
     );
     $this->addSelect('financial_type',
       array(
         'entity' => 'contribution',
-        'label' => ts('Financial Type'),
+        'label' => ts('Default Financial Type'),
         'placeholder'  => NULL,
       )
     );
