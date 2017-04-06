@@ -5,6 +5,11 @@ require_once 'CRM/Core/Session.php';
 require_once 'CRM/Core/PseudoConstant.php';
 
 class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
+  // Form Path: civicrm/directdebit/syncsd/confirm
+  // This displays a confirmation button for import of matched/unmatched, failed and successful contributions from SmartDebit
+  // Clicking next will start an import runner which cannot be cancelled.
+  // This is the final page in the import process (starting at civicrm/directdebit/syncsd)
+
   const QUEUE_NAME = 'sm-pull';
   const END_URL    = 'civicrm/directdebit/syncsd/confirm';
   const END_PARAMS = 'state=done';
@@ -78,7 +83,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     $aruddIDs = explode(',', CRM_Utils_Request::retrieve('aruddID', 'String', $this, false));
     $this->add('hidden', 'auddisIDs', serialize($auddisIDs));
     $this->add('hidden', 'aruddIDs', serialize($aruddIDs));
-    $redirectUrlBack = CRM_Utils_System::url('civicrm/directdebit/syncsd', 'reset=1');
+    $redirectUrlBack = CRM_Utils_System::url('civicrm', 'reset=1');
 
     $this->addButtons(array(
         array(

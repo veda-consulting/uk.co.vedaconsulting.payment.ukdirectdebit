@@ -2,8 +2,8 @@
 
 class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
   // DataSource Form
-  // Path: civicrm/directdebit/syncsd/import
-  // This form get a collection report (which doesn't seem to return any information)
+  // Path: civicrm/directdebit/syncsd
+  // This is the first step of the import and allows the user to select a collection date window of one month (specifying the end date)
 
   public function buildQuickForm() {
     #MV: to get the collection details
@@ -45,7 +45,7 @@ class CRM_DirectDebit_Form_DataSource extends CRM_Core_Form {
       $queryParams.='&';
     }
     $queryParams.='reset=1';
-    $url = CRM_Utils_System::url('civicrm/directdebit/syncsd', $queryParams); // SyncSD form
+    $url = CRM_Utils_System::url('civicrm/directdebit/syncsd/select', $queryParams); // SyncSD form
     CRM_Utils_System::redirect($url);
   }
 }

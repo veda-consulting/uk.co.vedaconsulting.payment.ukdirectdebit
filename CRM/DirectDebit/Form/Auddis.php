@@ -6,8 +6,10 @@ require_once 'CRM/Core/PseudoConstant.php';
 
 class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
 
-  // Form Path: civicrm/directdebit/auddis
-  // This form
+  // Form Path: civicrm/directdebit/syncsd/auddis
+  // This displays an overview of matched/unmatched, failed and successful contributions from SmartDebit
+  // Clicking next will allow the user to confirm import of this data
+  // This is the third page in the import process (starting at civicrm/directdebit/syncsd)
   /*
  * Notification of failed debits and cancelled or amended DDIs are made available via Automated Direct Debit
  * Instruction Service (AUDDIS), Automated Return of Unpaid Direct Debit (ARUDD) files and Automated Direct Debit
@@ -255,7 +257,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     if (!empty($bQueryParams)) { $bQueryParams.='&'; }
     $bQueryParams.='reset=1';
 
-    $redirectUrlBack = CRM_Utils_System::url('civicrm/directdebit/syncsd', $bQueryParams);
+    $redirectUrlBack = CRM_Utils_System::url('civicrm/directdebit/syncsd/select', $bQueryParams);
     $buttons[] = array(
             'type' => 'back',
             'js' => array('onclick' => "location.href='{$redirectUrlBack}'; return false;"),

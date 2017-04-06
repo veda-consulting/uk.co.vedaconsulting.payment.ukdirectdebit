@@ -283,7 +283,7 @@ class CRM_DirectDebit_Auddis
         }
         return $collections;
       case 'INVALID':
-        $url = CRM_Utils_System::url('civicrm/directdebit/syncsd/import'); // DataSource Form
+        $url = CRM_Utils_System::url('civicrm/directdebit/syncsd', 'reset=1'); // DataSource Form
         CRM_Core_Session::setStatus($response['error'], ts('UK Direct Debit'), 'error');
         CRM_Utils_System::redirect($url);
         $collections['error'] = $response['error'];

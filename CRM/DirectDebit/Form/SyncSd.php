@@ -4,8 +4,9 @@ require_once 'CRM/Core/Session.php';
 require_once 'CRM/Core/PseudoConstant.php';
 
 class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
-  // Form Path: civicrm/directdebit/syncsd
+  // Form Path: civicrm/directdebit/syncsd/select
   // This form retrieves a list of AUDDIS / ARUDD dates and displays them for selection.
+  // This is the second page in the import process (starting at civicrm/directdebit/syncsd)
 
   private $_auddisArray = NULL;
   private $_aruddArray = NULL;
@@ -142,7 +143,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     $this->assign('dateOfCollectionStart', $dateOfCollectionStart);
     $this->assign('dateOfCollectionEnd', $dateOfCollectionEnd);
 
-    $redirectUrlBack = CRM_Utils_System::url('civicrm/directdebit/syncsd/import', 'reset=1');
+    $redirectUrlBack = CRM_Utils_System::url('civicrm/directdebit/syncsd', 'reset=1');
 
     $this->addButtons(array(
         array(
@@ -205,7 +206,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     if (!empty($queryParams)) { $queryParams.='&'; }
     $queryParams .= 'reset=1';
 
-    CRM_Utils_System::redirect(CRM_Utils_System::url( 'civicrm/directdebit/auddis', $queryParams));
+    CRM_Utils_System::redirect(CRM_Utils_System::url( 'civicrm/directdebit/syncsd/auddis', $queryParams));
     parent::postProcess();
   }
 }
