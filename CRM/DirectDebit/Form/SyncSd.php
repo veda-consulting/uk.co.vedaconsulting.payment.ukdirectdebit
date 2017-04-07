@@ -19,7 +19,7 @@ class CRM_DirectDebit_Form_SyncSd extends CRM_Core_Form {
     $aruddDates      = array();
 
     // Get date of collection (or set to today if not set)
-    $dateOfCollectionEnd = CRM_Utils_Request::retrieve('c_end', 'String', $this, false);
+    $dateOfCollectionEnd = CRM_Utils_Request::retrieve('collection_date', 'String', $this, false);
     if (empty($dateOfCollectionEnd)) {
       $now = new DateTime();
       $dateOfCollectionEnd = date('Y-m-d', (string)$now->getTimestamp()); // Today
