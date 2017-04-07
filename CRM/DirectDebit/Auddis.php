@@ -128,7 +128,7 @@ class CRM_DirectDebit_Auddis
     $password = CRM_Utils_Array::value('password', $userDetails);
     $pslid = CRM_Utils_Array::value('signature', $userDetails);
 
-    if (!isset($fileId)) {
+    if (empty($fileId)) {
       CRM_Core_Error::debug_log_message('SmartDebit getSmartDebitAruddFile: Must specify file ID!');
       return false;
     }

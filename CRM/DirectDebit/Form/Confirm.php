@@ -79,8 +79,8 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
   }
 
   public function buildQuickForm() {
-    $auddisIDs = explode(',', CRM_Utils_Request::retrieve('auddisID', 'String', $this, false));
-    $aruddIDs = explode(',', CRM_Utils_Request::retrieve('aruddID', 'String', $this, false));
+    $auddisIDs = array_filter(explode(',', CRM_Utils_Request::retrieve('auddisID', 'String', $this, false)));
+    $aruddIDs = array_filter(explode(',', CRM_Utils_Request::retrieve('aruddID', 'String', $this, false)));
     $this->add('hidden', 'auddisIDs', serialize($auddisIDs));
     $this->add('hidden', 'aruddIDs', serialize($aruddIDs));
     $redirectUrlBack = CRM_Utils_System::url('civicrm', 'reset=1');
@@ -122,19 +122,24 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       'reset' => TRUE,
     ));
 
-    // Get the matched IDs for processing and put them in transactionIds array
-    $selectQuery = "SELECT `transaction_id` as trxn_id, `receive_date` as receive_date FROM `veda_civicrm_smartdebit_import`";
-    $aMatchedids  = uk_direct_debit_civicrm_getSetting('result_ids');
-    if(!empty($aMatchedids)){
-      $selectQuery .= " WHERE transaction_id IN (".implode(', ', $aMatchedids)." )";
+    // Get collection report for today
+    CRM_Core_Error::debug_log_message('SmartDebit cron: Retrieving Daily Collection Report.');
+    $date = new DateTime();
+    $collections = CRM_DirectDebit_Auddis::getSmartDebitCollectionReport($date->format('Y-m-d'));
+    if (!isset($collections['error'])) {
+      CRM_DirectDebit_Auddis::saveSmartDebitCollectionReport($collections);
     }
-    $dao = CRM_Core_DAO::executeQuery($selectQuery);
-    $transactionIds = array();
-    while($dao->fetch()) {
-      $transactionIds[] = $dao->trxn_id;
-    }
-    // Get number of matched transactions
-    $count  = count($transactionIds);
+    CRM_DirectDebit_Auddis::removeOldSmartDebitCollectionReports();
+
+    CRM_Core_Error::debug_log_message('SmartDebit Sync: Retrieving Smart Debit Payer Contact Details.');
+    // Get list of payers from SmartDebit
+    $smartDebitPayerContacts = self::getSmartDebitPayerContactDetails();
+    if (empty($smartDebitPayerContacts))
+      return FALSE;
+
+    $count = count($smartDebitPayerContacts);
+
+    uk_direct_debit_civicrm_saveSetting('total', $count);
 
     // Set the Number of Rounds
     $rounds = ceil($count/self::BATCH_COUNT);
@@ -142,12 +147,12 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     $i = 0;
     while ($i < $rounds) {
       $start   = $i * self::BATCH_COUNT;
-      $transactionIdsBatch  = array_slice($transactionIds, $start, self::BATCH_COUNT, TRUE);
+      $smartDebitPayerContactsBatch  = array_slice($smartDebitPayerContacts, $start, self::BATCH_COUNT, TRUE);
       $counter = ($rounds > 1) ? ($start + self::BATCH_COUNT) : $count;
       if ($counter > $count) $counter = $count;
       $task    = new CRM_Queue_Task(
         array('CRM_DirectDebit_Form_Confirm', 'syncSmartDebitRecords'),
-        array(array($transactionIdsBatch)),
+        array(array($smartDebitPayerContactsBatch)),
         "Pulling smart debit - Contacts {$counter} of {$count}"
       );
 
@@ -156,7 +161,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       $i++;
     }
 
-    if (!empty($transactionIds)) {
+    if (!empty($smartDebitPayerContacts)) {
       // Setup the Runner
       $runnerParams = array(
         'title' => ts('Import From Smart Debit'),
@@ -342,40 +347,44 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     return FALSE;
   }
 
-  static function syncSmartDebitRecords(CRM_Queue_TaskContext $ctx, $transactionIdsBatch) {
-    $transactionIdsBatch  = array_shift($transactionIdsBatch);
+  static function syncSmartDebitRecords(CRM_Queue_TaskContext $ctx, $smartDebitPayerContacts) {
+    // FIXME why are we removing first element?
+    $smartDebitPayerContacts  = array_shift($smartDebitPayerContacts);
     $ids = array();
 
-    foreach ($transactionIdsBatch as $key => $transactionId) {
+    foreach ($smartDebitPayerContacts as $key => $sdContact) {
+      // Get recurring contribution details from CiviCRM
       $sql = "
         SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , ctrc.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.frequency_interval, ctrc.payment_instrument_id, ctrc.financial_type_id
         FROM civicrm_contribution_recur ctrc
         INNER JOIN civicrm_contact cont ON (ctrc.contact_id = cont.id)
         WHERE ctrc.trxn_id = %1";
+      $params = array( 1 => array($sdContact['reference_number'], 'String'));
+      $daoContributionRecur = CRM_Core_DAO::executeQuery( $sql, $params);
 
-      $params = array( 1 => array( $transactionId, 'String' ) );
-      $dao = CRM_Core_DAO::executeQuery( $sql, $params);
-
-      $selectQuery  = "SELECT `receive_date` as receive_date, `amount` as amount FROM `veda_civicrm_smartdebit_import` WHERE `transaction_id` = '{$transactionId}'";
-      $daoSelect    = CRM_Core_DAO::executeQuery($selectQuery);
-      $daoSelect->fetch();
+      // Get transaction details from collection report
+      $selectQuery = "SELECT `receive_date` as receive_date, `amount` as amount 
+                      FROM `veda_civicrm_smartdebit_import` 
+                      WHERE `transaction_id` = %1";
+      $daoCollectionReport = CRM_Core_DAO::executeQuery($selectQuery, $params);
+      $daoCollectionReport->fetch();
 
       // Smart debit charge file has dates in UK format
       // UK dates (eg. 27/05/1990) won't work with strtotime, even with timezone properly set.
       // However, if you just replace "/" with "-" it will work fine.
-      $receiveDate = date('Y-m-d', strtotime(str_replace('/', '-', $daoSelect->receive_date)));
+      $receiveDate = date('Y-m-d', strtotime(str_replace('/', '-', $daoCollectionReport->receive_date)));
 
-      if ($dao->fetch()) {
+      if ($daoContributionRecur->fetch()) {
         $contributeParams =
           array(
             'version'                => 3,
-            'contact_id'             => $dao->contact_id,
-            'contribution_recur_id'  => $dao->contribution_recur_id,
-            'total_amount'           => $daoSelect->amount,
+            'contact_id'             => $daoContributionRecur->contact_id,
+            'contribution_recur_id'  => $daoContributionRecur->contribution_recur_id,
+            'total_amount'           => $daoCollectionReport->amount,
             'invoice_id'             => md5(uniqid(rand(), TRUE )),
-            'trxn_id'                => $transactionId.'/'.CRM_Utils_Date::processDate($receiveDate),
-            'financial_type_id'      => $dao->financial_type_id,
-            'payment_instrument_id'  => $dao->payment_instrument_id,
+            'trxn_id'                => $sdContact['reference_number'].'/'.CRM_Utils_Date::processDate($receiveDate),
+            'financial_type_id'      => $daoContributionRecur->financial_type_id,
+            'payment_instrument_id'  => $daoContributionRecur->payment_instrument_id,
             'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed'),
             'source'                 => 'Smart Debit Import',
             'receive_date'           => CRM_Utils_Date::processDate($receiveDate),
@@ -384,7 +393,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
         // Check if the contribution is first payment
         // if yes, update the contribution instead of creating one
         // as CiviCRM should have created the first contribution
-        $contributeParams = self::checkIfFirstPayment($contributeParams, $dao->frequency_unit, $dao->frequency_interval);
+        $contributeParams = self::checkIfFirstPayment($contributeParams, $daoContributionRecur->frequency_unit, $daoContributionRecur->frequency_interval);
 
         // Allow params to be modified via hook
         CRM_DirectDebit_Utils_Hook::alterSmartDebitContributionParams($contributeParams);
@@ -481,7 +490,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
             VALUES ( %1, %2, %3, %4, %5, %6, %7, %8, %9 )
           ";
           $keepSuccessResultsParams = array(
-            1 => array( $transactionId, 'String'),
+            1 => array( $sdContact, 'String'),
             2 => array( $contributionID, 'Integer'),
             3 => array( $contactResult['id'], 'Integer'),
             4 => array( $contactResult['display_name'], 'String'),
