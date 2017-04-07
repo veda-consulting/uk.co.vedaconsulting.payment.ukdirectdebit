@@ -114,37 +114,33 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     $listArray = array();
 
     // Display the valid payments
-    $transactionIdList = "'dummyId'";
-    $contributiontrxnId = "'dummyId'";
+    $contributionTrxnIdsList = "'dummyId'";
     $sdTrxnIds = array();
     $selectQuery = "SELECT `transaction_id` as trxn_id, receive_date as receive_date FROM `veda_civicrm_smartdebit_import`";
     $dao = CRM_Core_DAO::executeQuery($selectQuery);
     while ($dao->fetch()) {
-      $transactionIdList .= ", '" . $dao->trxn_id . "' "; // Transaction ID
       $sdTrxnIds[] = "'" . $dao->trxn_id . "' ";
-      $contributiontrxnId .= ", '" . $dao->trxn_id . '/' . CRM_Utils_Date::processDate($dao->receive_date) . "' ";
+      $contributionTrxnIdsList .= ", '" . $dao->trxn_id . '/' . CRM_Utils_Date::processDate($dao->receive_date) . "' ";
     }
 
     $contributionQuery = "
         SELECT cc.contact_id, cc.total_amount, cc.trxn_id as cc_trxn_id, ctrc.trxn_id as ctrc_trxn_id
         FROM `civicrm_contribution` cc
         INNER JOIN civicrm_contribution_recur ctrc ON (ctrc.id = cc.contribution_recur_id)
-        WHERE cc.`trxn_id` IN ( $contributiontrxnId )";
+        WHERE cc.`trxn_id` IN ( $contributionTrxnIdsList )";
 
     $dao = CRM_Core_DAO::executeQuery($contributionQuery);
-    $contriTraIds = "'dummyId'";
-    $processedIds = "'dummyId'";
-    $proIds = array();
+    $recurTransactionIds = array();
     $matchTrxnIds = array();
     $missingArray = array();
     while ($dao->fetch()) {
-      $processedIds .= ", '" . $dao->ctrc_trxn_id . "' ";
-      $proIds[] = "'" . trim($dao->ctrc_trxn_id) . "' "; //MV: trim the whitespaces and match the transaction_id.
-      $contriTraIds .= ", '" . $dao->cc_trxn_id . "' ";
+      $recurTransactionIds[] = "'" . trim($dao->ctrc_trxn_id) . "' "; //MV: trim the whitespaces and match the transaction_id.
     }
-    $validIds = array_diff($sdTrxnIds, $proIds, $rejectedIds);
+    // Get all transaction IDs that don't have recurring contributions in CiviCRM or AUDDIS/ARUDD rejections.
+    $validIds = array_diff($sdTrxnIds, $recurTransactionIds, $rejectedIds);
 
     if (!empty($validIds)) {
+      // Get list of transactionIDs that have matching recurring contributions in CiviCRM and SmartDebit
       $validIdsString = implode(',', $validIds);
       $sql = "SELECT ctrc.id contribution_recur_id ,ctrc.contact_id , cont.display_name ,ctrc.start_date , sdpayments.amount, ctrc.trxn_id , ctrc.frequency_unit, ctrc.payment_instrument_id, ctrc.contribution_status_id, ctrc.frequency_interval
       FROM civicrm_contribution_recur ctrc
@@ -172,19 +168,19 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
         $listArray[$key] = $params;
         $key++;
       }
-      //MV: temp store the matched contribution in settings table.
+      //Store the list of matched transaction IDs in settings table for use later
       if (!empty($matchTrxnIds)) {
         uk_direct_debit_civicrm_saveSetting('result_ids', $matchTrxnIds);
       }
     }
 
-    // Show the already processed contributions
+    // Find the contributions that have already been processed
     $contributionQuery = "
         SELECT cc.contact_id, cont.display_name, cc.total_amount, cc.trxn_id, ctrc.start_date, ctrc.frequency_unit, ctrc.frequency_interval
         FROM `civicrm_contribution` cc
         LEFT JOIN civicrm_contribution_recur ctrc ON (ctrc.id = cc.contribution_recur_id)
         INNER JOIN civicrm_contact cont ON (cc.contact_id = cont.id)
-        WHERE cc.`trxn_id` IN ( $contributiontrxnId )";
+        WHERE cc.`trxn_id` IN ( $contributionTrxnIdsList )";
     $dao = CRM_Core_DAO::executeQuery($contributionQuery);
     $existArray = array();
     $key = 0;
@@ -205,6 +201,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     $summary['Contribution already processed']['count'] = count($existArray);
     $summary['Contribution already processed']['total'] = CRM_Utils_Money::format($totalExist);
 
+    // Get a list of transactionIDs that are in SmartDebit but not CiviCRM
     $missingTrxnIds = array_diff($validIds, $matchTrxnIds);
     if (!empty($missingTrxnIds)) {
       $missingTrxnIdsString = implode(',', $missingTrxnIds);
