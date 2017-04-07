@@ -129,6 +129,13 @@ function uk_direct_debit_civicrm_install() {
          ) ENGINE=InnoDB AUTO_INCREMENT=350 DEFAULT CHARSET=latin1";
     CRM_Core_DAO::executeQuery($createSql);
   }
+  // contact_id was added in version 3.0 of ukdirectdebit extension
+  if (!CRM_Core_DAO::checkFieldExists('veda_civicrm_smartdebit_import', 'contact_id')) {
+    CRM_Core_Error::debug_log_message('SmartDebit: Adding contact_id field to table veda_civicrm_smartdebit_import');
+    $createSql = "ALTER TABLE `veda_civicrm_smartdebit_import` ADD COLUMN
+                   `contact_id` varchar(255) DEFAULT NULL";
+    CRM_Core_DAO::executeQuery($createSql);
+  }
 
   uk_direct_debit_message_template();
 }
