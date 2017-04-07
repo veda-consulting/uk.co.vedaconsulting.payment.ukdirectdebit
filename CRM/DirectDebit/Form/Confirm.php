@@ -105,7 +105,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     $auddisIDs = unserialize($params['auddisIDs']);
     $aruddIDs = unserialize($params['aruddIDs']);
 
-    $runner = self::getRunner($auddisIDs, $aruddIDs);
+    $runner = self::getRunner(TRUE, $auddisIDs, $aruddIDs);
     if ($runner) {
       // Run Everything in the Queue via the Web.
       $runner->runAllViaWeb();
@@ -114,7 +114,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     }
   }
 
-  static function getRunner($auddisIDs = NULL, $aruddIDs = NULL) {
+  static function getRunner($interactive=TRUE, $auddisIDs = NULL, $aruddIDs = NULL) {
     // Setup the Queue
     $queue = CRM_Queue_Service::singleton()->create(array(
       'name'  => self::QUEUE_NAME,
@@ -158,12 +158,15 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
 
     if (!empty($transactionIds)) {
       // Setup the Runner
-      $runner = new CRM_Queue_Runner(array(
+      $runnerParams = array(
         'title' => ts('Import From Smart Debit'),
         'queue' => $queue,
         'errorMode'=> CRM_Queue_Runner::ERROR_ABORT,
-        'onEndUrl' => CRM_Utils_System::url(self::END_URL, self::END_PARAMS, TRUE, NULL, FALSE),
-      ));
+      );
+      if ($interactive) {
+        $runnerParams['onEndUrl'] = CRM_Utils_System::url(self::END_URL, self::END_PARAMS, TRUE, NULL, FALSE);
+      }
+      $runner = new CRM_Queue_Runner($runnerParams);
 
       // Reset the counter when sync starts
       uk_direct_debit_civicrm_saveSetting('rejected_ids', NULL);
@@ -192,6 +195,10 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
             $params = array( 1 => array( $value['reference'], 'String' ) );
             $dao = CRM_Core_DAO::executeQuery( $sql, $params);
 
+            // Contribution receive date is "now"
+            $receiveDate = new DateTime();
+            $receiveDateString = $receiveDate->format('YmdHis');
+
             if ($dao->fetch()) {
               $contributeParams =
                 array(
@@ -200,7 +207,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
                   'contribution_recur_id'  => $dao->contribution_recur_id,
                   'total_amount'           => $dao->amount,
                   'invoice_id'             => md5(uniqid(rand(), TRUE )),
-                  'trxn_id'                => $value['reference'].'/'.CRM_Utils_Date::processDate($receiveDate),
+                  'trxn_id'                => $value['reference'].'/'.$receiveDateString,
                   'financial_type_id'      => $dao->financial_type_id,
                   'payment_instrument_id'  => $dao->payment_instrument_id,
                   'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Failed'),
@@ -495,9 +502,13 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     return CRM_Queue_Task::TASK_SUCCESS;
   }
 
-  /*
+  /**
    * Function to check if the contribution is first contribution
    * for the recurring contribution record
+   *
+   * @param $params
+   * @param string $frequencyUnit
+   * @param int $frequencyInterval
    */
   static function checkIfFirstPayment($params, $frequencyUnit = 'year', $frequencyInterval = 1) {
     if (empty($params['contribution_recur_id'])) {
@@ -505,7 +516,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
     }
 
     // Get days difference to determine if this is first payment
-    $days = self::daysDifferenceForFrequency($frequencyUnit, $frequencyInterval);
+    $days = CRM_DirectDebit_Sync::daysDifferenceForFrequency($frequencyUnit, $frequencyInterval);
 
     $contributionResult = civicrm_api3('Contribution', 'get', array(
       'contribution_recur_id' => $params['contribution_recur_id'],
@@ -517,7 +528,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
 
       if (!empty($contributionDetails['receive_date']) && !empty($params['receive_date'])) {
         // Find the date difference between the contribution date and new collection date
-        $dateDiff = self::getDateDifference($params['receive_date'], $contributionDetails['receive_date']);
+        $dateDiff = CRM_DirectDebit_Sync::getDateDifference($params['receive_date'], $contributionDetails['receive_date']);
 
         // if diff is less than set number of days, return Contribution ID to update the contribution
         // If $days == 0 it's a lifetime membership
@@ -536,7 +547,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       $dao = CRM_Core_DAO::executeQuery($sql , $sqlParams);
       while($dao->fetch()) {
         if (!empty($dao->receive_date) && !empty($params['receive_date'])) {
-          $dateDiff = self::getDateDifference($params['receive_date'], $dao->receive_date);
+          $dateDiff = CRM_DirectDebit_Sync::getDateDifference($params['receive_date'], $dao->receive_date);
 
           // if diff is less than set number of days, return Contribution ID to update the contribution
           if ($dateDiff < $days) {
@@ -547,44 +558,6 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       }
     }
     return $params;
-  }
-
-  /**
-   * Function to return number of days difference to check between current date
-   * and payment date to determine if this is first payment or not
-   *
-   * @param $frequencyUnit
-   * @param $frequencyInterval
-   * @return int
-   */
-  static function daysDifferenceForFrequency($frequencyUnit, $frequencyInterval) {
-    switch ($frequencyUnit) {
-      case 'day':
-        $days = $frequencyInterval * 1;
-      case 'month':
-        $days = $frequencyInterval * 7;
-        break;
-      case 'year':
-        $days = $frequencyInterval * 30;
-        break;
-      case 'lifetime':
-        $days = 0;
-        break;
-      default:
-        $days = 30;
-        break;
-    }
-    return $days;
-  }
-
-  /**
-   * Function to get number of days difference between 2 dates
-   * @param $date1
-   * @param $date2
-   * @return float
-   */
-  static function getDateDifference($date1, $date2) {
-    return floor((strtotime($date1) - strtotime($date2))/(60*60*24));
   }
 
   /**

@@ -12,8 +12,7 @@ class CRM_DirectDebit_Sync
    *
    * @return bool|CRM_Queue_Runner
    */
-  static function getRunner($redirect=TRUE)
-  {
+  static function getRunner($redirect=TRUE) {
     // Setup the Queue
     $queue = CRM_Queue_Service::singleton()->create(array(
       'name' => self::QUEUE_NAME,
@@ -148,6 +147,34 @@ class CRM_DirectDebit_Sync
 
     return $interval->format($differenceFormat);
 
+  }
+
+  /**
+   * Function to return number of days difference to check between current date
+   * and payment date to determine if this is first payment or not
+   *
+   * @param $frequencyUnit
+   * @param $frequencyInterval
+   * @return int
+   */
+  static function daysDifferenceForFrequency($frequencyUnit, $frequencyInterval) {
+    switch ($frequencyUnit) {
+      case 'day':
+        $days = $frequencyInterval * 1;
+      case 'month':
+        $days = $frequencyInterval * 7;
+        break;
+      case 'year':
+        $days = $frequencyInterval * 30;
+        break;
+      case 'lifetime':
+        $days = 0;
+        break;
+      default:
+        $days = 30;
+        break;
+    }
+    return $days;
   }
 
   /**
@@ -374,14 +401,12 @@ class CRM_DirectDebit_Sync
   static function addContribution($smartDebitRecord = array(), $contributionID, $recurID)
   {
     $added = $new = $canceled = $failed = $nothandled = $live = 0;
-    $now = date('Ymd');
-    $today_date = strtotime($now);
-    $today_date = date("Y-m-d", $today_date);
-    $frequency_type = $smartDebitRecord['frequency_type'];
+    $now = new DateTime();
+    $today_date = $now->format('Y-m-d');
+    list($frequencyUnit, $frequencyInterval) = CRM_DirectDebit_Base::translateSmartDebitFrequencytoCiviCRM($smartDebitRecord['frequency_type'], $smartDebitRecord['frequency_factor']);
     $txnType = $smartDebitRecord['current_state'];
     $amount = $smartDebitRecord['regular_amount'];
     $amount = str_replace("£", "", $amount);
-    $start_date = $smartDebitRecord['start_date'];
     $receiveDate = $smartDebitRecord['receive_date'];
     $contactID = $smartDebitRecord['contact_id'];
     $invoice_id = $smartDebitRecord['invoice_id'];
@@ -395,33 +420,18 @@ class CRM_DirectDebit_Sync
 
       case '10': // Live
         // Record a new live contribution in civicrm
-        $result = 0;
+        $days = CRM_DirectDebit_Sync::daysDifferenceForFrequency($frequencyUnit, $frequencyInterval);
         $receiveDate = strtotime($receiveDate);
         $receiveDate = date("Y-m-d", $receiveDate);
-        if (($today_date > $start_date) && ($frequency_type == 'M')) {
-          $result = CRM_DirectDebit_Sync::dateDifference($today_date, $receiveDate, '%m');
-        }
-        if (($today_date > $start_date) && ($frequency_type == 'Y')) {
-          $result = CRM_DirectDebit_Sync::dateDifference($today_date, $receiveDate, '%y');
-        }
-        if (($today_date > $start_date) && ($frequency_type == 'Q')) {
-          $result = CRM_DirectDebit_Sync::dateDifference($today_date, $receiveDate, '%m');
-          $result = (int)($result / 3);
-        }
-        if (($today_date > $start_date) && ($frequency_type == 'W')) {
-          $result = CRM_DirectDebit_Sync::dateDifference($today_date, $receiveDate, '%m');
-          $result = $result * 4;
-        }
+        $dateDiff = CRM_DirectDebit_Sync::getDateDifference($today_date, $receiveDate);
 
-        if ($result > 0) {
-          $i = 1;
-          while ($i <= $result) {
-            $trxn_id = $smartDebitRecord['reference_number'] . '-' . $today_date . '-' . $i;
-            CRM_Core_Payment_Smartdebitdd::callIPN('recurring_payment', $trxn_id, $contactID, $contributionID, $amount, $invoice_id, $recurID, $financial_type_id);
-            $i++;
-          }
+        // if diff is less than set number of days, return Contribution ID to update the contribution
+        // If $days == 0 it's a lifetime membership
+        if (($dateDiff < $days) && ($days != 0)) {
+          $trxn_id = $smartDebitRecord['reference_number'].'/'.$today_date;
+          CRM_Core_Payment_Smartdebitdd::callIPN('recurring_payment', $trxn_id, $contactID, $contributionID, $amount, $invoice_id, $recurID, $financial_type_id);
         }
-        $added = $result;
+        $added = 1;
         $live = 1;
         break;
 
