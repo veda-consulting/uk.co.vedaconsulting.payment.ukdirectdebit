@@ -16,10 +16,9 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
   const BATCH_COUNT = 10;
   const SD_SETTING_GROUP = 'SmartDebit Preferences';
 
-  public $auddisDate = NULL;
+  private $status = 0;
 
   public function preProcess() {
-    $status = 0;
     $state = CRM_Utils_Request::retrieve('state', 'String', CRM_Core_DAO::$_nullObject, FALSE, 'tmp', 'GET');
 
     //MV:store the contribution results ids 
@@ -38,23 +37,16 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
                    `membership_renew_to` varchar(255) DEFAULT NULL,
                   PRIMARY KEY (`id`)
          ) ENGINE=InnoDB AUTO_INCREMENT=350 DEFAULT CHARSET=latin1";
-
       CRM_Core_DAO::executeQuery($createSql);
-
     }
 
     if($state != 'done') {
       $emptySql = "TRUNCATE TABLE veda_civicrm_smartdebit_import_success_contributions";
       CRM_Core_DAO::executeQuery($emptySql);
-      CRM_Utils_System::setTitle('Synchronise CiviCRM with Smart Debit: Confirm Sync');
-    }
-    else {
-      CRM_Utils_System::setTitle('Synchronise CiviCRM with Smart Debit: Results of Sync');
     }
 
     if ($state == 'done') {
-      $status = 1;
-
+      $this->status = 1;
       $rejectedids  = uk_direct_debit_civicrm_getSetting('rejected_ids');
       $this->assign('rejectedids', $rejectedids);
       $getSQL = "SELECT * FROM veda_civicrm_smartdebit_import_success_contributions";
@@ -80,7 +72,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       $this->assign('totalValidContribution', count($ids));
       $this->assign('totalRejectedContribution', count($rejectedids));
     }
-    $this->assign('status', $status);
+    $this->assign('status', $this->status);
   }
 
   public function buildQuickForm() {
@@ -103,6 +95,13 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
         )
       )
     );
+
+    if ($this->status) {
+      CRM_Utils_System::setTitle('Synchronise CiviCRM with Smart Debit: Results of Sync');
+    }
+    else {
+      CRM_Utils_System::setTitle('Synchronise CiviCRM with Smart Debit: Confirm Sync');
+    }
   }
 
   public function postProcess() {
