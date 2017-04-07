@@ -65,14 +65,15 @@
 
 {else}
     <div class="crm-block crm-form-block crm-export-form-block">
-    <div class="messages status no-popup">
-    <div class="icon inform-icon"></div>&nbsp;
-        {ts}Are you sure you want to continue?{/ts} {ts}The contribution(s) and all related data will be added to CiviCRM.{/ts}
-    </div>
-    <div class="crm-block crm-form-block crm-campaignmonitor-sync-form-block">
-    <div class="crm-submit-buttons">
-      {include file="CRM/common/formButtons.tpl"}
-    </div>
-    </div>
+      <div class="help">If you press confirm all matched transactions will be imported into CiviCRM</div>
+      <div class="messages status no-popup">
+      <div class="description"></div>&nbsp;
+        {ts}Please confirm that you wish to synchronise all matched transactions from SmartDebit into CiviCRM?{/ts}
+      </div>
+      <div class="crm-block crm-form-block crm-campaignmonitor-sync-form-block">
+        <div class="crm-submit-buttons">
+          {include file="CRM/common/formButtons.tpl"}
+        </div>
+      </div>
     </div>
 {/if}

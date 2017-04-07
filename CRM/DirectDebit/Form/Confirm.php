@@ -42,9 +42,14 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       CRM_Core_DAO::executeQuery($createSql);
 
     }
-    elseif($state != 'done') {
+
+    if($state != 'done') {
       $emptySql = "TRUNCATE TABLE veda_civicrm_smartdebit_import_success_contributions";
       CRM_Core_DAO::executeQuery($emptySql);
+      CRM_Utils_System::setTitle('Synchronise CiviCRM with Smart Debit: Confirm Sync');
+    }
+    else {
+      CRM_Utils_System::setTitle('Synchronise CiviCRM with Smart Debit: Results of Sync');
     }
 
     if ($state == 'done') {
@@ -133,7 +138,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
 
     CRM_Core_Error::debug_log_message('SmartDebit Sync: Retrieving Smart Debit Payer Contact Details.');
     // Get list of payers from SmartDebit
-    $smartDebitPayerContacts = self::getSmartDebitPayerContactDetails();
+    $smartDebitPayerContacts = CRM_DirectDebit_Sync::getSmartDebitPayerContactDetails();
     if (empty($smartDebitPayerContacts))
       return FALSE;
 
@@ -152,7 +157,7 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       if ($counter > $count) $counter = $count;
       $task    = new CRM_Queue_Task(
         array('CRM_DirectDebit_Form_Confirm', 'syncSmartDebitRecords'),
-        array(array($smartDebitPayerContactsBatch)),
+        array($smartDebitPayerContactsBatch),
         "Pulling smart debit - Contacts {$counter} of {$count}"
       );
 
@@ -348,8 +353,6 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
   }
 
   static function syncSmartDebitRecords(CRM_Queue_TaskContext $ctx, $smartDebitPayerContacts) {
-    // FIXME why are we removing first element?
-    $smartDebitPayerContacts  = array_shift($smartDebitPayerContacts);
     $ids = array();
 
     foreach ($smartDebitPayerContacts as $key => $sdContact) {
@@ -374,7 +377,11 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
       // However, if you just replace "/" with "-" it will work fine.
       $receiveDate = date('Y-m-d', strtotime(str_replace('/', '-', $daoCollectionReport->receive_date)));
 
+      $fred = 1; //DEBUG temp to disable add contribution
+      // If we matched the transaction ID to a recurring contribution process it
       if ($daoContributionRecur->fetch()) {
+        CRM_Core_Error::debug_log_message('SmartDebit syncSmartDebitRecords: Matched=' . $sdContact['reference_number']);
+      } elseif ($fred == 4) { // DEBUG temp to disable add contribution
         $contributeParams =
           array(
             'version'                => 3,
@@ -506,6 +513,9 @@ class CRM_DirectDebit_Form_Confirm extends CRM_Core_Form {
           // No membership ID so we don't do anything with membership
           CRM_Core_Error::debug_log_message('SmartDebit syncSmartDebitRecords: No Membership ID! contributeResult = '.print_r($contributeResult, TRUE)); //DEBUG
         }
+      }
+      else {
+        CRM_Core_Error::debug_log_message('SmartDebit syncSmartDebitRecords: Not Matched='.$sdContact['reference_number']);
       }
     }
     return CRM_Queue_Task::TASK_SUCCESS;
