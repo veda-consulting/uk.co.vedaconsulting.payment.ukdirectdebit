@@ -39,23 +39,23 @@
     <table class="form-layout">
         <tr style="background-color: #CDE8FE;">
             <td><b>{ts}Reference{/ts}</td>
-            <td><b>{ts}Contact{/ts}</td>
+            <td><b>{ts}Contact (SD Contact ID){/ts}</td>
             <td><b>{ts}Frequency{/ts}</td>
             <td><b>{ts}Reason code{/ts}</td>
             <td><b>{ts}Receive Date{/ts}</td>
             <td style ="text-align: right"><b>{ts}Total{/ts}</td>
         </tr>
-        {foreach from=$newAuddisArray item=auddis}
+        {foreach from=$newAuddisRecords item=auddis}
             {assign var=reason value='reason-code'}
             <tr>
                 <td>{$auddis.reference}</td>
                 <td>
-                    {if $auddis.contact_id gt 0}
+                    {if $auddis.contribution_recur_id gt 0}
                         {assign var=contactId value=$auddis.contact_id}
                         {capture assign=contactViewURL}{crmURL p='civicrm/contact/view' q="reset=1&cid=$contactId"}{/capture}
                         <a href="{$contactViewURL}">{$auddis.contact_name}</a>
                     {else}
-                        {$auddis.contact_name}
+                        {$auddis.contact_name} ({$auddis.contact_id})
                     {/if}
                 </td>
                 <td>{$auddis.frequency}</td>
@@ -84,17 +84,17 @@
             <td><b>{ts}Receive Date{/ts}</td>
             <td style ="text-align: right"><b>{ts}Total{/ts}</td>
         </tr>
-        {foreach from=$newAruddArray item=arudd}
+        {foreach from=$newAruddRecords item=arudd}
             {assign var=reason value='reason-code'}
             <tr>
                 <td>{$arudd.reference}</td>
                 <td>
-                    {if $arudd.contact_id gt 0}
+                    {if $arudd.contact_name gt 0}
                         {assign var=contactId value=$arudd.contact_id}
                         {capture assign=contactViewURL}{crmURL p='civicrm/contact/view' q="reset=1&cid=$contactId"}{/capture}
                         <a href="{$contactViewURL}">{$arudd.contact_name}</a>
                     {else}
-                        {$arudd.contact_name}
+                        {$arudd.contact_id}
                     {/if}
                 </td>
                 <td>{$arudd.frequency}</td>

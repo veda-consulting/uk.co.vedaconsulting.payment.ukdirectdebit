@@ -35,7 +35,7 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     }
 
     // Display the rejected payments
-    $newAuddisArray = array();
+    $newAuddisRecords = array();
     $key = 0;
     $rejectedIds = array();
     foreach ($auddisFiles as $auddisFile) {
@@ -50,31 +50,43 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
         $params = array(1 => array($value['reference'], 'String'));
         $dao = CRM_Core_DAO::executeQuery($sql, $params);
         $rejectedIds[] = "'" . $value['reference'] . "' ";
+
         if ($dao->fetch()) {
-          $newAuddisArray[$key]['contribution_recur_id'] = $dao->contribution_recur_id;
-          $newAuddisArray[$key]['contact_id'] = $dao->contact_id;
-          $newAuddisArray[$key]['contact_name'] = $dao->display_name;
-          $newAuddisArray[$key]['start_date'] = $dao->start_date;
-          $newAuddisArray[$key]['frequency'] = $dao->frequency_interval.' '.$dao->frequency_unit;
-          $newAuddisArray[$key]['amount'] = $dao->amount;
-          $newAuddisArray[$key]['transaction_id'] = $dao->trxn_id;
-          $newAuddisArray[$key]['reference'] = $value['reference'];
-          $newAuddisArray[$key]['reason-code'] = $value['reason-code'];
-          $key++;
+          $newAuddisRecords[$key]['contribution_recur_id'] = $dao->contribution_recur_id;
+          $newAuddisRecords[$key]['contact_id'] = $dao->contact_id;
+          $newAuddisRecords[$key]['contact_name'] = $dao->display_name;
+          $newAuddisRecords[$key]['start_date'] = $dao->start_date;
+          $newAuddisRecords[$key]['frequency'] = $dao->frequency_interval.' '.$dao->frequency_unit;
+          $newAuddisRecords[$key]['amount'] = $dao->amount;
+          $newAuddisRecords[$key]['transaction_id'] = $dao->trxn_id;
         }
+        else {
+          $newAuddisRecords[$key]['contact_id'] = $value['payer-reference'];
+          $newAuddisRecords[$key]['contact_name'] = $value['payer-name'];
+          $newAuddisRecords[$key]['start_date'] = $value['effective-date'];
+          $newAuddisRecords[$key]['contribution_recur_id'] = 0; // We use this in tpl to decide how to display contact name
+        }
+        $newAuddisRecords[$key]['reference'] = $value['reference'];
+        $newAuddisRecords[$key]['reason-code'] = $value['reason-code'];
+        $key++;
       }
     }
 
     // Calculate the total rejected
-    $totalRejected = 0;
-    foreach ($newAuddisArray as $key => $value) {
-      $totalRejected += $value['amount'];
+    $totalMatchedAuddisRejected = 0;
+    foreach ($newAuddisRecords as $key => $value) {
+      if (isset($value['amount'])) {
+        $totalMatchedAuddisRejected += $value['amount'];
+      }
     }
-    $summary['Rejected Contribution in the auddis']['count'] = count($newAuddisArray);
-    $summary['Rejected Contribution in the auddis']['total'] = CRM_Utils_Money::format($totalRejected);
-    $this->assign('totalRejected', $totalRejected);
+    $summary['Rejected Contribution in the auddis']['count'] = count($newAuddisRecords);
+    $summary['Rejected Contribution in the auddis']['total'] = CRM_Utils_Money::format($totalMatchedAuddisRejected);
+    $this->assign('totalMatchedAuddisRejected', $totalMatchedAuddisRejected);
 
-    $newAruddArray = array();
+    $totalAuddisRejectedCount = count($rejectedIds);
+    $this->assign('totalAuddisRejectedCount', $totalAuddisRejectedCount);
+
+    $newAruddRecords = array();
     $key = 0;
     foreach ($aruddFiles as $aruddFile) {
       unset($aruddFile['arudd_date']);
@@ -89,26 +101,31 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
         $dao = CRM_Core_DAO::executeQuery($sql, $params);
         $rejectedIds[] = "'" . $value['ref'] . "' ";
         if ($dao->fetch()) {
-          $newAruddArray[$key]['contribution_recur_id'] = $dao->contribution_recur_id;
-          $newAruddArray[$key]['contact_id'] = $dao->contact_id;
-          $newAruddArray[$key]['contact_name'] = $dao->display_name;
-          $newAruddArray[$key]['start_date'] = $dao->start_date;
-          $newAruddArray[$key]['frequency'] = $dao->frequency_interval.' '.$dao->frequency_unit;
-          $newAruddArray[$key]['amount'] = $dao->amount;
-          $newAruddArray[$key]['transaction_id'] =  $dao->trxn_id;
-          $newAruddArray[$key]['reference'] = $value['ref'];
-          $newAruddArray[$key]['reason-code'] = $value['returnDescription'];
-          $key++;
+          $newAruddRecords[$key]['contribution_recur_id'] = $dao->contribution_recur_id;
+          $newAruddRecords[$key]['contact_id'] = $dao->contact_id;
+          $newAruddRecords[$key]['contact_name'] = $dao->display_name;
+          $newAruddRecords[$key]['start_date'] = $dao->start_date;
+          $newAruddRecords[$key]['frequency'] = $dao->frequency_interval . ' ' . $dao->frequency_unit;
+          $newAruddRecords[$key]['amount'] = $dao->amount;
+          $newAruddRecords[$key]['transaction_id'] = $dao->trxn_id;
         }
+        else {
+          $newAruddRecords[$key]['contact_id'] = $value['payerReference'];
+          $newAruddRecords[$key]['start_date'] = $value['originalProcessingDate'];
+          $newAruddRecords[$key]['amount'] = $value['valueOf'];
+        }
+        $newAruddRecords[$key]['reference'] = $value['ref'];
+        $newAruddRecords[$key]['reason-code'] = $value['returnDescription'];
+        $key++;
       }
     }
 
     // Calculate the total rejected
     $totalRejectedArudd = 0;
-    foreach ($newAruddArray as $key => $value) {
+    foreach ($newAruddRecords as $key => $value) {
       $totalRejectedArudd += $value['amount'];
     }
-    $summary['Rejected Contribution in the arudd']['count'] = count($newAruddArray);
+    $summary['Rejected Contribution in the arudd']['count'] = count($newAruddRecords);
     $summary['Rejected Contribution in the arudd']['total'] = CRM_Utils_Money::format($totalRejectedArudd);
     $this->assign('totalRejectedArudd', $totalRejectedArudd);
     $listArray = array();
@@ -241,7 +258,9 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     $queryParams .= 'reset=1';
 
     // No AUDDIS or ARUDD dates
-    CRM_Core_Session::setStatus('You haven\'t selected any AUDDIS or ARUDD dates for import!', 'Smart Debit', 'alert');
+    if (empty($auddisIDs) && empty($aruddIDs)) {
+      CRM_Core_Session::setStatus('You haven\'t selected any AUDDIS or ARUDD dates for import!', 'Smart Debit', 'alert');
+    }
 
     $bQueryParams = '';
     if (!empty($bQueryParams)) { $bQueryParams.='&'; }
@@ -274,11 +293,11 @@ class CRM_DirectDebit_Form_Auddis extends CRM_Core_Form {
     $summary['Contribution matched to contacts']['count'] = count($listArray);
     $summary['Contribution matched to contacts']['total'] = CRM_Utils_Money::format($totalMatched);
 
-    $totalSummaryNumber = count($newAuddisArray) + count($newAruddArray) + count($existArray) + count($missingArray) + count($listArray);
-    $totalSummaryAmount = $totalRejected + $totalRejectedArudd + $totalExist + $totalMissing + $totalMatched;
+    $totalSummaryNumber = count($newAuddisRecords) + count($newAruddRecords) + count($existArray) + count($missingArray) + count($listArray);
+    $totalSummaryAmount = $totalMatchedAuddisRejected + $totalRejectedArudd + $totalExist + $totalMissing + $totalMatched;
 
-    $this->assign('newAuddisArray', $newAuddisArray);
-    $this->assign('newAruddArray', $newAruddArray);
+    $this->assign('newAuddisRecords', $newAuddisRecords);
+    $this->assign('newAruddRecords', $newAruddRecords);
     $this->assign('listArray', $listArray);
     $this->assign('totalMatched', CRM_Utils_Money::format($totalMatched));
     $this->assign('totalMatchedCount', $summary['Contribution matched to contacts']['count']);
