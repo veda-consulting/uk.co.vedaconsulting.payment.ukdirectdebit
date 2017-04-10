@@ -1,5 +1,5 @@
 <div class="crm-block crm-form-block crm-campaignmonitor-sync-form-block">
-    {if $smarty.get.state eq 'done'}
+{if $smarty.get.state eq 'done'}
     <div class="help">
       {ts}Sync completed with result counts as:{/ts}<br/> 
       <table class="form-layout-compressed bold">
@@ -12,11 +12,13 @@
       <tr colspan=2><td>{ts}Total{/ts}:</td><td>{$stats.Total}</td></tr>
       </table>
     </div>
-  {/if}
-  
+{else}
+    <div class="If you ran the SmartDebit Scheduled Sync Job interactively you would see the results here.  Click the button to run the job now."</div>
     <div class="crm-block crm-form-block crm-campaignmonitor-sync-form-block">
+        <h2>Run Smart Debit Sync Job</h2>
     <div class="crm-submit-buttons">
       {include file="CRM/common/formButtons.tpl"}
     </div>
   </div>
+{/if}
     </div>

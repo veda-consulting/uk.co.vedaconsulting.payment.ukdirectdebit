@@ -36,7 +36,7 @@
 
 abstract class CRM_DirectDebit_Utils_Hook {
 
-	static $_nullObject = null;
+  static $_nullObject = null;
 
   /**
    * We only need one instance of this object. So we use the singleton
@@ -47,14 +47,13 @@ abstract class CRM_DirectDebit_Utils_Hook {
    */
   static private $_singleton = null;
 
-
   /**
    * Constructor and getter for the singleton instance
    * @return instance of $config->userHookClass
    */
-  static function singleton( ) {
+  static function singleton() {
     if (self::$_singleton == null) {
-      $config = CRM_Core_Config::singleton( );
+      $config = CRM_Core_Config::singleton();
       $class = $config->userHookClass;
       require_once( str_replace( '_', DIRECTORY_SEPARATOR, $config->userHookClass ) . '.php' );
       self::$_singleton = new $class();
@@ -83,7 +82,7 @@ abstract class CRM_DirectDebit_Utils_Hook {
    * @access public
    */
   static function alterSmartDebitContributionParams( &$params ) {
-	  return self::singleton( )->invoke( 1, $params, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_alterSmartDebitContributionParams' );
+    return self::singleton( )->invoke( 1, $params, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_alterSmartDebitContributionParams' );
   }
 
   /**

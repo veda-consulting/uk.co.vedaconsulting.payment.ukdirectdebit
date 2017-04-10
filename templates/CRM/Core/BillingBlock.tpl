@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -41,35 +41,13 @@
   </div>
 {/if}
 <div id="payment_information">
-  {if $paymentFields|@count && (!$form.$expressButtonName || $paymentProcessor.payment_processor_type EQ 'PayPal')}
+  {if $paymentFields|@count}
     <fieldset class="billing_mode-group {$paymentTypeName}_info-group">
       <legend>
         {$paymentTypeLabel}
       </legend>
-      {if $form.$expressButtonName}
-        {include file= "CRM/Core/paypalexpress.tpl"}
-      {/if}
-      <!-- MV: Custom changes from older version,  -->
-          {if $paymentProcessor.payment_type & 2}
-          <div><span style="float: right;margin: 25px;"><img src="{crmResURL ext=uk.co.vedaconsulting.payment.ukdirectdebit file=images/direct_debit.gif}" alt="Direct Debit Logo" border="0"></span></div>
-          <div style="clear: both;"></div>
-          {ts}<p>All the normal Direct Debit safeguards and guarantees apply.
-No changes in the amount, date or frequency to be debited can be made without notifying you at least 10 working days in advance of your account being debited.
-In the event of any error, you are entitled to an immediate refund from your bank or building society.
-You have the right to cancel a Direct Debit Instruction at any time simply by writing to your bank or building society, with a copy to us.</p>
-<p>In order to set up your Direct Debit Instruction on-line you will need to provide the following information through the setting up procedure (your cheque book contains all the bank details that you require):</p>
-<p>Bank or Building Society name and account number, sort code and branch address.</p>
-<ul>
-<li>If you are not the account holder, a paper Direct Debit Instruction will be sent for completion. Please click to end</li>
-<li>If this is a personal account continue with the set-up procedure</li>
-<li>If it is a business account and more than one person is required to authorise debits on this account, a paper Direct Debit Instruction will be sent to the Payers for completion.</li>
-</ul>
-
-<p>Alternatively you can print off your on-screen Direct Debit Instruction and post it to us: <b>{$company_address.company_name}</b>, {if ($company_address.address1 != '')} {$company_address.address1}, {/if}{if ($company_address.address2 != '')} {$company_address.address2}, {/if}{if ($company_address.address3 != '')} {$company_address.address3}, {/if}{if ($company_address.address4 != '')} {$company_address.address4}, {/if}{if ($company_address.town != '')} {$company_address.town}, {/if}{if ($company_address.county != '')} {$company_address.county}, {/if}{if ($company_address.postcode != '')} {$company_address.postcode}{/if}. If you are unable to print please contact us on {$telephoneNumber} (tel no) and we will post you a paper Direct Debit Instruction.
-If you do not wish to proceed any further please <a href="/">click here</a> to end.</p>
-<p>The details of your Direct Debit Instruction will be sent to you within 3 working days or no later than 10 working days before the first collection.</p>{/ts}
-{/if}   
-<!-- MV: end custom changes    -->
+      {crmRegion name="billing-block-pre"}
+      {/crmRegion}
       <div class="crm-section billing_mode-section {$paymentTypeName}_info-section">
         {foreach from=$paymentFields item=paymentField}
           {assign var='name' value=$form.$paymentField.name}
@@ -112,8 +90,9 @@ If you do not wish to proceed any further please <a href="/">click here</a> to e
         <!-- MV: end custom changes -->
       </div>
     </fieldset>
-  {if $billingDetailsFields|@count}
-    {if $profileAddressFields}
+  {/if}
+  {if $billingDetailsFields|@count && $paymentProcessor.payment_processor_type neq 'PayPal_Express'}
+    {if $profileAddressFields && !$ccid}
       <input type="checkbox" id="billingcheckbox" value="0">
       <label for="billingcheckbox">{ts}My billing address is the same as above{/ts}</label>
     {/if}
@@ -137,7 +116,6 @@ If you do not wish to proceed any further please <a href="/">click here</a> to e
       </div>
     </fieldset>
   {/if}
-{/if}
 </div>
 {if $profileAddressFields}
   <script type="text/javascript">
@@ -197,7 +175,7 @@ If you do not wish to proceed any further please <a href="/">click here</a> to e
         }
       }
       if (checked) {
-        $('#billingcheckbox').prop('checked', true);
+        $('#billingcheckbox').prop('checked', true).data('crm-initial-value', true);
         if (!CRM.billing || CRM.billing.billingProfileIsHideable) {
           $('.billing_name_address-group').hide();
         }
@@ -263,90 +241,23 @@ If you do not wish to proceed any further please <a href="/">click here</a> to e
         $('#credit_card_number').val(cc);
       });
     });
-    {/literal}
+
   </script>
+  {/literal}
 {/if}
 
-<!-- MV:custom Js, append old version custom changes into civi46 -->
+{if $suppressSubmitButton}
 {literal}
-<style type="text/css">
-  #multiple_block > input {
-    border: 1px solid;
-    width: 43px;
-  }
-</style>
-<script type="text/javascript">
-if(cj('tr').attr('id') !== "multiple_block") {
-
-  cj("#bank_identification_number").parent().prepend('<div id ="multiple_block"></div>');
-  cj("#multiple_block")
-
-  .html('<input type = "text" size = "3" maxlength = "2" name = "block_1" id = "block_1"/>'
-  +' - <input type = "text" size = "3" maxlength = "2" name = "block_2" id ="block_2"/>'
-  +' - <input type = "text" size = "3" maxlength = "2" name = "block_3" id = "block_3"/>');
-
-  cj('#block_1').change(function() {
-    cj.fn.myFunction();
-  });
-
-  cj('#block_2').change(function() {
-    cj.fn.myFunction();
-  });
-
-  cj('#block_3').change(function() {
-    cj.fn.myFunction();
-  });
-
-  //function to get value of new title boxes and concatenate the values and display in mailing_title
-  cj.fn.myFunction = function() {
-    var field1 = cj("input#block_1").val();
-    var field2 = cj("input#block_2").val();
-    var field3 = cj("input#block_3").val();
-    var finalFieldValue = field1 + field2 + field3;
-
-    cj('input#bank_identification_number').val(finalFieldValue);
-  };
-
-  //hide the mailing title
-  cj("#bank_identification_number").hide();
-
-  //split the value of mailing_title
-  //make it to appear on the new three title boxes
-  var fieldValue = cj("#bank_identification_number").val();
-
-  var fieldLength;
-  if ( fieldValue !== undefined ) {
-    fieldLength = fieldValue.length;
-  } else {
-    fieldLength = 0;
-  }
-
-  if (fieldLength !== 0) {
-
-    var fieldSplit = (fieldValue+'').split('');
-
-    cj('#block_1').val(fieldSplit[0]+fieldSplit[1]);
-
-    if(!(fieldSplit[0]+fieldSplit[1])) {
-      cj('#block_1').val("");
-    }
-
-    cj('#block_2').val(fieldSplit[2]+fieldSplit[3]);
-
-    if(!(fieldSplit[2]+fieldSplit[3])) {
-      cj('#block_2').val("");
-    }
-
-    cj('#block_3').val(fieldSplit[4]+fieldSplit[5]);
-
-    if(!(fieldSplit[4]+fieldSplit[5])) {
-      cj('#block_3').val("");
-    }
-
-  }
-}
-
-</script>
+  <script type="text/javascript">
+    CRM.$(function($) {
+      $('.crm-submit-buttons', $('#billing-payment-block').closest('form')).hide();
+    });
+  </script>
 {/literal}
-<!-- MV: end custom js  -->
+{/if}
 {/crmRegion}
+{crmRegion name="billing-block-post"}
+  {* Payment processors sometimes need to append something to the end of the billing block. We create a region for
+     clarity  - the plan is to move to assigning this through the payment processor to this region *}
+{/crmRegion}
+

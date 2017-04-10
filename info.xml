@@ -2,8 +2,8 @@
  <extension key="uk.co.vedaconsulting.payment.ukdirectdebit" type="module">
   <downloadUrl>http://www.vedaconsulting.co.uk</downloadUrl>
   <file>uk_direct_debit</file>
-  <name>UK Direct Debit</name>
-  <description>Direct Debit by Veda Consulting</description>
+  <name>UK Direct Debit (Smart Debit)</name>
+  <description>Direct Debit payments using Smart Debit</description>
   <license>AGPL-3.0</license>
   <maintainer>
     <author>Veda Consulting</author>
@@ -16,9 +16,9 @@
     <url desc="Licensing"></url>
   </urls>
   <license>AGPL</license>
-  <releaseDate>2016-08-22</releaseDate>
-  <version>2.3.9</version>
-  <develStage>stable</develStage>
+  <releaseDate>2017-04-05</releaseDate>
+  <version>3.0</version>
+  <develStage>beta</develStage>
   <compatibility><ver>4.7</ver></compatibility>
   <comments></comments>
 </extension>
